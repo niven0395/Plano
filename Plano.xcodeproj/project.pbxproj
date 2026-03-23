@@ -6,8 +6,25 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AC0E43EB2F5BDACC00DB4C82 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = C10000000000000000000002 /* Supabase */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B10000000000000000000007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC0E41762F5A651600DB4C82 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AC0E417D2F5A651600DB4C82;
+			remoteInfo = Plano;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AC0E417E2F5A651600DB4C82 /* Plano.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Plano.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC4DDB700000000000000001 /* Config/App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
+		AC4DDB700000000000000002 /* Config/LocalSecrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/LocalSecrets.example.xcconfig; sourceTree = SOURCE_ROOT; };
+		B10000000000000000000001 /* PlanoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlanoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +33,23 @@
 			path = Plano;
 			sourceTree = "<group>";
 		};
+		B10000000000000000000002 /* PlanoTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PlanoTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AC0E417B2F5A651600DB4C82 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AC0E43EB2F5BDACC00DB4C82 /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10000000000000000000003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -32,7 +62,10 @@
 		AC0E41752F5A651600DB4C82 = {
 			isa = PBXGroup;
 			children = (
+				AC4DDB700000000000000001 /* Config/App.xcconfig */,
+				AC4DDB700000000000000002 /* Config/LocalSecrets.example.xcconfig */,
 				AC0E41802F5A651600DB4C82 /* Plano */,
+				B10000000000000000000002 /* PlanoTests */,
 				AC0E417F2F5A651600DB4C82 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				AC0E417E2F5A651600DB4C82 /* Plano.app */,
+				B10000000000000000000001 /* PlanoTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +99,34 @@
 			);
 			name = Plano;
 			packageProductDependencies = (
+				C10000000000000000000002 /* Supabase */,
 			);
 			productName = Plano;
 			productReference = AC0E417E2F5A651600DB4C82 /* Plano.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B10000000000000000000006 /* PlanoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1000000000000000000000B /* Build configuration list for PBXNativeTarget "PlanoTests" */;
+			buildPhases = (
+				B10000000000000000000005 /* Sources */,
+				B10000000000000000000003 /* Frameworks */,
+				B10000000000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B10000000000000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B10000000000000000000002 /* PlanoTests */,
+			);
+			name = PlanoTests;
+			packageProductDependencies = (
+			);
+			productName = PlanoTests;
+			productReference = B10000000000000000000001 /* PlanoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +141,10 @@
 					AC0E417D2F5A651600DB4C82 = {
 						CreatedOnToolsVersion = 26.3;
 					};
+					B10000000000000000000006 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = AC0E417D2F5A651600DB4C82;
+					};
 				};
 			};
 			buildConfigurationList = AC0E41792F5A651600DB4C82 /* Build configuration list for PBXProject "Plano" */;
@@ -94,18 +156,29 @@
 			);
 			mainGroup = AC0E41752F5A651600DB4C82;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C10000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AC0E417F2F5A651600DB4C82 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				AC0E417D2F5A651600DB4C82 /* Plano */,
+				B10000000000000000000006 /* PlanoTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		AC0E417C2F5A651600DB4C82 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10000000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +195,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B10000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B10000000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AC0E417D2F5A651600DB4C82 /* Plano */;
+			targetProxy = B10000000000000000000007 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AC0E41892F5A651900DB4C82 /* Debug */ = {
@@ -248,14 +336,17 @@
 		};
 		AC0E418C2F5A651900DB4C82 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AC4DDB700000000000000001 /* Config/App.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Plano/Plano.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = FSRNNZN4V3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -266,9 +357,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = niven.Plano;
+				PRODUCT_BUNDLE_IDENTIFIER = com.niven.plano;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_ANON_KEY = "$(inherited)";
+				SUPABASE_URL = "$(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -280,14 +373,17 @@
 		};
 		AC0E418D2F5A651900DB4C82 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AC4DDB700000000000000001 /* Config/App.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Plano/Plano.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = FSRNNZN4V3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -298,15 +394,71 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = niven.Plano;
+				PRODUCT_BUNDLE_IDENTIFIER = com.niven.plano;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_ANON_KEY = "$(inherited)";
+				SUPABASE_URL = "$(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B10000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FSRNNZN4V3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = niven.planoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Plano.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Plano";
+				TEST_TARGET_NAME = Plano;
+			};
+			name = Debug;
+		};
+		B1000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FSRNNZN4V3;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = niven.planoTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Plano.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Plano";
+				TEST_TARGET_NAME = Plano;
 			};
 			name = Release;
 		};
@@ -331,7 +483,35 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B1000000000000000000000B /* Build configuration list for PBXNativeTarget "PlanoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10000000000000000000009 /* Debug */,
+				B1000000000000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C10000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C10000000000000000000002 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C10000000000000000000001 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AC0E41762F5A651600DB4C82 /* Project object */;
 }

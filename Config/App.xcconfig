@@ -1,0 +1,5 @@
+#include? "LocalSecrets.xcconfig"
+
+SLASH = /
+SUPABASE_URL = $(inherited)
+SUPABASE_ANON_KEY = $(inherited)

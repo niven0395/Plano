@@ -85,7 +85,11 @@ struct RequestsView: View {
                     if store.hasEvents {
                         Divider()
 
-                        Button("Delete Event", systemImage: "trash", role: .destructive) {
+                        Button(
+                            store.activeEvent.eventStage == .cancelled ? "Remove Event" : "Delete Event",
+                            systemImage: store.activeEvent.eventStage == .cancelled ? "xmark.circle" : "trash",
+                            role: .destructive
+                        ) {
                             isConfirmingEventDelete = true
                         }
                     }
@@ -105,11 +109,11 @@ struct RequestsView: View {
             )
         }
         .confirmationDialog(
-            "Delete event",
+            store.activeEvent.eventStage == .cancelled ? "Remove event" : "Delete event",
             isPresented: $isConfirmingEventDelete,
             titleVisibility: .visible
         ) {
-            Button("Delete event", role: .destructive) {
+            Button(store.activeEvent.eventStage == .cancelled ? "Remove event" : "Delete event", role: .destructive) {
                 Task {
                     isDeletingEvent = true
                     let result = await store.deleteActiveEvent()
@@ -123,11 +127,15 @@ struct RequestsView: View {
                 }
             }
         } message: {
-            let count = store.activeBookingCount
-            if count > 0 {
-                Text("This will cancel \(count) active booking\(count == 1 ? "" : "s") and notify the affected vendors. This action cannot be undone.")
+            if store.activeEvent.eventStage == .cancelled && store.activeBookingCount == 0 {
+                Text("This cancelled event will be permanently removed along with its planning data.")
             } else {
-                Text("This event and all associated data will be permanently removed. This action cannot be undone.")
+                let count = store.activeBookingCount
+                if count > 0 {
+                    Text("This will cancel \(count) active booking\(count == 1 ? "" : "s") and notify the affected vendors. This action cannot be undone.")
+                } else {
+                    Text("This event and all associated data will be permanently removed. This action cannot be undone.")
+                }
             }
         }
         .alert("Unable to delete", isPresented: .init(
@@ -163,7 +171,12 @@ struct RequestsView: View {
 
     @ViewBuilder
     private var eventContent: some View {
-        EventHeaderCard(event: store.activeEvent, daysUntil: store.daysUntilEvent)
+        EventHeaderCard(
+            event: store.activeEvent,
+            daysUntil: store.daysUntilEvent,
+            onRemove: store.activeEvent.eventStage == .cancelled
+                ? { isConfirmingEventDelete = true } : nil
+        )
 
         if store.events.count > 1 {
             Button {
@@ -209,6 +222,7 @@ struct RequestsView: View {
 private struct EventHeaderCard: View {
     let event: PartyEvent
     let daysUntil: Int
+    var onRemove: (() -> Void)?
 
     var body: some View {
         AppSurface(style: .highlighted) {
@@ -257,6 +271,9 @@ private struct EventHeaderCard: View {
                             AppTheme.toneBackground(daysUntil <= 14 ? .gold : .sage),
                             in: Capsule()
                         )
+                } else if event.eventStage == .cancelled, let onRemove {
+                    Button("Remove event", systemImage: "xmark.circle", action: onRemove)
+                        .buttonStyle(SecondaryActionButtonStyle())
                 }
             }
         }
@@ -537,5 +554,6 @@ private struct RequestEventRow: View {
                     .tint(AppTheme.Palette.accent)
             }
         }
+        .opacity(event.eventStage == .cancelled && !isSelected ? 0.6 : 1)
     }
 }

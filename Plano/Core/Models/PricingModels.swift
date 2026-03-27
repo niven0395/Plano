@@ -1,50 +1,5 @@
 import Foundation
 
-nonisolated enum PriceTier: String, CaseIterable, Identifiable, Codable, Comparable {
-    case starter
-    case professional
-    case elite
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .starter:
-            "Starter"
-        case .professional:
-            "Professional"
-        case .elite:
-            "Elite"
-        }
-    }
-
-    var signal: String {
-        switch self {
-        case .starter:
-            "Entry-level value"
-        case .professional:
-            "Established mid-range"
-        case .elite:
-            "Premium sought-after"
-        }
-    }
-
-    static func < (lhs: PriceTier, rhs: PriceTier) -> Bool {
-        lhs.sortIndex < rhs.sortIndex
-    }
-
-    private var sortIndex: Int {
-        switch self {
-        case .starter:
-            0
-        case .professional:
-            1
-        case .elite:
-            2
-        }
-    }
-}
-
 nonisolated enum PricingModel: String, CaseIterable, Identifiable, Codable {
     case startingFrom = "starting_from"
     case perEvent = "per_event"

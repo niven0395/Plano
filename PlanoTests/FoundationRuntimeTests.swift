@@ -160,7 +160,7 @@ struct FoundationRuntimeTests {
     }
 
     @Test
-    func pricingModelsExposeSearchLabelsAndDerivedTiers() {
+    func pricingModelsExposeSearchLabels() {
         let vendor = VendorProfile(
             businessName: "North Frame",
             category: .dj,
@@ -171,7 +171,6 @@ struct FoundationRuntimeTests {
             basePriceCents: 60_000,
             hourlyRateCents: 15_000,
             minimumHours: 4,
-            priceTierOverride: .professional,
             pricingVisibility: .public,
             responseTime: "Responds in 1h",
             ratingValue: 4.9,
@@ -197,10 +196,8 @@ struct FoundationRuntimeTests {
             searchMomentumScore: 80
         )
 
-        #expect(vendor.derivedPriceTier == .professional)
         #expect(vendor.visibleStartingPriceLabel == "$150/hr (4 hr min)")
-        #expect(vendor.visiblePricingDetailLabel == "$150/hr (4 hr min) · Professional ($600 - $2,000)")
-        #expect(VendorCategory.dj.priceRangeLabel(for: .starter) == "$200 - $600")
+        #expect(vendor.visiblePricingDetailLabel == "$150/hr (4 hr min)")
     }
 
     @Test
@@ -212,7 +209,6 @@ struct FoundationRuntimeTests {
         hourlyDraft.minimumHours = 4
 
         #expect(hourlyDraft.computedBasePriceCents == 50_000)
-        #expect(hourlyDraft.derivedPriceTier == .starter)
 
         var customDraft = VendorProfileDraft()
         customDraft.pricingModel = .custom

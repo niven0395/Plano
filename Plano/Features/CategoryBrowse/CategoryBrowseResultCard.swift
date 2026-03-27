@@ -10,6 +10,7 @@ struct CategoryBrowseResultCard: View {
             VStack(alignment: .leading, spacing: 18) {
                 VendorArtworkPanel(
                     profileImagePath: vendor.profileImagePath,
+                    listingImagePath: vendor.listingImagePath,
                     tone: vendor.category.accentTone,
                     symbolName: vendor.category.symbolName,
                     height: 160
@@ -36,30 +37,20 @@ struct CategoryBrowseResultCard: View {
 
                     Spacer()
 
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(vendor.ratingText)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
+                    if vendor.reviewCount > 0 {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(vendor.ratingText)
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                        Text("\(vendor.reviewCount) reviews")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.subdued)
+                            Text("\(vendor.reviewCount) reviews")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.subdued)
+                        }
                     }
                 }
 
                 CategoryDetailHighlight(vendor: vendor)
-
-                FlexibleBrowseReasonRow(reasons: result.reasons)
-
-                HStack(alignment: .center) {
-                    StatusBadge(title: vendor.availability.title, tone: vendor.availability.tone)
-
-                    Spacer()
-
-                    Label(vendor.responseTime, systemImage: "bolt.fill")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                }
             }
         }
     }
@@ -158,25 +149,9 @@ struct CategoryBrowseResultCardSkeleton: View {
                     }
 
                     Spacer()
-
-                    VStack(alignment: .trailing, spacing: 4) {
-                        SkeletonLine(width: 40, height: 18)
-                        SkeletonLine(width: 70, height: 10)
-                    }
                 }
 
                 SkeletonLine.medium
-
-                HStack(spacing: 8) {
-                    SkeletonLine(width: 100, height: 28)
-                    SkeletonLine(width: 80, height: 28)
-                }
-
-                HStack {
-                    SkeletonLine(width: 80, height: 24)
-                    Spacer()
-                    SkeletonLine(width: 100, height: 12)
-                }
             }
         }
     }

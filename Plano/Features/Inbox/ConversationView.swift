@@ -102,7 +102,7 @@ struct ConversationContextCard: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
 
-                Text("Messages, booking state, and payment status stay anchored to this event so the handoff never loses context.")
+                Text("Your messages, booking details, and payments are all organized together for this event.")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
             }
@@ -132,6 +132,7 @@ struct ConversationBookingStatusBanner: View {
     }
 
     var body: some View {
+        Group {
         switch thread.stage {
         case .active:
             EmptyView()
@@ -269,6 +270,8 @@ struct ConversationBookingStatusBanner: View {
                 .foregroundStyle(.green)
                 .padding()
         }
+        }
+        .animation(AppAnimation.transition, value: thread.stage)
     }
 }
 
@@ -336,6 +339,7 @@ struct ConversationComposerBar: View {
                             .foregroundStyle(AppTheme.Palette.accentForeground)
                             .frame(width: AppTheme.avatarSize, height: AppTheme.avatarSize)
                             .background(canSend ? AppTheme.Palette.accent : AppTheme.Palette.subdued.opacity(0.6), in: Circle())
+                            .symbolEffect(.bounce, value: sendHapticTrigger)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend)
@@ -358,28 +362,31 @@ private struct DeliveryStatusIndicator: View {
     let status: MessageDeliveryStatus
 
     var body: some View {
-        switch status {
-        case .sending:
-            Image(systemName: "clock")
-                .font(.caption2)
-                .foregroundStyle(AppTheme.Palette.subdued)
-        case .sent:
-            Image(systemName: "checkmark")
-                .font(.caption2)
-                .foregroundStyle(AppTheme.Palette.subdued)
-        case .delivered:
-            Image(systemName: "checkmark")
-                .font(.caption2.bold())
-                .foregroundStyle(AppTheme.Palette.subdued)
-        case .read:
-            Image(systemName: "checkmark")
-                .font(.caption2.bold())
-                .foregroundStyle(AppTheme.Palette.accent)
-        case .failed:
-            Image(systemName: "exclamationmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(Color.red)
+        Group {
+            switch status {
+            case .sending:
+                Image(systemName: "clock")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.Palette.subdued)
+            case .sent:
+                Image(systemName: "checkmark")
+                    .font(.caption2)
+                    .foregroundStyle(AppTheme.Palette.subdued)
+            case .delivered:
+                Image(systemName: "checkmark")
+                    .font(.caption2.bold())
+                    .foregroundStyle(AppTheme.Palette.subdued)
+            case .read:
+                Image(systemName: "checkmark")
+                    .font(.caption2.bold())
+                    .foregroundStyle(AppTheme.Palette.accent)
+            case .failed:
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Color.red)
+            }
         }
+        .contentTransition(.symbolEffect(.replace))
     }
 }
 
@@ -648,10 +655,7 @@ struct TypingIndicatorRow: View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(AppTheme.Palette.subdued.opacity(0.7))
-                        .frame(width: AppTheme.badgeSize, height: AppTheme.badgeSize)
-                        .scaleEffect(0.85 + (Double(index) * 0.05))
+                    TypingDot(index: index)
                 }
             }
             .padding(.horizontal, 16)
@@ -665,5 +669,25 @@ struct TypingIndicatorRow: View {
             Spacer()
         }
         .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+}
+
+private struct TypingDot: View {
+    let index: Int
+    @State private var isAnimating = false
+
+    var body: some View {
+        Circle()
+            .fill(AppTheme.Palette.subdued.opacity(0.7))
+            .frame(width: AppTheme.badgeSize, height: AppTheme.badgeSize)
+            .scaleEffect(isAnimating ? 1.4 : 0.85)
+            .opacity(isAnimating ? 1 : 0.5)
+            .animation(
+                .easeInOut(duration: 0.4)
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(index) * 0.15),
+                value: isAnimating
+            )
+            .onAppear { isAnimating = true }
     }
 }

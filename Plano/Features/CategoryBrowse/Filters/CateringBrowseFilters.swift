@@ -8,61 +8,22 @@ struct CateringBrowseFilters: View {
             MultiChoiceFilterGroup(
                 title: "Cuisine",
                 key: "cuisineTypes",
-                options: CateringDetails.cuisineOptions,
+                options: CateringDetails.browseCuisineOptions,
                 filterState: $filterState
             )
 
             MultiChoiceFilterGroup(
-                title: "Service style",
-                key: "serviceStyles",
-                options: CateringDetails.serviceStyleOptions,
-                filterState: $filterState
-            )
-
-            MultiChoiceFilterGroup(
-                title: "Dietary accommodations",
+                title: "Dietary",
                 key: "dietaryAccommodations",
-                options: CateringDetails.dietaryOptions,
+                options: CateringDetails.browseDietaryOptions,
                 filterState: $filterState
             )
 
-            FilterGroup(title: "Headcount") {
-                HStack(spacing: 12) {
-                    Text("Guest count")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                    Spacer()
-
-                    HStack(spacing: 8) {
-                        Button {
-                            let current = filterState.guestCount ?? 0
-                            filterState.guestCount = max(current - 10, 0)
-                            if filterState.guestCount == 0 { filterState.guestCount = nil }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.Palette.subdued)
-                        }
-                        .buttonStyle(.plain)
-
-                        Text("\(filterState.guestCount ?? 0)")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
-                            .frame(width: 44)
-
-                        Button {
-                            let current = filterState.guestCount ?? 0
-                            filterState.guestCount = current + 10
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.Palette.accent)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
+            BrowseToggleRow(
+                title: "Delivery available",
+                key: "delivery",
+                filterState: $filterState
+            )
         }
     }
 }

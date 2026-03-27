@@ -437,12 +437,12 @@ struct VendorLeadDetailView: View {
             case .platform:
                 return "The request is accepted. Send the payment amount so the customer can complete the deposit on Plano."
             case .cashOnly:
-                return "The request is accepted. Send the amount and cash handoff note so the customer knows how to pay you."
+                return "The request is accepted. Send the amount and payment instructions so the customer knows how to pay you."
             case .external:
                 return "The request is accepted. Send the amount with your e-transfer details, or edit the note if you want to collect cash instead."
             }
         case .paymentRequested:
-            return "Payment has been requested. Keep all follow-up in chat so the customer has one clear place to confirm transfer or cash handoff."
+            return "Payment has been requested. Use this chat so the customer can confirm payment in one place."
         case .paid:
             return "Payment is confirmed. Use chat for timeline details, setup notes, and any final coordination."
         case .cancellationRequested:
@@ -450,7 +450,7 @@ struct VendorLeadDetailView: View {
         case .declined:
             return "This request has been declined. The conversation stays available if either side needs to clarify anything."
         case .cancelled:
-            return "This booking is cancelled. Keep any closeout details in the conversation thread."
+            return "This booking is cancelled. Any final details can be shared in the conversation."
         case .completed:
             return "The event is complete. Keep any final wrap-up or delivery notes here."
         case .active:

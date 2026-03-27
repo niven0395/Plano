@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct TimeslotSettingsEditor: View {
+struct SchedulingModeEditor: View {
     let store: VendorProfileEditStore
 
     var body: some View {
@@ -8,26 +8,79 @@ struct TimeslotSettingsEditor: View {
 
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Timeslot bookings")
+                Text("Scheduling")
                     .font(.headline)
                     .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                Text("Let hosts pick a specific time slot when requesting.")
+                Text(store.draft.schedulingMode.description)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.textSecondary)
             }
 
-            Toggle("Accept timeslot bookings", isOn: $store.draft.timeslotsEnabled)
-                .tint(AppTheme.Palette.accent)
-                .hapticFeedback(.selection, trigger: store.draft.timeslotsEnabled)
+            Picker("Scheduling mode", selection: $store.draft.schedulingMode) {
+                ForEach(SchedulingMode.allCases) { mode in
+                    Label(mode.title, systemImage: mode.symbolName).tag(mode)
+                }
+            }
+            .pickerStyle(.menu)
+            .hapticFeedback(.selection, trigger: store.draft.schedulingMode)
 
-            if store.draft.timeslotsEnabled {
+            switch store.draft.schedulingMode {
+            case .calendar:
+                EmptyView()
+            case .timeslots:
                 durationSection
                 dailyHoursSection
                 bufferSection
                 rollingWindowSection
                 timezoneSection
                 slotPreviewSection
+            case .eventTimeRange:
+                eventTimeRangeSection
+            }
+        }
+    }
+
+    // MARK: - Event Time Range
+
+    private var eventTimeRangeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Accepted event hours")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.Palette.textPrimary)
+
+            Text("Hosts can request events within this time window.")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.textSecondary)
+
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Earliest")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+
+                    DatePicker(
+                        "Earliest time",
+                        selection: startTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .labelsHidden()
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Latest")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+
+                    DatePicker(
+                        "Latest time",
+                        selection: endTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .labelsHidden()
+                }
+
+                Spacer()
             }
         }
     }

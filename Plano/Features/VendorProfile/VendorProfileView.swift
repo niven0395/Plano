@@ -40,61 +40,66 @@ struct VendorProfileView: View {
 struct VendorProfileHeroCard: View {
     let vendor: VendorProfile
 
+    private let imageHeight: Double = 200
+    private let cornerRadius = AppTheme.cardCornerRadius
+
     var body: some View {
-        AppSurface(style: .highlighted) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    StatusBadge(title: vendor.availability.title, tone: vendor.availability.tone)
-                    Spacer()
-                    Text(vendor.badge)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                }
-
-                HStack(spacing: 14) {
-                    if let path = vendor.profileImagePath, !path.isEmpty {
-                        PlanoImage(
-                            storagePath: path,
-                            size: .thumbnail,
-                            cornerRadius: 32,
-                            contentMode: .fill
-                        )
-                        .frame(width: 64, height: 64)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(AppTheme.toneBackground(vendor.category.accentTone))
-                            .frame(width: 64, height: 64)
-                            .overlay {
-                                Image(systemName: vendor.category.symbolName)
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(AppTheme.toneColor(vendor.category.accentTone))
-                            }
-                    }
-
-                    Text(vendor.businessName)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
-                }
-
-                Text("\(vendor.displayCategoryTitle) • \(vendor.city)")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                Text(vendor.bio.isEmpty ? vendor.intro : vendor.bio)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                if !vendor.galleryHighlights.isEmpty {
-                    HStack(spacing: 10) {
-                        ForEach(vendor.galleryHighlights.prefix(3), id: \.self) { item in
-                            FilterChip(title: item, isSelected: false)
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                if let path = vendor.profileImagePath, !path.isEmpty {
+                    PlanoImage(
+                        storagePath: path,
+                        size: .standard,
+                        cornerRadius: 0,
+                        contentMode: .fill
+                    )
+                    .frame(height: imageHeight)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                } else {
+                    Rectangle()
+                        .fill(AppTheme.toneBackground(vendor.category.accentTone))
+                        .frame(height: imageHeight)
+                        .overlay {
+                            Image(systemName: vendor.category.symbolName)
+                                .font(.system(size: 40))
+                                .foregroundStyle(AppTheme.toneColor(vendor.category.accentTone))
                         }
-                    }
                 }
 
+                Text(vendor.badge)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(16)
             }
+
+            Text(vendor.businessName)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.Palette.textPrimary)
+                .padding(22)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    AppTheme.Palette.elevatedSurface,
+                    AppTheme.Palette.elevatedSurface,
+                    AppTheme.Palette.surface,
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: .rect(cornerRadius: cornerRadius)
+        )
+        .clipShape(.rect(cornerRadius: cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(AppTheme.Palette.textPrimary.opacity(0.08), lineWidth: 1)
+        }
+        .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 12)
     }
 }
 
@@ -111,9 +116,7 @@ struct VendorProfileStatsCard: View {
                         Label(priceLabel, systemImage: "creditcard.fill")
                     }
 
-                    Spacer()
 
-                    Label(vendor.responseTime, systemImage: "clock.fill")
                 }
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
@@ -173,15 +176,7 @@ struct VendorProfileAvailabilityCard: View {
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    StatusBadge(title: vendor.availability.title, tone: vendor.availability.tone)
-
-                    Spacer()
-
-                    Text(vendor.availabilitySummary.leadTimeLabel)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.subdued)
-                }
+                StatusBadge(title: vendor.availability.title, tone: vendor.availability.tone)
 
                 Text(vendor.availabilitySummary.eventDateSupportLabel)
                     .font(.subheadline)
@@ -241,12 +236,6 @@ struct VendorProfilePackageCard: View {
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
 
-                if let tier = package.tier {
-                    Text("\(tier.title) tier")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.subdued)
-                }
-
                 if !package.includedItems.isEmpty {
                     HStack(spacing: 8) {
                         ForEach(package.includedItems, id: \.self) { item in
@@ -266,9 +255,11 @@ struct VendorProfileServicesCard: View {
 
     var body: some View {
         AppSurface {
-            FlowLayout(spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(services, id: \.self) { service in
-                    FilterChip(title: service, isSelected: false)
+                    Label(service, systemImage: "checkmark")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
                 }
             }
         }
@@ -280,13 +271,16 @@ struct VendorProfileServicesCard: View {
 struct VendorProfileGalleryCard: View {
     let galleryImages: [VendorGalleryImage]
     let businessName: String
+    @State private var selectedImageIndex: Int?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
-                ForEach(galleryImages) { image in
-                    AppSurface {
-                        VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(galleryImages.enumerated()), id: \.element.id) { index, image in
+                    Button {
+                        selectedImageIndex = index
+                    } label: {
+                        AppSurface {
                             PlanoImage(
                                 storagePath: image.storagePath,
                                 size: .standard,
@@ -295,14 +289,18 @@ struct VendorProfileGalleryCard: View {
                             )
                             .frame(width: 220, height: 160)
                             .clipped()
-
-                            Text(image.caption.isEmpty ? businessName : image.caption)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.Palette.textPrimary)
                         }
-                        .frame(width: 220)
                     }
+                    .buttonStyle(.plain)
                 }
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { selectedImageIndex != nil },
+            set: { if !$0 { selectedImageIndex = nil } }
+        )) {
+            if let index = selectedImageIndex {
+                GalleryImageViewer(images: galleryImages, startIndex: index)
             }
         }
     }

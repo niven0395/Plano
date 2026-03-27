@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AvailabilityEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var store = store
@@ -27,7 +28,7 @@ struct AvailabilityEditView: View {
                 }
 
                 AppSurface {
-                    TimeslotSettingsEditor(store: store)
+                    SchedulingModeEditor(store: store)
                 }
 
                 NavigationLink(value: DiscoveryRoute.vendorBlockDates) {
@@ -97,6 +98,9 @@ struct AvailabilityEditView: View {
     private func save() {
         Task {
             await store.save()
+            if store.lastSaveOutcome == .saved {
+                dismiss()
+            }
         }
     }
 }

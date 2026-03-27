@@ -26,13 +26,13 @@ enum ConversationAssistantService {
 
         switch thread.stage {
         case .active:
-            summary = "This thread is open but still needs a booking request before it becomes an active booking."
+            summary = "This conversation is open. Send a booking request when you're ready to move forward."
             nextAction = "Send a booking request once the event details are clear."
         case .requested:
             summary = "A booking request is live. The latest context is: \(latestCounterpartMessage)"
             nextAction = role == .vendor
                 ? "Review the request, then accept or decline."
-                : "The request is now in the vendor queue. Keep follow-up messages focused so they can respond faster."
+                : "Your request is with the vendor now. They'll respond here when ready."
         case .accepted:
             summary = "The booking has been accepted. The latest context is: \(latestCounterpartMessage)"
             nextAction = role == .vendor
@@ -45,18 +45,18 @@ enum ConversationAssistantService {
                 : "Awaiting host payment confirmation."
         case .paid:
             summary = "Payment is confirmed and this vendor is locked in. The thread is now best used for event coordination."
-            nextAction = "Keep timeline changes, guest-count updates, and delivery notes in this conversation."
+            nextAction = "Use this conversation for timeline updates, guest-count changes, and coordination."
         case .declined:
             summary = "The request was declined, but the conversation history still holds the full brief and any feedback."
-            nextAction = "Decide whether to reopen scope here or move to another vendor."
+            nextAction = "You can continue the conversation or look for another vendor."
         case .cancellationRequested:
             summary = "The host has requested to cancel this booking. The vendor needs to approve or decline the request."
             nextAction = role == .vendor
                 ? "Review the cancellation request and approve or decline it."
                 : "Your cancellation request is pending vendor approval."
         case .cancelled:
-            summary = "This booking was cancelled. The thread now acts as an audit trail and any follow-up space."
-            nextAction = "Keep only essential wrap-up details here so the closeout stays clear."
+            summary = "This booking was cancelled. The conversation history is still available if you need it."
+            nextAction = "Share any final details here if needed."
         case .completed:
             summary = "The work is complete. Keep final wrap-up notes and post-event coordination in the thread."
             nextAction = "Use the thread for any final deliverables, receipts, or recap messages."
@@ -72,17 +72,17 @@ enum ConversationAssistantService {
         case (.host, .paymentRequested):
             suggestedReply = "Looks good. I'm confirming the payment now so we can move into final event coordination."
         case (.host, .paid):
-            suggestedReply = "Payment is in. Let's keep all remaining timing and event notes in this thread so nothing slips."
+            suggestedReply = "Payment is done. I'll share any timing or event updates here."
         case (.host, .declined):
-            suggestedReply = "Thanks for the clarity. I'll review whether we should adjust scope or close this out."
+            suggestedReply = "Thanks for letting me know. I'll take a look at next steps."
         case (.host, .cancellationRequested):
             suggestedReply = "I've submitted the cancellation request. I'll wait for the vendor's response."
         case (.host, .cancelled):
-            suggestedReply = "Understood. I'll keep only the closeout details here so nothing gets lost."
+            suggestedReply = "Understood. I'll share any final details here."
         case (.host, .completed):
             suggestedReply = "Thanks again. I'll keep any final wrap-up or delivery details in this thread."
         case (.vendor, .active):
-            suggestedReply = "Once the booking request lands, I can review the scope and move this into a clearer booking flow."
+            suggestedReply = "Once you send a booking request, I'll review the details and get back to you."
         case (.vendor, .requested):
             suggestedReply = "I have the request details now. I'm reviewing and will reply here with the cleanest next step."
         case (.vendor, .accepted):
@@ -90,15 +90,15 @@ enum ConversationAssistantService {
         case (.vendor, .paymentRequested):
             suggestedReply = "Payment request is sent. As soon as it clears, I'll treat this as confirmed work."
         case (.vendor, .paid):
-            suggestedReply = "Perfect. The booking is confirmed, so I'll keep all timeline updates and operational notes in this thread."
+            suggestedReply = "Perfect, the booking is confirmed. I'll share any updates and event details here."
         case (.vendor, .declined):
-            suggestedReply = "Understood. If scope changes later, I can revisit it from the context already in this thread."
+            suggestedReply = "Understood. If anything changes, feel free to reach out here."
         case (.vendor, .cancellationRequested):
             suggestedReply = "I see the cancellation request. I'll review it and respond shortly."
         case (.vendor, .cancelled):
-            suggestedReply = "I've logged the cancellation here. I'll keep any final operational notes brief and clear."
+            suggestedReply = "Noted. I'll share any final details here if needed."
         case (.vendor, .completed):
-            suggestedReply = "The work is complete on my side. I'll keep any remaining follow-up or handoff notes here."
+            suggestedReply = "The work is complete on my side. I'll share any final details or deliverables here."
         }
 
         return ConversationAssistantBrief(
@@ -118,7 +118,7 @@ enum ConversationAssistantService {
 
         switch thread.stage {
         case .active:
-            detail = "The conversation is open and ready for a structured request."
+            detail = "The conversation is open. Send a booking request when you're ready."
             amountLabel = summary.amountLabel
         case .requested:
             if role == .vendor {

@@ -126,6 +126,10 @@ struct ConversationContentView: View {
                                 conversation: conversation,
                                 currentRole: session.currentRole
                             )
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                removal: .opacity
+                            ))
                         }
 
                         if isTyping {
@@ -136,6 +140,7 @@ struct ConversationContentView: View {
                             .frame(height: 1)
                             .id(bottomAnchorID)
                     }
+                    .animation(AppAnimation.transition, value: conversation.messages.count)
                 }
                 .padding(.horizontal, AppTheme.screenPadding)
                 .padding(.top, 18)
@@ -227,7 +232,7 @@ struct ConversationContentView: View {
                 declineReason = ""
             }
         } message: {
-            Text("This moves the booking flow to declined and posts a system note into the thread.")
+            Text("This will decline the booking request. The vendor will be notified.")
         }
         .alert("Cancel booking", isPresented: $isPresentingCancellationPrompt) {
             TextField("Optional reason", text: $cancellationReason)
@@ -252,7 +257,7 @@ struct ConversationContentView: View {
                       eventDate.timeIntervalSinceNow <= Double(days) * 86_400 {
                 Text("This vendor's cancellation policy requires their approval for cancellations within \(days) days of the event. Your request will be sent to the vendor.")
             } else {
-                Text("This keeps the conversation history intact while moving the booking flow to cancelled.")
+                Text("This will cancel the booking. Your conversation history will still be available.")
             }
         }
         .modifier(CancellationRequestAlerts(

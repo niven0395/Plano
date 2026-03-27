@@ -204,7 +204,12 @@ final class HostPlanningStore {
         pendingSavedVendorIDs = []
         loadingState = .idle
         events = []
+        vendors = []
         recommendedVendors = []
+        savedVendorIDs = []
+        plannedVendorAssignments = [:]
+        additionalCategoriesByEventID = [:]
+        removedRecommendedCategoriesByEventID = [:]
         selectedEventID = PartyEvent.placeholder.id
         hasCompletedOnboarding = false
     }
@@ -522,6 +527,9 @@ final class HostPlanningStore {
         }
     }
 
+    /// Callers must reload `InboxStore` conversations after this returns with
+    /// `successCount > 0`, since this function bypasses InboxStore for
+    /// conversation creation and booking submission.
     func sendBookingRequests(
         eventID: UUID,
         bookingService: any BookingServiceProtocol,

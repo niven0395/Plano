@@ -56,7 +56,7 @@ enum SearchSortMode: String, CaseIterable, Identifiable, Hashable {
     case topRated
     case fastestReply
     case availabilityFirst
-    case priceTierAscending
+    case priceLowToHigh
 
     var id: Self { self }
 
@@ -70,8 +70,8 @@ enum SearchSortMode: String, CaseIterable, Identifiable, Hashable {
             "Fastest reply"
         case .availabilityFirst:
             "Availability"
-        case .priceTierAscending:
-            "Budget-friendly"
+        case .priceLowToHigh:
+            "Price: low to high"
         }
     }
 }
@@ -132,13 +132,6 @@ final class SearchStore {
             scheduleRemoteSearch(after: .zero, showLoading: !hasLoaded)
         }
     }
-    var selectedPriceTier: PriceTier? {
-        didSet {
-            guard selectedPriceTier != oldValue else { return }
-            filterChangeCounter += 1
-            recomputeVisibleResults()
-        }
-    }
     var selectedAvailability: VendorAvailabilityFilter = .all {
         didSet {
             guard selectedAvailability != oldValue else { return }
@@ -194,7 +187,6 @@ final class SearchStore {
     var activeFilterSummary: String {
         [
             selectedCategory?.title,
-            selectedPriceTier?.title,
             hasEventContext && selectedAvailability != .all ? selectedAvailability.title : nil,
             ratingFilter == .all ? nil : ratingFilter.title,
             sortMode == .recommended ? nil : sortMode.title,
@@ -206,7 +198,6 @@ final class SearchStore {
     var activeRefinementCount: Int {
         [
             selectedCategory != nil,
-            selectedPriceTier != nil,
             hasEventContext && selectedAvailability != .all,
             ratingFilter != .all,
             sortMode != .recommended,
@@ -218,7 +209,6 @@ final class SearchStore {
     var isShowingDiscoveryState: Bool {
         query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         selectedCategory == nil &&
-        selectedPriceTier == nil &&
         selectedAvailability == .all &&
         ratingFilter == .all &&
         sortMode == .recommended
@@ -249,7 +239,6 @@ final class SearchStore {
         performWithoutAutoRefresh {
             query = ""
             selectedCategory = nil
-            selectedPriceTier = nil
             selectedAvailability = .all
             ratingFilter = .all
             sortMode = .recommended
@@ -275,7 +264,6 @@ final class SearchStore {
     func applyShortcutSearch(category: VendorCategory?, query: String) {
         performWithoutAutoRefresh {
             selectedCategory = category
-            selectedPriceTier = nil
             selectedAvailability = .all
             ratingFilter = .all
             sortMode = .recommended
@@ -314,7 +302,6 @@ final class SearchStore {
         performWithoutAutoRefresh {
             query = ""
             selectedCategory = nil
-            selectedPriceTier = nil
             selectedAvailability = .all
             ratingFilter = .all
             sortMode = .recommended
@@ -350,10 +337,6 @@ final class SearchStore {
         selectedCategory.map { vendor.category == $0 } ?? true
     }
 
-    private func matchesPriceTier(_ vendor: VendorProfile) -> Bool {
-        selectedPriceTier.map { vendor.priceTier == $0 } ?? true
-    }
-
     private func matchesAvailability(_ vendor: VendorProfile) -> Bool {
         guard hasEventContext else { return true }
 
@@ -382,12 +365,9 @@ final class SearchStore {
             score += 35
         }
 
-        if let selectedPriceTier, vendor.priceTier == selectedPriceTier {
-            score += 24
-        } else if vendor.priceTier != nil && vendor.pricingVisibility == .public {
+        if vendor.pricingVisibility == .public, vendor.priceValue > 0 {
             score += 8
         }
-
 
         switch vendor.availability {
         case .available:
@@ -444,10 +424,6 @@ final class SearchStore {
             reasons.append(SearchRankingReason(title: "Fast reply", tone: .gold))
         }
 
-        if let selectedPriceTier, vendor.priceTier == selectedPriceTier {
-            reasons.append(SearchRankingReason(title: "Budget fit", tone: .sage))
-        }
-
         if vendor.searchMomentumScore >= 85 {
             reasons.append(SearchRankingReason(title: "Popular now", tone: .sand))
         }
@@ -487,10 +463,7 @@ final class SearchStore {
             if lhs.vendor.availability != rhs.vendor.availability {
                 return availabilityRank(lhs.vendor.availability) < availabilityRank(rhs.vendor.availability)
             }
-        case .priceTierAscending:
-            if priceTierRank(lhs.vendor) != priceTierRank(rhs.vendor) {
-                return priceTierRank(lhs.vendor) < priceTierRank(rhs.vendor)
-            }
+        case .priceLowToHigh:
             if lhs.vendor.priceValue != rhs.vendor.priceValue {
                 return lhs.vendor.priceValue < rhs.vendor.priceValue
             }
@@ -511,23 +484,6 @@ final class SearchStore {
             return 1
         case .limited:
             return 2
-        }
-    }
-
-    private func priceTierRank(_ vendor: VendorProfile) -> Int {
-        switch vendor.priceTier {
-        case .starter:
-            return 0
-        case .professional:
-            return 1
-        case .elite:
-            return 2
-        case nil:
-            if vendor.priceValue > 0 {
-                return 3
-            }
-
-            return 4
         }
     }
 
@@ -611,7 +567,6 @@ final class SearchStore {
         visibleResults = candidateVendors
             .filter { vendor in
                 matchesCategory(vendor) &&
-                matchesPriceTier(vendor) &&
                 matchesAvailability(vendor) &&
                 vendor.ratingValue >= ratingFilter.minimumValue &&
                 matchesTextTokens(vendor, tokens: tokens, minimumMatches: minimumMatches)

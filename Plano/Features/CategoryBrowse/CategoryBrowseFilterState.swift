@@ -2,7 +2,6 @@ import Foundation
 
 struct CategoryBrowseFilterState {
     var selectedCity: String?
-    var selectedPriceTier: PriceTier?
     var ratingFilter: SearchRatingFilter = .all
     var sortMode: SearchSortMode = .recommended
     var availabilityFilter: VendorAvailabilityFilter = .all
@@ -13,7 +12,6 @@ struct CategoryBrowseFilterState {
 
     var hasActiveFilters: Bool {
         selectedCity != nil
-            || selectedPriceTier != nil
             || ratingFilter != .all
             || sortMode != .recommended
             || availabilityFilter != .all
@@ -25,7 +23,6 @@ struct CategoryBrowseFilterState {
     var activeFilterCount: Int {
         var count = 0
         if selectedCity != nil { count += 1 }
-        if selectedPriceTier != nil { count += 1 }
         if ratingFilter != .all { count += 1 }
         if sortMode != .recommended { count += 1 }
         if availabilityFilter != .all { count += 1 }
@@ -37,7 +34,6 @@ struct CategoryBrowseFilterState {
 
     mutating func reset() {
         selectedCity = nil
-        selectedPriceTier = nil
         ratingFilter = .all
         sortMode = .recommended
         availabilityFilter = .all
@@ -108,75 +104,52 @@ struct CategoryBrowseFilterState {
             return false
         }
         if !matchesMultiChoice("venueStyle", vendorValues: d.venueStyle.isEmpty ? [] : [d.venueStyle]) { return false }
-        if !matchesMultiChoice("eventTypes", vendorValues: d.eventTypes) { return false }
-        if !matchesMultiChoice("amenities", vendorValues: d.includedAmenities) { return false }
-        if !matchesMultiChoice("alcoholPolicy", vendorValues: d.alcoholPolicy.isEmpty ? [] : [d.alcoholPolicy]) { return false }
-        if !matchesMultiChoice("cateringPolicy", vendorValues: d.cateringPolicy.isEmpty ? [] : [d.cateringPolicy]) { return false }
         return true
     }
 
     private func matchesCatering(_ d: CateringDetails) -> Bool {
-        if let guestCount, let max = d.maximumHeadcount, guestCount > max { return false }
         if !matchesMultiChoice("cuisineTypes", vendorValues: d.cuisineTypes) { return false }
-        if !matchesMultiChoice("serviceStyles", vendorValues: d.serviceStyles) { return false }
         if !matchesMultiChoice("dietaryAccommodations", vendorValues: d.dietaryAccommodations) { return false }
+        if isToggleOn("delivery") && !d.serviceStyles.contains("Drop-off") { return false }
         return true
     }
 
     private func matchesPhotoVideo(_ d: PhotoVideoDetails) -> Bool {
-        if !matchesMultiChoice("deliverables", vendorValues: d.deliverables) { return false }
-        if !matchesMultiChoice("videoDeliverables", vendorValues: d.deliverables) { return false }
-        if isToggleOn("secondShooter") && !d.secondShooterAvailable { return false }
         if isToggleOn("droneAvailable") && !d.droneAvailable { return false }
         return true
     }
 
     private func matchesDJ(_ d: DJDetails) -> Bool {
         if !matchesMultiChoice("musicGenres", vendorValues: d.musicGenres) { return false }
-        if isToggleOn("mcServices") && !d.mcServicesAvailable { return false }
-        if isToggleOn("lightingPackage") && !d.lightingPackageAvailable { return false }
         return true
     }
 
     private func matchesBaker(_ d: BakerDetails) -> Bool {
         if !matchesMultiChoice("specialties", vendorValues: d.specialties) { return false }
-        if !matchesMultiChoice("dietaryOptions", vendorValues: d.dietaryOptions) { return false }
-        if isToggleOn("tasting") && !d.tastingAvailable { return false }
         if isToggleOn("delivery") && !d.deliveryAvailable { return false }
         return true
     }
 
     private func matchesFlorist(_ d: FloristDetails) -> Bool {
-        if !matchesMultiChoice("serviceTypes", vendorValues: d.serviceTypes) { return false }
         if isToggleOn("deliverySetup") && !d.deliverySetupIncluded { return false }
-        if isToggleOn("consultation") && !d.consultationIncluded { return false }
         return true
     }
 
     private func matchesDecorator(_ d: DecoratorDetails) -> Bool {
-        if !matchesMultiChoice("serviceTypes", vendorValues: d.serviceTypes) { return false }
-        if isToggleOn("setupTeardown") && !d.setupTeardownIncluded { return false }
-        if isToggleOn("materialsProvided") && !d.materialsProvided { return false }
         return true
     }
 
     private func matchesBartender(_ d: BartenderDetails) -> Bool {
         if !matchesMultiChoice("barTypes", vendorValues: d.barTypes) { return false }
-        if isToggleOn("equipment") && !d.equipmentProvided { return false }
-        if isToggleOn("ingredients") && !d.ingredientsIncluded { return false }
         return true
     }
 
     private func matchesMakeupArtist(_ d: MakeupArtistDetails) -> Bool {
         if isToggleOn("travelToVenue") && !d.travelToVenue { return false }
-        if isToggleOn("trial") && !d.trialIncluded { return false }
-        if isToggleOn("hairServices") && !d.hairServicesAvailable { return false }
-        if isToggleOn("groupRates") && !d.groupRatesAvailable { return false }
         return true
     }
 
     private func matchesEntertainer(_ d: EntertainerDetails) -> Bool {
-        if isToggleOn("interactive") && !d.isInteractive { return false }
         return true
     }
 

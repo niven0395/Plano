@@ -15,6 +15,7 @@ struct ConnectionStatusBanner: View {
                 } else {
                     Image(systemName: "wifi.slash")
                         .font(.footnote.weight(.bold))
+                        .symbolEffect(.variableColor.iterative)
                 }
 
                 Text(statusText)

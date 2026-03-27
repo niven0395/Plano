@@ -11,18 +11,6 @@ struct BartenderBrowseFilters: View {
                 options: BartenderDetails.barTypeOptions,
                 filterState: $filterState
             )
-
-            BrowseToggleRow(
-                title: "Equipment provided",
-                key: "equipment",
-                filterState: $filterState
-            )
-
-            BrowseToggleRow(
-                title: "Ingredients included",
-                key: "ingredients",
-                filterState: $filterState
-            )
         }
     }
 }

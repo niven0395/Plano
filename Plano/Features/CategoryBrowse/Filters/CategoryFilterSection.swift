@@ -18,13 +18,11 @@ struct CategoryFilterSection: View {
             BakerBrowseFilters(filterState: $filterState)
         case .florist:
             FloristBrowseFilters(filterState: $filterState)
-        case .decorator:
-            DecoratorBrowseFilters(filterState: $filterState)
         case .bartender:
             BartenderBrowseFilters(filterState: $filterState)
-        case .makeupArtist, .entertainer:
+        case .makeupArtist:
             ToggleBrowseFilters(category: category, filterState: $filterState)
-        case .rental, .experienceStation,
+        case .decorator, .entertainer, .rental, .experienceStation,
              .appetizer, .desserts, .hairStylist, .studio,
              .photobooth:
             EmptyView()

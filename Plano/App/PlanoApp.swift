@@ -258,6 +258,7 @@ struct PlanoApp: App {
             if oldState == .authenticated {
                 hostPlanningStore.prepareForSignedOutState()
                 searchStore.reset()
+                vendorProfileEditStore.reset()
             }
 
             Task {

@@ -61,6 +61,47 @@ nonisolated enum BookingMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+nonisolated enum SchedulingMode: String, CaseIterable, Identifiable, Codable {
+    case calendar
+    case timeslots
+    case eventTimeRange = "event_time_range"
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .calendar:
+            "Calendar only"
+        case .timeslots:
+            "Timeslot bookings"
+        case .eventTimeRange:
+            "Event time range"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .calendar:
+            "Hosts pick a date from your calendar."
+        case .timeslots:
+            "Hosts pick a date and a specific time slot."
+        case .eventTimeRange:
+            "Hosts propose a date and time range for you to review."
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .calendar:
+            "calendar"
+        case .timeslots:
+            "clock.fill"
+        case .eventTimeRange:
+            "calendar.badge.clock"
+        }
+    }
+}
+
 nonisolated enum PaymentMode: String, CaseIterable, Identifiable, Codable {
     case platform
     case cashOnly = "cash_only"

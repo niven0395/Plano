@@ -54,7 +54,6 @@ enum FixtureData {
                 city: "Toronto",
                 serviceArea: "Toronto + GTA",
                 startingPrice: "$2,800 per event",
-                priceTier: PriceTier.professional.rawValue,
                 pricingModel: PricingModel.perEvent.rawValue,
                 basePriceCents: 280_000,
                 pricingVisibility: PricingVisibility.public.rawValue,
@@ -70,9 +69,9 @@ enum FixtureData {
                 onboardedAt: .now
             )
             .makeVendorProfile(
-                responseTime: "Responds in 1h",
-                ratingValue: 4.9,
-                reviewCount: 19,
+                responseTime: "",
+                ratingValue: 0.0,
+                reviewCount: 0,
                 badge: "Fast replies",
                 availability: .available,
                 services: ["Floral design", "Tablescape styling"],
@@ -81,7 +80,6 @@ enum FixtureData {
                         title: "Floral styling",
                         priceLabel: "$3.5k",
                         summary: "Floral direction and installation for a dinner-scale event.",
-                        tier: .professional,
                         includedItems: ["Install", "Centerpieces", "Candles"]
                     )
                 ],
@@ -107,7 +105,6 @@ enum FixtureData {
                 city: "Toronto",
                 serviceArea: "Toronto + GTA",
                 startingPrice: "From $4,200",
-                priceTier: PriceTier.elite.rawValue,
                 pricingModel: PricingModel.startingFrom.rawValue,
                 basePriceCents: 420_000,
                 pricingVisibility: PricingVisibility.public.rawValue,
@@ -120,9 +117,9 @@ enum FixtureData {
                 onboardedAt: .now
             )
             .makeVendorProfile(
-                responseTime: "Responds in 2h",
-                ratingValue: 4.8,
-                reviewCount: 11,
+                responseTime: "",
+                ratingValue: 0.0,
+                reviewCount: 0,
                 badge: "Editorial",
                 availability: .available,
                 services: ["Event coverage", "Portraits"],
@@ -147,7 +144,6 @@ enum FixtureData {
                 city: "Toronto",
                 serviceArea: "Toronto + GTA",
                 startingPrice: "$125/hr (4 hr min)",
-                priceTier: PriceTier.starter.rawValue,
                 pricingModel: PricingModel.perHour.rawValue,
                 basePriceCents: 50_000,
                 hourlyRateCents: 12_500,
@@ -162,9 +158,9 @@ enum FixtureData {
                 onboardedAt: .now
             )
             .makeVendorProfile(
-                responseTime: "Responds in 35m",
-                ratingValue: 4.7,
-                reviewCount: 8,
+                responseTime: "",
+                ratingValue: 0.0,
+                reviewCount: 0,
                 badge: "Birthday favorite",
                 availability: .bookingFast,
                 services: ["DJ set", "MC support"],
@@ -513,9 +509,9 @@ actor TestVendorProfileService: VendorProfileServiceProtocol {
         let serviceItems = serviceItemsByVendorID[updates.userID] ?? existing?.serviceItems ?? []
 
         profilesByID[updates.userID] = updates.makeVendorProfile(
-            responseTime: existing?.responseTime ?? "Responds in 1h",
-            ratingValue: existing?.ratingValue ?? 4.8,
-            reviewCount: existing?.reviewCount ?? 12,
+            responseTime: existing?.responseTime ?? "",
+            ratingValue: existing?.ratingValue ?? 0.0,
+            reviewCount: existing?.reviewCount ?? 0,
             badge: existing?.badge ?? "Fresh profile",
             intro: existing?.intro ?? updates.bio,
             availability: existing?.availability ?? .bookingFast,
@@ -558,14 +554,12 @@ actor TestVendorProfileService: VendorProfileServiceProtocol {
             city: existing.city,
             serviceArea: existing.serviceArea,
             startingPrice: existing.startingPrice,
-            priceTier: existing.priceTier,
             pricingModel: existing.pricingModel,
             basePriceCents: existing.basePriceCents,
             hourlyRateCents: existing.hourlyRateCents,
             minimumHours: existing.minimumHours,
             perPersonPriceCents: existing.perPersonPriceCents,
             minimumGuests: existing.minimumGuests,
-            priceTierOverride: existing.priceTierOverride,
             pricingVisibility: existing.pricingVisibility,
             weeklySchedule: existing.weeklySchedule,
             leadTimeDays: existing.leadTimeDays,
@@ -630,14 +624,12 @@ actor TestVendorProfileService: VendorProfileServiceProtocol {
             city: existing.city,
             serviceArea: existing.serviceArea,
             startingPrice: existing.startingPrice,
-            priceTier: existing.priceTier,
             pricingModel: existing.pricingModel,
             basePriceCents: existing.basePriceCents,
             hourlyRateCents: existing.hourlyRateCents,
             minimumHours: existing.minimumHours,
             perPersonPriceCents: existing.perPersonPriceCents,
             minimumGuests: existing.minimumGuests,
-            priceTierOverride: existing.priceTierOverride,
             pricingVisibility: existing.pricingVisibility,
             weeklySchedule: existing.weeklySchedule,
             leadTimeDays: existing.leadTimeDays,

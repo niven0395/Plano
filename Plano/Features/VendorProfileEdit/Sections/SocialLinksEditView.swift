@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SocialLinksEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var store = store
@@ -37,6 +38,9 @@ struct SocialLinksEditView: View {
                 Button(store.loadingState.isLoading ? "Saving..." : "Save contact links") {
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())

@@ -25,7 +25,7 @@ struct VendorDashboardView: View {
                     HStack(alignment: .firstTextBaseline) {
                         SectionHeader(
                             title: "Upcoming work",
-                            subtitle: "Confirmed event work now stays organized by workspace instead of scattered thread context."
+                            subtitle: "Your confirmed events and their details, all in one place."
                         )
 
                         Spacer(minLength: 12)

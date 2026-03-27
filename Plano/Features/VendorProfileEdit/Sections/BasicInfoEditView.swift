@@ -3,7 +3,9 @@ import SwiftUI
 
 struct BasicInfoEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var selectedListingPhoto: PhotosPickerItem?
 
     var body: some View {
         @Bindable var store = store
@@ -11,6 +13,7 @@ struct BasicInfoEditView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 displayPictureCard
+                listingImageCard
 
                 AppSurface {
                     VStack(alignment: .leading, spacing: 16) {
@@ -53,6 +56,9 @@ struct BasicInfoEditView: View {
                 Button(store.loadingState.isLoading ? "Saving..." : "Save basic info") {
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
@@ -79,6 +85,93 @@ struct BasicInfoEditView: View {
                     await store.uploadProfileImage(data: data)
                 }
                 selectedPhoto = nil
+            }
+        }
+        .onChange(of: selectedListingPhoto) { _, newPhoto in
+            guard let newPhoto else { return }
+            Task {
+                if let data = try? await newPhoto.loadTransferable(type: Data.self) {
+                    await store.uploadListingImage(data: data)
+                }
+                selectedListingPhoto = nil
+            }
+        }
+    }
+
+    private var listingImageCard: some View {
+        AppSurface {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Listing image")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                Text("This appears on search and browse cards. If not set, your profile photo is used.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+
+                Group {
+                    if let listingPath = store.draft.listingImagePath, !listingPath.isEmpty {
+                        PlanoImage(
+                            storagePath: listingPath,
+                            size: .standard,
+                            cornerRadius: AppTheme.cardCornerRadius,
+                            contentMode: .fill
+                        )
+                    } else if let profilePath = store.draft.profileImagePath, !profilePath.isEmpty {
+                        PlanoImage(
+                            storagePath: profilePath,
+                            size: .standard,
+                            cornerRadius: AppTheme.cardCornerRadius,
+                            contentMode: .fill
+                        )
+                        .overlay(alignment: .bottom) {
+                            Text("Using profile photo")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.black.opacity(0.5), in: Capsule())
+                                .padding(.bottom, 10)
+                        }
+                        .opacity(0.7)
+                    } else {
+                        EditorialArtworkPanel(
+                            tone: store.draft.category.accentTone,
+                            symbolName: store.draft.category.symbolName,
+                            height: 160
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius))
+
+                HStack(spacing: 12) {
+                    PhotosPicker(
+                        selection: $selectedListingPhoto,
+                        matching: .images
+                    ) {
+                        Text(store.draft.listingImagePath != nil ? "Change listing image" : "Add listing image")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.Palette.accent)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .contentShape(Rectangle())
+                    }
+
+                    if store.draft.listingImagePath != nil {
+                        Button("Remove") {
+                            Task {
+                                await store.removeListingImage()
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.toneColor(.coral))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
+                    }
+                }
             }
         }
     }

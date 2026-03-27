@@ -5,25 +5,25 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
     let businessName: String
     let businessEmail: String?
     let profileImagePath: String?
+    let listingImagePath: String?
     let category: VendorCategory
     let customCategoryName: String?
     let bio: String
     let city: String
     let serviceArea: String
     let startingPrice: String
-    private let legacyPriceTier: PriceTier?
     let pricingModel: PricingModel
     let basePriceCents: Int?
     let hourlyRateCents: Int?
     let minimumHours: Int?
     let perPersonPriceCents: Int?
     let minimumGuests: Int?
-    let priceTierOverride: PriceTier?
     let pricingVisibility: PricingVisibility
     let weeklySchedule: WeeklySchedule
     let leadTimeDays: Int
     let advanceBookingDays: Int
     let timeslotConfig: TimeslotConfig
+    let schedulingMode: SchedulingMode
     let bookingMode: BookingMode
     let paymentMode: PaymentMode
     let cancellationDeadlineDays: Int?
@@ -60,25 +60,25 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         businessName: String,
         businessEmail: String? = nil,
         profileImagePath: String? = nil,
+        listingImagePath: String? = nil,
         category: VendorCategory,
         customCategoryName: String? = nil,
         bio: String = "",
         city: String,
         serviceArea: String,
         startingPrice: String = "",
-        priceTier: PriceTier? = nil,
         pricingModel: PricingModel = .startingFrom,
         basePriceCents: Int? = nil,
         hourlyRateCents: Int? = nil,
         minimumHours: Int? = nil,
         perPersonPriceCents: Int? = nil,
         minimumGuests: Int? = nil,
-        priceTierOverride: PriceTier? = nil,
         pricingVisibility: PricingVisibility = .public,
         weeklySchedule: WeeklySchedule? = nil,
         leadTimeDays: Int = 0,
         advanceBookingDays: Int = 180,
         timeslotConfig: TimeslotConfig = .disabled,
+        schedulingMode: SchedulingMode = .calendar,
         availabilityMode: AvailabilityMode = .contactToDiscuss,
         bookingMode: BookingMode = .inquiryOnly,
         paymentMode: PaymentMode = .external,
@@ -115,25 +115,25 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         self.businessName = businessName
         self.businessEmail = businessEmail
         self.profileImagePath = profileImagePath
+        self.listingImagePath = listingImagePath
         self.category = category
         self.customCategoryName = customCategoryName
         self.bio = bio
         self.city = city
         self.serviceArea = serviceArea
         self.startingPrice = startingPrice
-        legacyPriceTier = priceTier
         self.pricingModel = pricingModel
         self.basePriceCents = basePriceCents
         self.hourlyRateCents = hourlyRateCents
         self.minimumHours = minimumHours
         self.perPersonPriceCents = perPersonPriceCents
         self.minimumGuests = minimumGuests
-        self.priceTierOverride = priceTierOverride
         self.pricingVisibility = pricingVisibility
         self.weeklySchedule = weeklySchedule ?? WeeklySchedule.legacyDefault(for: availabilityMode)
         self.leadTimeDays = min(max(leadTimeDays, 0), 90)
         self.advanceBookingDays = min(max(advanceBookingDays, 7), 365)
         self.timeslotConfig = timeslotConfig
+        self.schedulingMode = schedulingMode
         self.bookingMode = bookingMode
         self.paymentMode = paymentMode
         self.cancellationDeadlineDays = cancellationDeadlineDays
@@ -167,7 +167,16 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
     }
 
     var hasTimeslots: Bool {
-        timeslotConfig.isEnabled
+        schedulingMode == .timeslots
+    }
+
+    var usesEventTimeRange: Bool {
+        schedulingMode == .eventTimeRange
+    }
+
+    var eventTimeRangeLabel: String? {
+        guard schedulingMode == .eventTimeRange else { return nil }
+        return "\(timeslotConfig.dailyStartTimeLabel) – \(timeslotConfig.dailyEndTimeLabel)"
     }
 
     var availabilityMode: AvailabilityMode {
@@ -191,33 +200,13 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         Int(responseTime.filter(\.isNumber)) ?? 999
     }
 
-    var derivedPriceTier: PriceTier? {
-        normalizedBasePriceCents.map(category.priceTier(for:))
-    }
-
-    var effectivePriceTier: PriceTier? {
-        priceTierOverride ?? derivedPriceTier ?? legacyPriceTier
-    }
-
-    var priceTier: PriceTier? {
-        effectivePriceTier
-    }
-
     var priceValue: Double {
         if let normalizedBasePriceCents {
             return Double(normalizedBasePriceCents) / 100
         }
 
-        if let effectivePriceTier {
-            return Double(category.priceRange(for: effectivePriceTier).low)
-        }
-
         if let legacyStartingPriceCents {
             return Double(legacyStartingPriceCents) / 100
-        }
-
-        if let priceTier = legacyPriceTier {
-            return Double(category.priceRange(for: priceTier).low)
         }
 
         return 0
@@ -251,11 +240,7 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
     var visiblePricingDetailLabel: String? {
         switch pricingVisibility {
         case .public:
-            if let pricingLabel = pricingLabel {
-                if let effectivePriceTier {
-                    return "\(pricingLabel) · \(effectivePriceTier.title) (\(category.priceRangeLabel(for: effectivePriceTier)))"
-                }
-
+            if let pricingLabel {
                 return pricingLabel
             }
 

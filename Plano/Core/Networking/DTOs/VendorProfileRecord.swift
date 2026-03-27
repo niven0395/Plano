@@ -5,6 +5,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
     let businessName: String
     let businessEmail: String?
     let profileImagePath: String?
+    let listingImagePath: String?
     let category: String?
     let customCategoryName: String?
     let bio: String?
@@ -12,14 +13,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
     let city: String?
     let serviceArea: String?
     let startingPrice: String?
-    let priceTier: String?
     let pricingModel: String?
     let basePriceCents: Int?
     let hourlyRateCents: Int?
     let minimumHours: Int?
     let perPersonPriceCents: Int?
     let minimumGuests: Int?
-    let priceTierOverride: String?
     let pricingVisibility: String?
     let availabilityMode: String?
     let availableDays: [Int]?
@@ -37,6 +36,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
     let categoryDetails: CategoryDetails?
     let leadIntakeQuestions: [LeadIntakeQuestion]?
     let policies: [VendorPolicy]?
+    let schedulingMode: String?
     let timeslotsEnabled: Bool?
     let timeslotDurationMinutes: Int?
     let timeslotStartHour: Int?
@@ -55,6 +55,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         case businessName = "business_name"
         case businessEmail = "business_email"
         case profileImagePath = "profile_image_path"
+        case listingImagePath = "listing_image_path"
         case category
         case customCategoryName = "custom_category_name"
         case bio
@@ -62,14 +63,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         case city
         case serviceArea = "service_area"
         case startingPrice = "starting_price"
-        case priceTier = "price_tier"
         case pricingModel = "pricing_model"
         case basePriceCents = "base_price_cents"
         case hourlyRateCents = "hourly_rate_cents"
         case minimumHours = "minimum_hours"
         case perPersonPriceCents = "per_person_price_cents"
         case minimumGuests = "minimum_guests"
-        case priceTierOverride = "price_tier_override"
         case pricingVisibility = "pricing_visibility"
         case availabilityMode = "availability_mode"
         case availableDays = "available_days"
@@ -87,6 +86,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         case categoryDetails = "category_details"
         case leadIntakeQuestions = "lead_intake_questions"
         case policies
+        case schedulingMode = "scheduling_mode"
         case timeslotsEnabled = "timeslots_enabled"
         case timeslotDurationMinutes = "timeslot_duration_minutes"
         case timeslotStartHour = "timeslot_start_hour"
@@ -106,6 +106,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         businessName: String,
         businessEmail: String? = nil,
         profileImagePath: String? = nil,
+        listingImagePath: String? = nil,
         category: String? = nil,
         customCategoryName: String? = nil,
         bio: String? = nil,
@@ -113,14 +114,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         city: String? = nil,
         serviceArea: String? = nil,
         startingPrice: String? = nil,
-        priceTier: String? = nil,
         pricingModel: String? = nil,
         basePriceCents: Int? = nil,
         hourlyRateCents: Int? = nil,
         minimumHours: Int? = nil,
         perPersonPriceCents: Int? = nil,
         minimumGuests: Int? = nil,
-        priceTierOverride: String? = nil,
         pricingVisibility: String? = nil,
         availabilityMode: String? = nil,
         availableDays: [Int]? = nil,
@@ -138,6 +137,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         categoryDetails: CategoryDetails? = nil,
         leadIntakeQuestions: [LeadIntakeQuestion]? = nil,
         policies: [VendorPolicy]? = nil,
+        schedulingMode: String? = nil,
         timeslotsEnabled: Bool? = nil,
         timeslotDurationMinutes: Int? = nil,
         timeslotStartHour: Int? = nil,
@@ -155,6 +155,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         self.businessName = businessName
         self.businessEmail = businessEmail
         self.profileImagePath = profileImagePath
+        self.listingImagePath = listingImagePath
         self.category = category
         self.customCategoryName = customCategoryName
         self.bio = bio
@@ -162,14 +163,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         self.city = city
         self.serviceArea = serviceArea
         self.startingPrice = startingPrice
-        self.priceTier = priceTier
         self.pricingModel = pricingModel
         self.basePriceCents = basePriceCents
         self.hourlyRateCents = hourlyRateCents
         self.minimumHours = minimumHours
         self.perPersonPriceCents = perPersonPriceCents
         self.minimumGuests = minimumGuests
-        self.priceTierOverride = priceTierOverride
         self.pricingVisibility = pricingVisibility
         self.availabilityMode = availabilityMode
         self.availableDays = availableDays
@@ -187,6 +186,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         self.categoryDetails = categoryDetails
         self.leadIntakeQuestions = leadIntakeQuestions
         self.policies = policies
+        self.schedulingMode = schedulingMode
         self.timeslotsEnabled = timeslotsEnabled
         self.timeslotDurationMinutes = timeslotDurationMinutes
         self.timeslotStartHour = timeslotStartHour
@@ -207,6 +207,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         businessName = try container.decode(String.self, forKey: .businessName)
         businessEmail = try container.decodeIfPresent(String.self, forKey: .businessEmail)
         profileImagePath = try container.decodeIfPresent(String.self, forKey: .profileImagePath)
+        listingImagePath = try container.decodeIfPresent(String.self, forKey: .listingImagePath)
         category = try container.decodeIfPresent(String.self, forKey: .category)
         customCategoryName = try container.decodeIfPresent(String.self, forKey: .customCategoryName)
         bio = try container.decodeIfPresent(String.self, forKey: .bio)
@@ -214,14 +215,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         city = try container.decodeIfPresent(String.self, forKey: .city)
         serviceArea = try container.decodeIfPresent(String.self, forKey: .serviceArea)
         startingPrice = try container.decodeIfPresent(String.self, forKey: .startingPrice)
-        priceTier = try container.decodeIfPresent(String.self, forKey: .priceTier)
         pricingModel = try container.decodeIfPresent(String.self, forKey: .pricingModel)
         basePriceCents = try container.decodeIfPresent(Int.self, forKey: .basePriceCents)
         hourlyRateCents = try container.decodeIfPresent(Int.self, forKey: .hourlyRateCents)
         minimumHours = try container.decodeIfPresent(Int.self, forKey: .minimumHours)
         perPersonPriceCents = try container.decodeIfPresent(Int.self, forKey: .perPersonPriceCents)
         minimumGuests = try container.decodeIfPresent(Int.self, forKey: .minimumGuests)
-        priceTierOverride = try container.decodeIfPresent(String.self, forKey: .priceTierOverride)
         pricingVisibility = try container.decodeIfPresent(String.self, forKey: .pricingVisibility)
         availabilityMode = try container.decodeIfPresent(String.self, forKey: .availabilityMode)
         availableDays = try container.decodeIfPresent([Int].self, forKey: .availableDays)
@@ -242,6 +241,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         categoryDetails = try? container.decodeIfPresent(CategoryDetails.self, forKey: .categoryDetails)
         leadIntakeQuestions = try container.decodeIfPresent([LeadIntakeQuestion].self, forKey: .leadIntakeQuestions)
         policies = try container.decodeIfPresent([VendorPolicy].self, forKey: .policies)
+        schedulingMode = try container.decodeIfPresent(String.self, forKey: .schedulingMode)
         timeslotsEnabled = try container.decodeIfPresent(Bool.self, forKey: .timeslotsEnabled)
         timeslotDurationMinutes = try container.decodeIfPresent(Int.self, forKey: .timeslotDurationMinutes)
         timeslotStartHour = try container.decodeIfPresent(Int.self, forKey: .timeslotStartHour)
@@ -261,6 +261,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         businessName = profile.businessName
         businessEmail = profile.businessEmail
         profileImagePath = profile.profileImagePath
+        listingImagePath = profile.listingImagePath
         category = profile.category.rawValue
         customCategoryName = profile.customCategoryName
         bio = profile.bio
@@ -268,14 +269,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         city = profile.city
         serviceArea = profile.serviceArea
         startingPrice = profile.startingPrice
-        priceTier = profile.priceTier?.rawValue
         pricingModel = profile.pricingModel.rawValue
         basePriceCents = profile.basePriceCents
         hourlyRateCents = profile.hourlyRateCents
         minimumHours = profile.minimumHours
         perPersonPriceCents = profile.perPersonPriceCents
         minimumGuests = profile.minimumGuests
-        priceTierOverride = profile.priceTierOverride?.rawValue
         pricingVisibility = profile.pricingVisibility.rawValue
         availabilityMode = profile.availabilityMode.rawValue
         availableDays = profile.weeklySchedule.availableDays.sorted().map(\.rawValue)
@@ -293,7 +292,8 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         categoryDetails = profile.categoryDetails
         leadIntakeQuestions = profile.leadIntakeQuestions
         policies = profile.policies
-        timeslotsEnabled = profile.timeslotConfig.isEnabled
+        schedulingMode = profile.schedulingMode.rawValue
+        timeslotsEnabled = profile.schedulingMode == .timeslots
         timeslotDurationMinutes = profile.timeslotConfig.durationMinutes
         timeslotStartHour = profile.timeslotConfig.startHour
         timeslotStartMinute = profile.timeslotConfig.startMinute
@@ -309,9 +309,9 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
 
     func makeVendorProfile(
         fallbackCategory: VendorCategory = .entertainer,
-        responseTime: String = "Responds in 1h",
-        ratingValue: Double = 4.8,
-        reviewCount: Int = 12,
+        responseTime: String = "",
+        ratingValue: Double = 0.0,
+        reviewCount: Int = 0,
         badge: String = "Fresh profile",
         intro: String? = nil,
         availability: AvailabilitySignal = .bookingFast,
@@ -357,8 +357,12 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
                 return trimmed.isEmpty ? nil : trimmed
             }
 
+        let resolvedSchedulingMode: SchedulingMode = schedulingMode
+            .flatMap(SchedulingMode.init(rawValue:))
+            ?? (timeslotsEnabled == true ? .timeslots : .calendar)
+
         let resolvedTimeslotConfig = TimeslotConfig(
-            isEnabled: timeslotsEnabled ?? false,
+            isEnabled: resolvedSchedulingMode == .timeslots,
             durationMinutes: timeslotDurationMinutes ?? 60,
             startHour: timeslotStartHour ?? 9,
             startMinute: timeslotStartMinute ?? 0,
@@ -374,25 +378,25 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
             businessName: businessName,
             businessEmail: businessEmail,
             profileImagePath: profileImagePath,
+            listingImagePath: listingImagePath,
             category: category,
             customCategoryName: customCategoryName,
             bio: bio,
             city: city ?? "Toronto",
             serviceArea: serviceArea ?? "Greater Toronto Area",
             startingPrice: startingPrice ?? "",
-            priceTier: priceTier.flatMap(PriceTier.init(rawValue:)),
             pricingModel: pricingModel.flatMap(PricingModel.init(rawValue:)) ?? .startingFrom,
             basePriceCents: basePriceCents,
             hourlyRateCents: hourlyRateCents,
             minimumHours: minimumHours,
             perPersonPriceCents: perPersonPriceCents,
             minimumGuests: minimumGuests,
-            priceTierOverride: priceTierOverride.flatMap(PriceTier.init(rawValue:)),
             pricingVisibility: pricingVisibility.flatMap(PricingVisibility.init(rawValue:)) ?? .public,
             weeklySchedule: resolvedWeeklySchedule,
             leadTimeDays: Self.clampedLeadTimeDays(leadTimeDays),
             advanceBookingDays: Self.clampedAdvanceBookingDays(advanceBookingDays),
             timeslotConfig: resolvedTimeslotConfig,
+            schedulingMode: resolvedSchedulingMode,
             availabilityMode: resolvedWeeklySchedule.derivedAvailabilityMode(for: resolvedBookingMode),
             bookingMode: resolvedBookingMode,
             paymentMode: paymentMode.flatMap(PaymentMode.init(rawValue:)) ?? .external,

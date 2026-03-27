@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LeadIntakeEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var store = store
@@ -51,6 +52,9 @@ struct LeadIntakeEditView: View {
                 Button(store.loadingState.isLoading ? "Saving..." : "Save intake form") {
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())

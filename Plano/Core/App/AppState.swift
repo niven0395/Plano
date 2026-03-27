@@ -12,7 +12,7 @@ final class AppEnvironment {
 
     init(
         services: ServiceContainer,
-        buildLabel: String = "Phase 3 • Live Booking Foundation"
+        buildLabel: String = "Plano"
     ) {
         self.services = services
         apiClient = services.apiClient

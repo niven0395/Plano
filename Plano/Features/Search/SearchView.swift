@@ -166,7 +166,7 @@ struct SearchResultState: View {
                 )
             } else {
                 LazyVStack(spacing: 16) {
-                    ForEach(store.visibleResults) { result in
+                    ForEach(Array(store.visibleResults.enumerated()), id: \.element.id) { index, result in
                         ZStack(alignment: .topTrailing) {
                             NavigationLink(value: DiscoveryRoute.vendorProfile(result.vendor.id)) {
                                 SearchResultCard(
@@ -187,11 +187,13 @@ struct SearchResultState: View {
                             .accessibilityLabel(store.isSaved(result.vendor.id) ? "Remove from shortlist" : "Add to shortlist")
                             .frame(width: 38, height: 38)
                             .background(AppTheme.Palette.elevatedSurface, in: Circle())
+                            .symbolEffect(.bounce, value: store.isSaved(result.vendor.id))
                             .buttonStyle(.plain)
                             .disabled(store.isSavePending(result.vendor.id))
                             .opacity(store.isSavePending(result.vendor.id) ? 0.55 : 1)
                             .padding(16)
                         }
+                        .staggeredAppear(index: index)
                     }
                 }
                 .animation(.smooth(duration: 0.25), value: store.visibleResults.map(\.id))
@@ -220,6 +222,7 @@ struct SearchResultCard: View {
             VStack(alignment: .leading, spacing: 18) {
                 VendorArtworkPanel(
                     profileImagePath: vendor.profileImagePath,
+                    listingImagePath: vendor.listingImagePath,
                     tone: artworkTone,
                     symbolName: vendor.category.symbolName,
                     height: 188
@@ -250,18 +253,18 @@ struct SearchResultCard: View {
 
                     Spacer()
 
-                    VStack(alignment: .trailing, spacing: 6) {
-                        Text(vendor.ratingText)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
+                    if vendor.reviewCount > 0 {
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Text(vendor.ratingText)
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                        Text("\(vendor.reviewCount) reviews")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.subdued)
+                            Text("\(vendor.reviewCount) reviews")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.subdued)
+                        }
                     }
                 }
-
-                FlexibleReasonRow(reasons: result.reasons)
 
                 HStack(spacing: 10) {
                     SearchRouteChip(
@@ -275,16 +278,6 @@ struct SearchResultCard: View {
                         symbolName: vendor.paymentMode.symbolName,
                         tone: vendor.paymentMode == .platform ? .sage : .sand
                     )
-                }
-
-                HStack(alignment: .center) {
-                    StatusBadge(title: vendor.availability.title, tone: vendor.availability.tone)
-
-                    Spacer()
-
-                    Label(vendor.responseTime, systemImage: "bolt.fill")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
                 }
             }
         }

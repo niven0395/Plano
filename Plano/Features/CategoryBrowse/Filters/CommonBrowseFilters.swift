@@ -32,22 +32,6 @@ struct CommonBrowseFilters: View {
                 }
             }
 
-            FilterGroup(title: "Price level") {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(PriceTier.allCases) { tier in
-                            Button {
-                                filterState.selectedPriceTier = filterState.selectedPriceTier == tier ? nil : tier
-                            } label: {
-                                FilterChip(title: tier.title, isSelected: filterState.selectedPriceTier == tier)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-
             if showsAvailability {
                 FilterGroup(title: "Availability") {
                     ScrollView(.horizontal, showsIndicators: false) {

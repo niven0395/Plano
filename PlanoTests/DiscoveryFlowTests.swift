@@ -165,7 +165,7 @@ struct DiscoveryFlowTests {
 
     @Test
     @MainActor
-    func priceTierFilteringAndSortingPromoteBudgetFriendlyOptions() async {
+    func priceSortingPromotesBudgetFriendlyOptions() async {
         await withIsolatedDefaults { defaults in
             let planner = HostPlanningStore(
                 eventService: TestEventService(),
@@ -182,11 +182,8 @@ struct DiscoveryFlowTests {
             await planner.load()
             await store.load()
 
-            store.sortMode = .priceTierAscending
+            store.sortMode = .priceLowToHigh
             #expect(store.visibleResults.first?.vendor.businessName == "Afterglow DJ Co.")
-
-            store.selectedPriceTier = .starter
-            #expect(store.visibleResults.map(\.vendor.businessName) == ["Afterglow DJ Co."])
         }
     }
 
@@ -359,7 +356,6 @@ struct DiscoveryFlowTests {
             styleSummary: "Clear host-facing pricing and booking setup.",
             city: city,
             serviceArea: serviceArea,
-            priceTier: category.priceTier(for: basePriceCents).rawValue,
             pricingModel: PricingModel.perEvent.rawValue,
             basePriceCents: basePriceCents,
             pricingVisibility: pricingVisibility.rawValue,

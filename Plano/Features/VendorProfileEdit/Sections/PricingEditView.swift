@@ -2,9 +2,9 @@ import SwiftUI
 
 struct PricingEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
 
     @State private var servicesText = ""
-    @State private var showTierOverridePicker = false
 
     var body: some View {
         @Bindable var store = store
@@ -71,68 +71,6 @@ struct PricingEditView: View {
                     }
                 }
 
-                if let derivedPriceTier = store.draft.derivedPriceTier {
-                    AppSurface {
-                        VStack(alignment: .leading, spacing: 16) {
-                            sectionHeader(
-                                title: "Discovery tier",
-                                subtitle: "This helps hosts interpret your price position for \(store.draft.category.singularTitle.lowercased())."
-                            )
-
-                            Text(
-                                "Based on your pricing, you'll appear as \(derivedPriceTier.title) (\(store.draft.category.priceRangeLabel(for: derivedPriceTier)) for \(store.draft.category.singularTitle.lowercased()))."
-                            )
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                            if let overrideTier = store.draft.priceTierOverride {
-                                Text("Override active: \(overrideTier.title) will be used instead of the automatic tier.")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(AppTheme.Palette.textSecondary)
-                            }
-
-                            HStack(spacing: 12) {
-                                Button(showTierOverridePicker ? "Hide tier options" : "Change tier") {
-                                    withAnimation(.snappy) {
-                                        showTierOverridePicker.toggle()
-                                    }
-                                }
-                                .buttonStyle(SecondaryActionButtonStyle())
-
-                                if store.draft.priceTierOverride != nil {
-                                    Button("Reset to auto") {
-                                        withAnimation(.snappy) {
-                                            store.draft.priceTierOverride = nil
-                                            showTierOverridePicker = false
-                                        }
-                                    }
-                                    .buttonStyle(.plain)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppTheme.Palette.textSecondary)
-                                }
-                            }
-
-                            if showTierOverridePicker || store.draft.priceTierOverride != nil {
-                                VStack(spacing: 10) {
-                                    ForEach(PriceTier.allCases) { tier in
-                                        Button {
-                                            store.draft.priceTierOverride = tier
-                                        } label: {
-                                            TierOverrideOptionCard(
-                                                tier: tier,
-                                                category: store.draft.category,
-                                                isSelected: store.draft.priceTierOverride == tier
-                                            )
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-                    }
-                }
-
                 AppSurface {
                     VStack(alignment: .leading, spacing: 18) {
                         sectionHeader(
@@ -171,6 +109,9 @@ struct PricingEditView: View {
 
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
@@ -190,7 +131,6 @@ struct PricingEditView: View {
         }
         .onAppear {
             servicesText = store.draft.services.joined(separator: ", ")
-            showTierOverridePicker = store.draft.priceTierOverride != nil
         }
     }
 
@@ -503,49 +443,6 @@ private struct ServiceItemEditor: View {
                 displayOrder: item.displayOrder
             ) }
         )
-    }
-}
-
-private struct TierOverrideOptionCard: View {
-    let tier: PriceTier
-    let category: VendorCategory
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tier.title)
-                        .font(.headline)
-                        .foregroundStyle(isSelected ? AppTheme.Palette.elevatedSurface : AppTheme.Palette.textPrimary)
-
-                    Text(tier.signal)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(isSelected ? AppTheme.Palette.elevatedSurface.opacity(0.82) : AppTheme.Palette.textSecondary)
-                }
-
-                Spacer()
-
-                Text(category.priceRangeLabel(for: tier))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isSelected ? AppTheme.Palette.elevatedSurface : AppTheme.Palette.textPrimary)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(backgroundStyle, in: .rect(cornerRadius: AppTheme.smallCornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
-                .stroke(isSelected ? AppTheme.Palette.accent : AppTheme.Palette.border, lineWidth: 1)
-        }
-    }
-
-    private var backgroundStyle: some ShapeStyle {
-        if isSelected {
-            return AnyShapeStyle(AppTheme.Palette.accent)
-        }
-
-        return AnyShapeStyle(AppTheme.Palette.elevatedSurface)
     }
 }
 

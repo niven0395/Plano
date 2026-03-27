@@ -120,7 +120,6 @@ private struct BrowseFilterBar: View {
             .animation(.snappy(duration: 0.2), value: showsFilters)
         }
         .onChange(of: store.filterState.selectedCity) { _, _ in store.applyFilters() }
-        .onChange(of: store.filterState.selectedPriceTier) { _, _ in store.applyFilters() }
         .onChange(of: store.filterState.ratingFilter) { _, _ in store.applyFilters() }
         .onChange(of: store.filterState.sortMode) { _, _ in store.applyFilters() }
         .onChange(of: store.filterState.availabilityFilter) { _, _ in store.applyFilters() }

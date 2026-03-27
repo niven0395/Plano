@@ -320,6 +320,7 @@ struct FilterChip: View {
                 Capsule()
                     .stroke(isSelected ? AppTheme.Palette.accent : AppTheme.Palette.border, lineWidth: 1)
             }
+            .animation(AppAnimation.feedback, value: isSelected)
     }
 
     private var chipBackground: some ShapeStyle {
@@ -347,6 +348,7 @@ struct EmptyStateCard: View {
                     Image(systemName: symbolName)
                         .font(.title3.weight(.medium))
                         .foregroundStyle(AppTheme.Palette.textPrimary)
+                        .symbolEffect(.pulse.byLayer)
                 }
 
                 Text(title)
@@ -374,7 +376,8 @@ struct PrimaryActionButtonStyle: ButtonStyle {
                 AppTheme.Palette.accent.opacity(configuration.isPressed ? 0.88 : 1),
                 in: .rect(cornerRadius: AppTheme.smallCornerRadius)
             )
-            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(AppAnimation.press, value: configuration.isPressed)
             .hapticFeedback(.impact(weight: .medium), trigger: configuration.isPressed) { old, new in
                 !old && new
             }
@@ -397,7 +400,8 @@ struct SecondaryActionButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
                     .stroke(AppTheme.Palette.border, lineWidth: 1)
             }
-            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(AppAnimation.press, value: configuration.isPressed)
             .hapticFeedback(.impact(weight: .light), trigger: configuration.isPressed) { old, new in
                 !old && new
             }

@@ -162,6 +162,16 @@ final class VendorProfileEditStore {
         }
     }
 
+    func reset() {
+        hasLoaded = false
+        draft = VendorProfileDraft()
+        availabilityRecords = []
+        timeslotBookings = []
+        pendingOverrideDates = []
+        loadingState = .idle
+        lastSaveOutcome = .idle
+    }
+
     func loadIfNeeded() async {
         guard !hasLoaded else { return }
         await load()
@@ -202,7 +212,7 @@ final class VendorProfileEditStore {
 
             availabilityRecords = try await availability
 
-            if draft.timeslotsEnabled {
+            if draft.schedulingMode == .timeslots {
                 timeslotBookings = try await availabilityService.fetchTimeslotBookings(
                     vendorID: sessionStore.currentUserID ?? UUID(),
                     from: .now,
@@ -292,6 +302,50 @@ final class VendorProfileEditStore {
                 try await mediaService.deleteImage(path: existing)
             }
             draft.profileImagePath = nil
+            await save()
+        } catch is CancellationError {
+            // Normal task lifecycle
+        } catch {
+            loadingState = .failed(error.localizedDescription)
+            lastSaveOutcome = .failed(error.localizedDescription)
+        }
+    }
+
+    func uploadListingImage(data: Data) async {
+        guard let userID = sessionStore.currentUserID else { return }
+        loadingState = .loading
+
+        do {
+            let variants = try await imageProcessor.processVariants(from: data)
+
+            if let existing = draft.listingImagePath {
+                try await mediaService.deleteImage(path: existing)
+            }
+
+            let storagePath = try await mediaService.uploadImageVariants(variants, vendorID: userID)
+            draft.listingImagePath = storagePath
+
+            if let thumbData = variants[.thumbnail], let image = UIImage(data: thumbData) {
+                await imageCache.stageLocalImage(image, for: storagePath)
+            }
+
+            await save()
+        } catch is CancellationError {
+            // Normal task lifecycle
+        } catch {
+            loadingState = .failed(error.localizedDescription)
+            lastSaveOutcome = .failed(error.localizedDescription)
+        }
+    }
+
+    func removeListingImage() async {
+        loadingState = .loading
+
+        do {
+            if let existing = draft.listingImagePath {
+                try await mediaService.deleteImage(path: existing)
+            }
+            draft.listingImagePath = nil
             await save()
         } catch is CancellationError {
             // Normal task lifecycle

@@ -11,6 +11,7 @@ struct VendorProfileLoadedView: View {
     @Environment(AppEnvironment.self) private var environment
 
     @State private var bookingStore: VendorBookingRequestStore?
+    @State private var pendingBookingDate: Date?
 
     private var isSaved: Bool {
         store.isSaved(planner: planner)
@@ -55,7 +56,7 @@ struct VendorProfileLoadedView: View {
     }
 
     private var shortlistActionTitle: String {
-        isSaved ? "Remove from shortlist" : "Save to shortlist"
+        "Shortlist"
     }
 
     private var shortlistSymbolName: String {
@@ -66,23 +67,39 @@ struct VendorProfileLoadedView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 VendorProfileHeroCard(vendor: vendor)
+                    .staggeredAppear(index: 0)
 
                 if store.shouldShowStats {
                     VendorProfileStatsCard(vendor: vendor)
+                        .staggeredAppear(index: 1)
                 }
 
                 if store.shouldShowAbout {
                     SectionHeader(title: "About")
                     VendorProfileAboutCard(vendor: vendor)
+                        .staggeredAppear(index: 2)
                 }
 
                 if store.shouldShowCategoryDetails, let details = vendor.categoryDetails {
                     SectionHeader(title: details.sectionTitle)
                     CategoryDetailsSection(details: details)
+                        .staggeredAppear(index: 3)
                 }
 
-                SectionHeader(title: "Availability")
-                VendorProfileAvailabilityCard(vendor: vendor)
+                if store.shouldShowServices {
+                    SectionHeader(title: "Services")
+                    VendorProfileServicesCard(services: vendor.services)
+                        .staggeredAppear(index: 4)
+                }
+
+                if store.shouldShowGallery {
+                    SectionHeader(title: "Gallery")
+                    VendorProfileGalleryCard(
+                        galleryImages: vendor.galleryImages,
+                        businessName: vendor.businessName
+                    )
+                    .staggeredAppear(index: 5)
+                }
 
                 if store.canInitiateConversation {
                     if hasBlockingBooking, let stage = existingConversationStage {
@@ -107,6 +124,20 @@ struct VendorProfileLoadedView: View {
                                 StatusBadge(title: stage.title, tone: stage.tone)
                             }
                         }
+                    } else if vendor.usesEventTimeRange {
+                        SectionHeader(title: "Request a booking")
+
+                        if let bookingStore {
+                            EventTimeRangeBookingSection(
+                                vendor: vendor,
+                                store: bookingStore
+                            )
+                        } else {
+                            EventTimeRangeBookingSection(
+                                vendor: vendor,
+                                store: initAndReturnBookingStore()
+                            )
+                        }
                     } else if let bookingStore {
                         VendorProfileBookingSection(
                             vendor: vendor,
@@ -122,8 +153,9 @@ struct VendorProfileLoadedView: View {
                                     vendorProfile: vendor,
                                     availabilityRecords: store.availabilityRecords,
                                     selectedDate: Binding(
-                                        get: { nil },
+                                        get: { pendingBookingDate },
                                         set: { date in
+                                            pendingBookingDate = date
                                             if date != nil {
                                                 initBookingStore()
                                                 bookingStore?.selectedBookingDate = date
@@ -131,6 +163,10 @@ struct VendorProfileLoadedView: View {
                                         }
                                     )
                                 )
+
+                                Button("Request Booking") { }
+                                    .buttonStyle(PrimaryActionButtonStyle())
+                                    .disabled(true)
                             }
                         }
                     }
@@ -143,19 +179,6 @@ struct VendorProfileLoadedView: View {
                             VendorProfilePackageCard(package: package)
                         }
                     }
-                }
-
-                if store.shouldShowServices {
-                    SectionHeader(title: "Services")
-                    VendorProfileServicesCard(services: vendor.services)
-                }
-
-                if store.shouldShowGallery {
-                    SectionHeader(title: "Gallery")
-                    VendorProfileGalleryCard(
-                        galleryImages: vendor.galleryImages,
-                        businessName: vendor.businessName
-                    )
                 }
 
                 if store.shouldShowReviews {
@@ -175,11 +198,6 @@ struct VendorProfileLoadedView: View {
                 if store.shouldShowSocial {
                     SectionHeader(title: "Social & Contact")
                     VendorProfileSocialCard(socialLinks: vendor.socialLinks)
-                }
-
-                if store.shouldShowTags {
-                    SectionHeader(title: "Tags")
-                    VendorProfileTagsCard(tags: vendor.tags)
                 }
 
                 VendorProfileCTACardView(
@@ -221,6 +239,8 @@ struct VendorProfileLoadedView: View {
                     vendorName: vendor.businessName,
                     selectedDate: date,
                     selectedTimeslot: bookingStore.selectedTimeslot,
+                    requestedStartTime: bookingStore.requestedStartTime,
+                    requestedEndTime: bookingStore.requestedEndTime,
                     note: Bindable(bookingStore).bookingNote,
                     isSubmitting: bookingStore.isSubmittingBooking,
                     onSubmit: {
@@ -257,6 +277,7 @@ struct VendorProfileLoadedView: View {
                     action: { store.toggleSaved(planner: planner) }
                 )
                 .labelStyle(.iconOnly)
+                .symbolEffect(.bounce, value: isSaved)
                 .foregroundStyle(isSaved ? AppTheme.toneColor(.coral) : AppTheme.Palette.textPrimary)
                 .accessibilityLabel(isSaved ? "Remove from shortlist" : "Save to shortlist")
             }
@@ -276,6 +297,22 @@ struct VendorProfileLoadedView: View {
         Task {
             await bookingStore?.loadTimeslotBookings(vendor: vendor)
         }
+    }
+
+    @discardableResult
+    private func initAndReturnBookingStore() -> VendorBookingRequestStore {
+        if let bookingStore { return bookingStore }
+        let newStore = VendorBookingRequestStore(
+            vendorID: vendor.id,
+            bookingService: environment.services.bookingService,
+            availabilityService: environment.services.availabilityService,
+            inboxStore: inboxStore,
+            planner: planner,
+            router: router
+        )
+        newStore.schedulingMode = vendor.schedulingMode
+        bookingStore = newStore
+        return newStore
     }
 }
 
@@ -302,12 +339,11 @@ private struct VendorProfileBookingSection: View {
                     )
                 }
 
-                if store.canSubmitBooking {
-                    Button("Request Booking") {
-                        store.isPresentingBookingSheet = true
-                    }
-                    .buttonStyle(PrimaryActionButtonStyle())
+                Button("Request Booking") {
+                    store.isPresentingBookingSheet = true
                 }
+                .buttonStyle(PrimaryActionButtonStyle())
+                .disabled(!store.canSubmitBooking)
             }
         }
         .onChange(of: store.selectedBookingDate) { _, _ in

@@ -205,6 +205,11 @@ final class InboxStore {
                 records = try await bookingService.fetchVendorConversations(vendorID: userID)
             }
 
+            AppLogger.booking.info("loadConversations(\(role.rawValue, privacy: .public)): fetched \(records.count) records for userID=\(userID.uuidString, privacy: .public)")
+            for record in records {
+                AppLogger.booking.info("  conv=\(record.id.uuidString.prefix(8), privacy: .public) stage=\(record.stage, privacy: .public) vendorID=\(record.vendorID.uuidString.prefix(8), privacy: .public) hostID=\(record.hostID.uuidString.prefix(8), privacy: .public)")
+            }
+
             let conversationIDs = records.map(\.id)
             let bookingRequests = try await bookingService.fetchBookingRequests(conversationIDs: conversationIDs)
             let bookings = try await bookingService.fetchBookings(conversationIDs: conversationIDs)

@@ -40,7 +40,21 @@ struct HostBookingCalendar: View {
     let availabilityRecords: [VendorAvailabilityRecord]
     @Binding var selectedDate: Date?
 
-    @State private var visibleMonthStart = Calendar.current.startOfDay(for: .now)
+    @State private var visibleMonthStart: Date
+
+    init(vendorProfile: VendorProfile, availabilityRecords: [VendorAvailabilityRecord], selectedDate: Binding<Date?>) {
+        self.vendorProfile = vendorProfile
+        self.availabilityRecords = availabilityRecords
+        self._selectedDate = selectedDate
+        let cal = Calendar.current
+        if let date = selectedDate.wrappedValue {
+            let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: date))
+                ?? cal.startOfDay(for: .now)
+            self._visibleMonthStart = State(initialValue: monthStart)
+        } else {
+            self._visibleMonthStart = State(initialValue: cal.startOfDay(for: .now))
+        }
+    }
 
     private var bookingWindowStart: Date {
         let calendar = Calendar.current
@@ -117,6 +131,7 @@ struct HostBookingCalendar: View {
                     .foregroundStyle(AppTheme.Palette.subdued)
             }
         }
+        .hapticFeedback(.selection, trigger: selectedDate)
     }
 
     // MARK: - Calendar Grid
@@ -195,15 +210,21 @@ struct HostBookingCalendar: View {
 
     private func selectDate(_ day: Date) {
         guard dateAvailability(for: day).isSelectable else { return }
-        selectedDate = Calendar.current.startOfDay(for: day)
+        withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
+            selectedDate = Calendar.current.startOfDay(for: day)
+        }
     }
 
     private func previousMonth() {
-        visibleMonthStart = Calendar.current.date(byAdding: .month, value: -1, to: visibleMonthStart) ?? visibleMonthStart
+        withAnimation(AppAnimation.transition) {
+            visibleMonthStart = Calendar.current.date(byAdding: .month, value: -1, to: visibleMonthStart) ?? visibleMonthStart
+        }
     }
 
     private func nextMonth() {
-        visibleMonthStart = Calendar.current.date(byAdding: .month, value: 1, to: visibleMonthStart) ?? visibleMonthStart
+        withAnimation(AppAnimation.transition) {
+            visibleMonthStart = Calendar.current.date(byAdding: .month, value: 1, to: visibleMonthStart) ?? visibleMonthStart
+        }
     }
 }
 
@@ -233,6 +254,7 @@ struct HostCalendarDayCell: View {
                     .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
             }
             .opacity(opacity)
+            .animation(.spring(duration: 0.25, bounce: 0.2), value: isSelected)
         }
         .buttonStyle(.plain)
         .disabled(!availability.isSelectable)

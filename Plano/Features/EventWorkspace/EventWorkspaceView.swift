@@ -22,7 +22,7 @@ struct HostEventWorkspaceView: View {
 
                     SectionHeader(
                         title: "Next steps",
-                        subtitle: "Booking follow-through and event reminders stay centralized here."
+                        subtitle: "Your booking updates and event reminders are all here."
                     )
 
                     if workspace.reminders.isEmpty {
@@ -181,7 +181,7 @@ struct VendorEventWorkspaceView: View {
 
                     SectionHeader(
                         title: "Event reminders",
-                        subtitle: "Keep deposits, timing notes, and day-of prep anchored to the event instead of scattered across tools."
+                        subtitle: "Deposits, timing, and day-of prep — organized in one place."
                     )
 
                     LazyVStack(spacing: 16) {

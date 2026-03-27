@@ -43,7 +43,6 @@ struct SearchBarView: View {
 
                 if !store.query.isEmpty ||
                     store.selectedCategory != nil ||
-                    store.selectedPriceTier != nil ||
                     store.selectedAvailability != .all ||
                     store.ratingFilter != .all {
                     Button("Clear", action: store.clearFilters)
@@ -77,26 +76,6 @@ private struct SearchControlsView: View {
             Label("Refine search", systemImage: "slider.horizontal.3")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.textSecondary)
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Price level")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.subdued)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(PriceTier.allCases) { tier in
-                            Button {
-                                store.selectedPriceTier = store.selectedPriceTier == tier ? nil : tier
-                            } label: {
-                                FilterChip(title: tier.title, isSelected: store.selectedPriceTier == tier)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
 
             if store.hasEventContext {
                 VStack(alignment: .leading, spacing: 10) {

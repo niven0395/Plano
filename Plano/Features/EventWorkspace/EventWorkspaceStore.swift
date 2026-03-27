@@ -368,7 +368,7 @@ final class EventWorkspaceStore {
             case .active:
                 EventWorkspaceReminder(
                     title: "Finish the first request for \(thread.vendorName)",
-                    detail: "The thread is open, but the structured request still needs to be sent.",
+                    detail: "The conversation is open, but the booking request still needs to be sent.",
                     symbolName: "square.and.pencil",
                     tone: .sand,
                     conversationID: thread.id
@@ -376,7 +376,7 @@ final class EventWorkspaceStore {
             case .requested:
                 EventWorkspaceReminder(
                     title: "\(thread.vendorName) has the full request",
-                    detail: "The structured request is live. Keep follow-up notes tight while the vendor reviews it.",
+                    detail: "Your booking request has been sent. The vendor is reviewing it.",
                     symbolName: "square.and.pencil",
                     tone: .sand,
                     conversationID: thread.id
@@ -416,7 +416,7 @@ final class EventWorkspaceStore {
             reminders.append(
                 EventWorkspaceReminder(
                     title: "Lock the first confirmed vendor",
-                    detail: "Confirm your first vendor so event coordination has a real anchor.",
+                    detail: "Confirm your first vendor to start organizing your event details.",
                     symbolName: "checkmark.seal",
                     tone: .sand
                 )
@@ -449,7 +449,7 @@ final class EventWorkspaceStore {
         reminders.append(
             EventWorkspaceReminder(
                 title: "Keep host notes in-thread",
-                detail: "The latest conversation update stays attached to this event workspace automatically.",
+                detail: "New messages appear here automatically.",
                 symbolName: "bubble.left.and.bubble.right",
                 tone: .blue,
                 conversationID: thread.id
@@ -472,7 +472,7 @@ final class EventWorkspaceStore {
         switch (role, thread.vendorCategory) {
         case (.host, .decorator):
             title = "Approve the install window"
-            detail = "\(thread.vendorName) should get final palette notes and arrival access before \(daysLabel.lowercased())."
+            detail = "Share your final colour and style preferences with \(thread.vendorName) before \(daysLabel.lowercased())."
             symbolName = "paintpalette"
         case (.host, .photographer):
             title = "Lock the shot list"
@@ -488,11 +488,11 @@ final class EventWorkspaceStore {
             symbolName = "fork.knife.circle"
         case (.host, .eventSpace):
             title = "Reconfirm venue access"
-            detail = "Keep layout changes and vendor load-in timing inside the workspace to avoid drift."
+            detail = "Confirm any layout changes and vendor arrival times before the event."
             symbolName = "building.2.crop.circle"
         case (.vendor, .decorator):
             title = "Confirm load-in and palette"
-            detail = "Lock the host's final install window and focal-point notes while the thread is still fresh."
+            detail = "Confirm the setup time and key design details with the host."
             symbolName = "paintbrush.pointed"
         case (.vendor, .photographer):
             title = "Refine coverage timing"
@@ -500,7 +500,7 @@ final class EventWorkspaceStore {
             symbolName = "camera.metering.center.weighted"
         case (.vendor, .dj):
             title = "Recheck room pacing"
-            detail = "Keep arrival cues, dinner transitions, and the close sequence aligned with the host's notes."
+            detail = "Confirm arrival, dinner, and wrap-up timing with the host."
             symbolName = "speaker.wave.3"
         case (.vendor, .caterer):
             title = "Hold staffing and menu locks"
@@ -508,15 +508,15 @@ final class EventWorkspaceStore {
             symbolName = "takeoutbag.and.cup.and.straw"
         case (.vendor, .eventSpace):
             title = "Reconfirm room flow"
-            detail = "Keep floor plan adjustments and access notes centralized here for the event day team."
+            detail = "Confirm any floor plan changes and access details for the event day."
             symbolName = "rectangle.grid.2x2"
         case (.host, _):
             title = "Keep final details in one thread"
-            detail = "Use the vendor thread to confirm timing, scope, and any event-week changes before \(daysLabel.lowercased())."
+            detail = "Confirm timing and any last-minute changes with \(thread.vendorName) before \(daysLabel.lowercased())."
             symbolName = "checklist"
         case (.vendor, _):
             title = "Lock the event brief"
-            detail = "Keep the host's latest scope, timing, and day-of notes centralized so nothing drifts before service."
+            detail = "Confirm the latest details and timing with the host before the event."
             symbolName = "checklist"
         }
 
@@ -532,9 +532,9 @@ final class EventWorkspaceStore {
     private func hostNextStep(for thread: ConversationThread, eventDate: Date) -> String {
         switch thread.stage {
         case .active:
-            "Package the scope into a structured request so the vendor can review real details."
+            "Send a booking request with your event details so the vendor can review."
         case .requested:
-            "The structured request is already in the vendor queue. Use chat only for important clarifications."
+            "Your booking request has been sent. Use chat for any important updates."
         case .accepted:
             "Review the quote and approve or revise it before the expiry window closes."
         case .paymentRequested:
@@ -544,11 +544,11 @@ final class EventWorkspaceStore {
         case .cancellationRequested:
             "A cancellation request is pending vendor approval."
         case .declined:
-            "Decide whether to reopen scope here or move on to another vendor."
+            "You can continue the conversation or look for another vendor."
         case .cancelled:
-            "Keep any closeout details in thread and reset this category in planning."
+            "Share any final details here. You can search for a new vendor in this category."
         case .completed:
-            "Use the thread for any final recap, delivery, or archival details."
+            "Use this conversation for any final wrap-up or delivery details."
         }
     }
 

@@ -50,11 +50,12 @@ struct InboxView: View {
                     )
                 } else {
                     LazyVStack(spacing: 12) {
-                        ForEach(visibleConversations) { conversation in
+                        ForEach(Array(visibleConversations.enumerated()), id: \.element.id) { index, conversation in
                             NavigationLink(value: InboxRoute.conversation(conversation.id)) {
                                 ConversationCard(conversation: conversation)
                             }
                             .buttonStyle(.plain)
+                            .staggeredAppear(index: index)
                             .contextMenu {
                                 if store.filter == .archived {
                                     Button {
@@ -131,6 +132,7 @@ private struct ConversationCard: View {
                                 .foregroundStyle(AppTheme.Palette.accentForeground)
                                 .frame(width: 22, height: 22)
                                 .background(AppTheme.Palette.accent, in: Circle())
+                                .transition(.scale.combined(with: .opacity))
                         }
                     }
 

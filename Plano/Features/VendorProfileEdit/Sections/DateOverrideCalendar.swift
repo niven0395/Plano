@@ -212,7 +212,7 @@ struct DateOverrideCalendar: View {
 
     private func updateAvailability(for day: Date) {
         lastTappedDate = day
-        if store.draft.timeslotsEnabled {
+        if store.draft.schedulingMode == .timeslots {
             timeslotOverrideDate = day
         } else {
             Task {

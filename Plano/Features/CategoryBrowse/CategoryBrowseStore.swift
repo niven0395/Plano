@@ -166,9 +166,6 @@ final class CategoryBrowseStore {
         if let city = filterState.selectedCity, vendor.city != city {
             return false
         }
-        if let tier = filterState.selectedPriceTier, vendor.priceTier != tier {
-            return false
-        }
         if vendor.ratingValue < filterState.ratingFilter.minimumValue {
             return false
         }
@@ -190,8 +187,7 @@ final class CategoryBrowseStore {
 
         if planner.isSavedVendor(vendor.id) { score += 110 }
         if hasEventContext && availableVendorIDs.contains(vendor.id) { score += 35 }
-        if let tier = filterState.selectedPriceTier, vendor.priceTier == tier { score += 24 }
-        else if vendor.priceTier != nil && vendor.pricingVisibility == .public { score += 8 }
+        if vendor.pricingVisibility == .public, vendor.priceValue > 0 { score += 8 }
 
         switch vendor.availability {
         case .available: score += 18
@@ -220,9 +216,6 @@ final class CategoryBrowseStore {
         if vendor.responseMinutes <= 20 {
             reasons.append(SearchRankingReason(title: "Fast reply", tone: .gold))
         }
-        if let tier = filterState.selectedPriceTier, vendor.priceTier == tier {
-            reasons.append(SearchRankingReason(title: "Budget fit", tone: .sage))
-        }
         if vendor.searchMomentumScore >= 85 {
             reasons.append(SearchRankingReason(title: "Popular now", tone: .sand))
         }
@@ -249,7 +242,7 @@ final class CategoryBrowseStore {
             let lhsAvail = availableVendorIDs.contains(lhs.vendor.id)
             let rhsAvail = availableVendorIDs.contains(rhs.vendor.id)
             if lhsAvail != rhsAvail { return lhsAvail && !rhsAvail }
-        case .priceTierAscending:
+        case .priceLowToHigh:
             if lhs.vendor.priceValue != rhs.vendor.priceValue { return lhs.vendor.priceValue < rhs.vendor.priceValue }
         }
 

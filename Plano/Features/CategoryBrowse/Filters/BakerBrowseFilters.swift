@@ -12,19 +12,6 @@ struct BakerBrowseFilters: View {
                 filterState: $filterState
             )
 
-            MultiChoiceFilterGroup(
-                title: "Dietary options",
-                key: "dietaryOptions",
-                options: BakerDetails.availableDietaryOptions,
-                filterState: $filterState
-            )
-
-            BrowseToggleRow(
-                title: "Tasting available",
-                key: "tasting",
-                filterState: $filterState
-            )
-
             BrowseToggleRow(
                 title: "Delivery available",
                 key: "delivery",

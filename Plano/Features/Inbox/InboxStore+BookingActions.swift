@@ -82,6 +82,7 @@ extension InboxStore {
             guard let self else { return }
             do {
                 try await serverTask()
+                await loadConversations(for: .host)
             } catch is CancellationError {
                 // Normal task lifecycle
             } catch {

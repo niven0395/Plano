@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AboutEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var store = store
@@ -17,6 +18,9 @@ struct AboutEditView: View {
                 Button(store.loadingState.isLoading ? "Saving..." : "Save about section") {
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())

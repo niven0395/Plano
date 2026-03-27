@@ -19,6 +19,9 @@ final class VendorBookingRequestStore {
     var selectedTimeslot: TimeslotOption?
     var timeslotBookings: [VendorTimeslotBookingRecord] = []
     var availableTimeslots: [TimeslotOption] = []
+    var schedulingMode: SchedulingMode = .calendar
+    var requestedStartTime: Date?
+    var requestedEndTime: Date?
 
     init(
         vendorID: UUID,
@@ -37,13 +40,25 @@ final class VendorBookingRequestStore {
     }
 
     var canSubmitBooking: Bool {
-        if vendorHasTimeslots {
-            return selectedBookingDate != nil && selectedTimeslot != nil
+        switch schedulingMode {
+        case .calendar:
+            selectedBookingDate != nil
+        case .timeslots:
+            selectedBookingDate != nil && selectedTimeslot != nil
+        case .eventTimeRange:
+            selectedBookingDate != nil
+                && requestedStartTime != nil
+                && requestedEndTime != nil
         }
-        return selectedBookingDate != nil
     }
 
-    var vendorHasTimeslots: Bool = false
+    var vendorHasTimeslots: Bool {
+        schedulingMode == .timeslots
+    }
+
+    var vendorUsesEventTimeRange: Bool {
+        schedulingMode == .eventTimeRange
+    }
 
     func updateTimeslotsForSelectedDate(vendor: VendorProfile) {
         guard vendor.hasTimeslots, let date = selectedBookingDate else {
@@ -57,6 +72,7 @@ final class VendorBookingRequestStore {
     }
 
     func loadTimeslotBookings(vendor: VendorProfile) async {
+        schedulingMode = vendor.schedulingMode
         guard vendor.hasTimeslots else { return }
         let advanceDays = vendor.timeslotConfig.rollingWindowDays
         do {
@@ -68,7 +84,6 @@ final class VendorBookingRequestStore {
         } catch {
             timeslotBookings = []
         }
-        vendorHasTimeslots = vendor.hasTimeslots
     }
 
     func submitBookingRequest(
@@ -115,6 +130,21 @@ final class VendorBookingRequestStore {
             return nil
         }
 
+        let resolvedTimeStart: String?
+        let resolvedTimeEnd: String?
+
+        switch schedulingMode {
+        case .timeslots:
+            resolvedTimeStart = selectedTimeslot?.startTimeString
+            resolvedTimeEnd = selectedTimeslot?.endTimeString
+        case .eventTimeRange:
+            resolvedTimeStart = requestedStartTime.map(Self.formatTimeString)
+            resolvedTimeEnd = requestedEndTime.map(Self.formatTimeString)
+        case .calendar:
+            resolvedTimeStart = nil
+            resolvedTimeEnd = nil
+        }
+
         do {
             let conversationID: UUID
             if let existing = existingConversationID {
@@ -131,17 +161,21 @@ final class VendorBookingRequestStore {
                 conversationID: conversationID,
                 eventDate: date,
                 note: note,
-                requestedTimeStart: selectedTimeslot?.startTimeString,
-                requestedTimeEnd: selectedTimeslot?.endTimeString,
+                requestedTimeStart: resolvedTimeStart,
+                requestedTimeEnd: resolvedTimeEnd,
                 title: selectedEvent.title,
                 budgetLabel: selectedEvent.budgetLabel,
                 guestCountLabel: selectedEvent.guestCountLabel,
                 requestedServices: nil
             )
 
+            await inboxStore.loadConversations(for: .host)
+
             isPresentingBookingSheet = false
             selectedBookingDate = nil
             selectedTimeslot = nil
+            requestedStartTime = nil
+            requestedEndTime = nil
             bookingNote = ""
             isSubmittingBooking = false
 
@@ -152,5 +186,10 @@ final class VendorBookingRequestStore {
         }
 
         return nil
+    }
+
+    private static func formatTimeString(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d:00", components.hour ?? 0, components.minute ?? 0)
     }
 }

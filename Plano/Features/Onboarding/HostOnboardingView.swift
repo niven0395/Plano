@@ -8,19 +8,19 @@ struct HostOnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             title: "Start from the event, not the vendor list",
-            body: "Every search, shortlist, and upcoming booking state should hang off a clear event context so the app never feels generic.",
+            body: "Every search, saved vendor, and booking stays connected to your event — so nothing gets lost or mixed up.",
             symbolName: "calendar.badge.plus",
             tone: .blue
         ),
         OnboardingPage(
             title: "Shortlist with confidence",
-            body: "Search is tuned around category, event shape, response behavior, and fast signals that help a host decide without noise.",
+            body: "Filter by category, price, availability, and how quickly vendors respond — so you see the best matches first.",
             symbolName: "heart.circle.fill",
             tone: .coral
         ),
         OnboardingPage(
             title: "Keep state visible",
-            body: "Home, Search, and Requests now share one selected event so planning stays coherent before chat and booking decisions start moving.",
+            body: "Pick an event once, and your searches, messages, and bookings all stay in sync automatically.",
             symbolName: "square.stack.3d.up.fill",
             tone: .sage
         ),
@@ -82,7 +82,7 @@ struct HostOnboardingView: View {
                     }
                     .buttonStyle(PrimaryActionButtonStyle())
 
-                    Text("Phase 1 focuses on host setup, event selection, vendor profiles, and shortlist quality.")
+                    Text("Set up your event, browse vendors, and start building your shortlist.")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Palette.subdued)
                 }

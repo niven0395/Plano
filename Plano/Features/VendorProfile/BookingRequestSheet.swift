@@ -4,6 +4,8 @@ struct BookingRequestSheet: View {
     let vendorName: String
     let selectedDate: Date
     let selectedTimeslot: TimeslotOption?
+    let requestedStartTime: Date?
+    let requestedEndTime: Date?
     @Binding var note: String
     let isSubmitting: Bool
     let onSubmit: () -> Void
@@ -20,6 +22,11 @@ struct BookingRequestSheet: View {
                     if let timeslot = selectedTimeslot {
                         LabeledContent("Time") {
                             Text(timeslot.timeRangeLabel)
+                        }
+                    }
+                    if let start = requestedStartTime, let end = requestedEndTime {
+                        LabeledContent("Event time") {
+                            Text("\(start.formatted(date: .omitted, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))")
                         }
                     }
                 }

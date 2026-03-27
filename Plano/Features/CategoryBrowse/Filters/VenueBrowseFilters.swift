@@ -49,34 +49,6 @@ struct VenueBrowseFilters: View {
                 options: VenueDetails.venueStyleOptions,
                 filterState: $filterState
             )
-
-            MultiChoiceFilterGroup(
-                title: "Event types",
-                key: "eventTypes",
-                options: VenueDetails.eventTypeOptions,
-                filterState: $filterState
-            )
-
-            MultiChoiceFilterGroup(
-                title: "Amenities",
-                key: "amenities",
-                options: VenueDetails.amenityOptions,
-                filterState: $filterState
-            )
-
-            MultiChoiceFilterGroup(
-                title: "Alcohol policy",
-                key: "alcoholPolicy",
-                options: VenueDetails.alcoholPolicyOptions,
-                filterState: $filterState
-            )
-
-            MultiChoiceFilterGroup(
-                title: "Catering policy",
-                key: "cateringPolicy",
-                options: VenueDetails.cateringPolicyOptions,
-                filterState: $filterState
-            )
         }
     }
 }

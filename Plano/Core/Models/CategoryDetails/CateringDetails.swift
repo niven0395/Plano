@@ -37,6 +37,18 @@ struct CateringDetails: Codable, Hashable {
         "Middle Eastern",
     ]
 
+    static let browseCuisineOptions = [
+        "Italian",
+        "Mexican",
+        "BBQ",
+        "Asian Fusion",
+        "Southern",
+        "Mediterranean",
+        "Indian",
+        "Caribbean",
+        "Middle Eastern",
+    ]
+
     static let serviceStyleOptions = [
         "Buffet",
         "Plated",
@@ -55,6 +67,11 @@ struct CateringDetails: Codable, Hashable {
         "Kosher",
         "Nut-free",
         "Dairy-free",
+    ]
+
+    static let browseDietaryOptions = [
+        "Vegan",
+        "Vegetarian",
     ]
 }
 

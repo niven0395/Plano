@@ -173,7 +173,7 @@ struct VendorBookingDetailSheet: View {
     private var stageDescription: String {
         switch vendor.stage {
         case .active:
-            "Thread is open — send a structured request to get the vendor's attention."
+            "Conversation is open — send a booking request to get started."
         case .requested:
             "Request sent — waiting for the vendor to review and respond."
         case .accepted:
@@ -257,7 +257,7 @@ struct VendorBookingDetailSheet: View {
                   eventDate.timeIntervalSinceNow <= Double(days) * 86_400 {
             Text("This vendor's cancellation policy requires their approval for cancellations within \(days) days of the event. Your request will be sent to the vendor.")
         } else {
-            Text("This keeps the conversation history intact while moving the booking flow to cancelled.")
+            Text("This will cancel the booking. Your conversation history will still be available.")
         }
     }
 }

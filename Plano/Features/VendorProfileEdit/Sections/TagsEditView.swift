@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TagsEditView: View {
     let store: VendorProfileEditStore
+    @Environment(\.dismiss) private var dismiss
     @State private var tagsText = ""
 
     var body: some View {
@@ -26,6 +27,9 @@ struct TagsEditView: View {
 
                     Task {
                         await store.save()
+                        if store.lastSaveOutcome == .saved {
+                            dismiss()
+                        }
                     }
                 }
                 .buttonStyle(PrimaryActionButtonStyle())

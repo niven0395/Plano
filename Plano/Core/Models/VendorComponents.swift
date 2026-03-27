@@ -145,7 +145,6 @@ nonisolated struct VendorPackage: Identifiable, Hashable {
     let title: String
     let priceLabel: String
     let summary: String
-    let tier: PriceTier?
     let includedItems: [String]
 
     init(
@@ -153,14 +152,12 @@ nonisolated struct VendorPackage: Identifiable, Hashable {
         title: String,
         priceLabel: String,
         summary: String,
-        tier: PriceTier? = nil,
         includedItems: [String] = []
     ) {
         self.id = id
         self.title = title
         self.priceLabel = priceLabel
         self.summary = summary
-        self.tier = tier
         self.includedItems = includedItems
     }
 }

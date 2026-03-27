@@ -16,7 +16,6 @@ struct VendorProfileDraft: Hashable {
     var minimumHours: Int?
     var perPersonPriceCents: Int?
     var minimumGuests: Int?
-    var priceTierOverride: PriceTier?
     var pricingVisibility: PricingVisibility = .public
     var schedulePreset: SchedulePreset = .everyDay
     var availableDays: Set<Weekday> = Set(Weekday.allCases)
@@ -25,7 +24,7 @@ struct VendorProfileDraft: Hashable {
     var bookingMode: BookingMode = .inquiryOnly
     var paymentMode: PaymentMode = .external
     var cancellationDeadlineDays: Int?
-    var timeslotsEnabled = false
+    var schedulingMode: SchedulingMode = .calendar
     var timeslotDurationMinutes = 60
     var timeslotStartHour = 9
     var timeslotStartMinute = 0
@@ -45,6 +44,7 @@ struct VendorProfileDraft: Hashable {
     var policies: [VendorPolicy] = []
     var serviceItems: [VendorServiceItem] = []
     var profileImagePath: String?
+    var listingImagePath: String?
     var galleryImages: [VendorGalleryImage] = []
 
     var enabledLeadIntakeQuestions: [LeadIntakeQuestion] {
@@ -66,14 +66,6 @@ struct VendorProfileDraft: Hashable {
         case .custom:
             return preparedServiceItems.map(\.priceCents).filter { $0 > 0 }.min() ?? Self.legacyPriceCents(from: startingPrice)
         }
-    }
-
-    var derivedPriceTier: PriceTier? {
-        computedBasePriceCents.map(category.priceTier(for:))
-    }
-
-    var effectivePriceTier: PriceTier? {
-        priceTierOverride ?? derivedPriceTier
     }
 
     var displayPriceLabel: String? {
@@ -135,7 +127,7 @@ struct VendorProfileDraft: Hashable {
 
     var timeslotConfig: TimeslotConfig {
         TimeslotConfig(
-            isEnabled: timeslotsEnabled,
+            isEnabled: schedulingMode == .timeslots,
             durationMinutes: timeslotDurationMinutes,
             startHour: timeslotStartHour,
             startMinute: timeslotStartMinute,
@@ -215,6 +207,7 @@ struct VendorProfileDraft: Hashable {
         serviceItems: [VendorServiceItem]
     ) {
         profileImagePath = record.profileImagePath
+        listingImagePath = record.listingImagePath
         businessName = record.businessName
         businessEmail = record.businessEmail ?? ""
         category = record.category.flatMap(VendorCategory.init(rawValue:)) ?? .decorator
@@ -230,8 +223,6 @@ struct VendorProfileDraft: Hashable {
         minimumHours = pricingModel == .perHour ? max(record.minimumHours ?? 1, 1) : record.minimumHours
         perPersonPriceCents = normalizedPositive(record.perPersonPriceCents)
         minimumGuests = pricingModel == .perPerson ? max(record.minimumGuests ?? 1, 1) : record.minimumGuests
-        priceTierOverride = record.priceTierOverride.flatMap(PriceTier.init(rawValue:))
-            ?? record.priceTier.flatMap(PriceTier.init(rawValue:))
         pricingVisibility = record.pricingVisibility.flatMap(PricingVisibility.init(rawValue:)) ?? .public
         let resolvedSchedule = WeeklySchedule.resolve(
             rawPreset: record.schedulePreset,
@@ -245,7 +236,9 @@ struct VendorProfileDraft: Hashable {
         bookingMode = record.bookingMode.flatMap(BookingMode.init(rawValue:)) ?? .inquiryOnly
         paymentMode = record.paymentMode.flatMap(PaymentMode.init(rawValue:)) ?? .external
         cancellationDeadlineDays = record.cancellationDeadlineDays
-        timeslotsEnabled = record.timeslotsEnabled ?? false
+        schedulingMode = record.schedulingMode
+            .flatMap(SchedulingMode.init(rawValue:))
+            ?? (record.timeslotsEnabled == true ? .timeslots : .calendar)
         timeslotDurationMinutes = record.timeslotDurationMinutes ?? 60
         timeslotStartHour = record.timeslotStartHour ?? 9
         timeslotStartMinute = record.timeslotStartMinute ?? 0
@@ -273,6 +266,7 @@ struct VendorProfileDraft: Hashable {
             businessName: businessName.trimmed,
             businessEmail: businessEmail.trimmed.nilIfEmpty,
             profileImagePath: profileImagePath,
+            listingImagePath: listingImagePath,
             category: category.rawValue,
             customCategoryName: customCategoryName.trimmed.nilIfEmpty,
             bio: bio.trimmed.nilIfEmpty,
@@ -280,14 +274,12 @@ struct VendorProfileDraft: Hashable {
             city: city.trimmed.nilIfEmpty,
             serviceArea: serviceArea.trimmed.nilIfEmpty,
             startingPrice: displayPriceLabel ?? startingPrice.trimmed.nilIfEmpty,
-            priceTier: effectivePriceTier?.rawValue,
             pricingModel: pricingModel.rawValue,
             basePriceCents: computedBasePriceCents,
             hourlyRateCents: pricingModel == .perHour ? normalizedPositive(hourlyRateCents) : nil,
             minimumHours: pricingModel == .perHour ? max(minimumHours ?? 1, 1) : nil,
             perPersonPriceCents: pricingModel == .perPerson ? normalizedPositive(perPersonPriceCents) : nil,
             minimumGuests: pricingModel == .perPerson ? max(minimumGuests ?? 1, 1) : nil,
-            priceTierOverride: priceTierOverride?.rawValue,
             pricingVisibility: pricingVisibility.rawValue,
             availabilityMode: availabilityMode.rawValue,
             availableDays: weeklySchedule.availableDays.sorted().map(\.rawValue),
@@ -305,7 +297,8 @@ struct VendorProfileDraft: Hashable {
             categoryDetails: categoryDetails,
             leadIntakeQuestions: leadIntakeQuestions.map { $0.normalized() },
             policies: policies,
-            timeslotsEnabled: timeslotsEnabled,
+            schedulingMode: schedulingMode.rawValue,
+            timeslotsEnabled: schedulingMode == .timeslots,
             timeslotDurationMinutes: timeslotDurationMinutes,
             timeslotStartHour: timeslotStartHour,
             timeslotStartMinute: timeslotStartMinute,

@@ -11,18 +11,6 @@ struct DJBrowseFilters: View {
                 options: DJDetails.genreOptions,
                 filterState: $filterState
             )
-
-            BrowseToggleRow(
-                title: "MC services",
-                key: "mcServices",
-                filterState: $filterState
-            )
-
-            BrowseToggleRow(
-                title: "Lighting package",
-                key: "lightingPackage",
-                filterState: $filterState
-            )
         }
     }
 }

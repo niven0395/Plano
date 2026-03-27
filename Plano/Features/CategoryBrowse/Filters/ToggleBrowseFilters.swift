@@ -21,13 +21,6 @@ struct ToggleBrowseFilters: View {
         case .makeupArtist:
             [
                 ToggleDefinition(key: "travelToVenue", title: "Travels to venue"),
-                ToggleDefinition(key: "trial", title: "Trial included"),
-                ToggleDefinition(key: "hairServices", title: "Hair services available"),
-                ToggleDefinition(key: "groupRates", title: "Group rates available"),
-            ]
-        case .entertainer:
-            [
-                ToggleDefinition(key: "interactive", title: "Interactive entertainment"),
             ]
         default:
             []

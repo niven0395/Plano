@@ -72,7 +72,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Extracted Section Views (diffing checkpoints)
+// MARK: - Section Views
 
 private struct HomePopularCategoriesSection: View {
     let categories: [CategoryShortcut]
@@ -86,13 +86,14 @@ private struct HomePopularCategoriesSection: View {
                 .lineSpacing(2)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
-                ForEach(categories) { shortcut in
+                ForEach(Array(categories.enumerated()), id: \.element.id) { index, shortcut in
                     Button {
                         onSelect(shortcut.category)
                     } label: {
                         CategoryShortcutCard(shortcut: shortcut)
                     }
                     .buttonStyle(CategoryCardButtonStyle())
+                    .staggeredAppear(index: index)
                 }
             }
         }
@@ -135,11 +136,18 @@ private struct CategoryImageCard: View {
             .frame(minWidth: 0, maxWidth: .infinity)
             .frame(height: 140)
             .clipped()
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [.black.opacity(0.45), .clear],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+                .frame(height: 64)
+            }
             .overlay(alignment: .bottomLeading) {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
                     .padding(14)
             }
             .clipShape(.rect(cornerRadius: AppTheme.cardCornerRadius))

@@ -308,11 +308,14 @@ struct MetricTile: View {
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
+    var expands: Bool = false
 
     var body: some View {
         Text(title)
             .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
             .foregroundStyle(isSelected ? AppTheme.Palette.elevatedSurface : AppTheme.Palette.textPrimary)
+            .frame(maxWidth: expands ? .infinity : nil)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(chipBackground, in: Capsule())
@@ -328,6 +331,66 @@ struct FilterChip: View {
             return AnyShapeStyle(AppTheme.Palette.accent)
         }
 
+        return AnyShapeStyle(AppTheme.Palette.chipFill)
+    }
+}
+
+struct AvailabilityDateChip: View {
+    @Binding var date: Date?
+
+    private var isActive: Bool { date != nil }
+
+    private var chipLabel: String {
+        if let date {
+            date.formatted(.dateTime.month(.abbreviated).day())
+        } else {
+            "Fits date"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Label(chipLabel, systemImage: "calendar")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+
+            if isActive {
+                Button("Clear date filter", systemImage: "xmark.circle.fill") {
+                    date = nil
+                }
+                .labelStyle(.iconOnly)
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.plain)
+            }
+        }
+        .foregroundStyle(isActive ? AppTheme.Palette.elevatedSurface : AppTheme.Palette.textPrimary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(chipBackground, in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(isActive ? AppTheme.Palette.accent : AppTheme.Palette.border, lineWidth: 1)
+        }
+        .overlay {
+            DatePicker(
+                "Availability date",
+                selection: Binding(
+                    get: { date ?? .now },
+                    set: { date = $0 }
+                ),
+                in: Date.now...,
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .blendMode(.destinationOver)
+        }
+        .animation(AppAnimation.feedback, value: isActive)
+    }
+
+    private var chipBackground: some ShapeStyle {
+        if isActive {
+            return AnyShapeStyle(AppTheme.Palette.accent)
+        }
         return AnyShapeStyle(AppTheme.Palette.chipFill)
     }
 }

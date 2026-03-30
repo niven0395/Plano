@@ -175,4 +175,33 @@ extension InboxStore {
             )
         }
     }
+
+    func syncVendorIdentityFromSession() {
+        guard let vendorID = sessionStore.currentUserID else { return }
+
+        conversations = conversations.map { thread in
+            guard thread.vendorID == vendorID else { return thread }
+
+            return ConversationThread(
+                id: thread.id,
+                eventID: thread.eventID,
+                eventDate: thread.eventDate,
+                vendorID: thread.vendorID,
+                hostUserID: thread.hostUserID,
+                hostName: thread.hostName,
+                vendorName: sessionStore.vendorName,
+                vendorCategory: thread.vendorCategory,
+                eventTitle: thread.eventTitle,
+                eventDateLabel: thread.eventDateLabel,
+                eventContextLine: thread.eventContextLine,
+                stage: thread.stage,
+                bookingEventDate: thread.bookingEventDate,
+                paymentRequest: thread.paymentRequest,
+                messages: thread.messages,
+                lastActivityAt: thread.lastActivityAt,
+                hostUnreadCount: thread.hostUnreadCount,
+                vendorUnreadCount: thread.vendorUnreadCount
+            )
+        }
+    }
 }

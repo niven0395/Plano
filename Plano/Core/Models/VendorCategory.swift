@@ -27,38 +27,33 @@ nonisolated enum VendorCategory: String, CaseIterable, Identifiable, Codable {
     case desserts
     case photobooth
 
+    // MARK: - Legacy database value mapping
+
+    /// Resolves a database string to a VendorCategory, handling legacy values
+    /// that may still exist in the database (e.g. "venue" → .eventSpace).
+    /// Use this instead of `init(rawValue:)` when converting from DB strings.
+    static func fromDatabaseValue(_ value: String) -> VendorCategory? {
+        if let direct = VendorCategory(rawValue: value) { return direct }
+        switch value {
+        case "venue":              return .eventSpace
+        case "candyBuffet":        return .desserts
+        case "stationer", "other": return .entertainer
+        default:                   return nil
+        }
+    }
+
     // MARK: - Codable (backwards compatibility)
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-
-        switch rawValue {
-        case "venue":
-            self = .eventSpace
-        case "candyBuffet":
-            self = .desserts
-        case "stationer", "other":
-            self = .entertainer
-        default:
-            guard let value = VendorCategory(rawValue: rawValue) else {
-                throw DecodingError.dataCorruptedError(
-                    in: container,
-                    debugDescription: "Unknown vendor category: \(rawValue)"
-                )
-            }
-            self = value
+        let raw = try container.decode(String.self)
+        guard let value = VendorCategory.fromDatabaseValue(raw) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown vendor category: \(raw)"
+            )
         }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .eventSpace:
-            try container.encode("venue")
-        default:
-            try container.encode(rawValue)
-        }
+        self = value
     }
 
     // MARK: - Home Display Order

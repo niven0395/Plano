@@ -134,6 +134,12 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
     var cancellationRequestDeadline: Date?
     var cancellationRequestedByRole: UserRole?
     var cancellationDeclinedAt: Date?
+    let venueSettingLabel: String?
+    let timeRangeLabel: String?
+
+    var isHostCancelled: Bool {
+        stage == .cancelled && cancellationRequestedByRole == .host
+    }
 
     init(
         id: UUID = UUID(),
@@ -159,7 +165,9 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         isLoadingMessages: Bool = false,
         cancellationRequestDeadline: Date? = nil,
         cancellationRequestedByRole: UserRole? = nil,
-        cancellationDeclinedAt: Date? = nil
+        cancellationDeclinedAt: Date? = nil,
+        venueSettingLabel: String? = nil,
+        timeRangeLabel: String? = nil
     ) {
         self.id = id
         self.eventID = eventID
@@ -185,6 +193,8 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         self.cancellationRequestDeadline = cancellationRequestDeadline
         self.cancellationRequestedByRole = cancellationRequestedByRole
         self.cancellationDeclinedAt = cancellationDeclinedAt
+        self.venueSettingLabel = venueSettingLabel
+        self.timeRangeLabel = timeRangeLabel
     }
 
     var lastMessagePreview: String {

@@ -156,7 +156,7 @@ struct DiscoveryFlowTests {
             #expect(store.suggestedSearchText(for: .photographer) == VendorCategory.photographer.title)
 
             store.selectedCategory = .photographer
-            store.selectedAvailability = .eventDateMatch
+            store.availabilityDate = Date()
             await store.load()
 
             #expect(store.visibleResults.contains(where: { $0.vendor.businessName == "Golden Hour Photo" }))

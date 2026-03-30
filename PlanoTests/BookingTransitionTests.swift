@@ -301,6 +301,118 @@ struct BookingTransitionTests {
         }
     }
 
+    // MARK: - Cancellation role tracking & archive-based removal
+
+    @Test
+    @MainActor
+    func prePaymentCancelSetsHostCancellationRole() async throws {
+        try await withIsolatedDefaults { defaults in
+            let conversation = makeConversation(stage: .requested)
+            let booking = makeBooking(conversation: conversation, stage: .requested)
+            let bookingService = TestBookingService(
+                conversations: [conversation],
+                bookings: [booking]
+            )
+            let sessionStore = SessionStore(defaults: defaults)
+            sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
+
+            let store = InboxStore(
+                bookingService: bookingService,
+                messagingService: TestMessagingService(),
+                vendorProfileService: TestVendorProfileService(),
+                sessionStore: sessionStore,
+                defaults: defaults
+            )
+
+            await store.loadConversations(for: .host)
+            store.cancelBooking(in: conversation.id, reason: "Changed my mind.")
+
+            // Check optimistic state immediately (before server round-trip)
+            let thread = try #require(store.conversation(id: conversation.id, for: .host))
+            #expect(thread.stage == .cancelled)
+            #expect(thread.cancellationRequestedByRole == .host)
+            #expect(thread.isHostCancelled)
+        }
+    }
+
+    @Test
+    @MainActor
+    func forceCancelSetsHostCancellationRole() async throws {
+        try await withIsolatedDefaults { defaults in
+            let conversation = makeConversation(stage: .cancellationRequested)
+            let booking = makeBooking(
+                conversation: conversation,
+                stage: .cancellationRequested,
+                cancellationRequestedBy: FixtureData.hostID,
+                cancellationDeclinedAt: .now
+            )
+            let bookingService = TestBookingService(
+                conversations: [conversation],
+                bookings: [booking]
+            )
+            let sessionStore = SessionStore(defaults: defaults)
+            sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
+
+            let store = InboxStore(
+                bookingService: bookingService,
+                messagingService: TestMessagingService(),
+                vendorProfileService: TestVendorProfileService(),
+                sessionStore: sessionStore,
+                defaults: defaults
+            )
+
+            await store.loadConversations(for: .host)
+            store.forceCancelBooking(in: conversation.id, reason: "Need to cancel.")
+
+            let thread = try #require(store.conversation(id: conversation.id, for: .host))
+            #expect(thread.stage == .cancelled)
+            #expect(thread.cancellationRequestedByRole == .host)
+            #expect(thread.isHostCancelled)
+        }
+    }
+
+    @Test
+    @MainActor
+    func archivedTerminalConversationExcludedFromCategoryGroups() async throws {
+        try await withIsolatedDefaults { defaults in
+            let conversation = makeConversation(stage: .declined)
+            let booking = makeBooking(conversation: conversation, stage: .declined)
+            let bookingService = TestBookingService(
+                conversations: [conversation],
+                bookings: [booking]
+            )
+            let sessionStore = SessionStore(defaults: defaults)
+            sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
+
+            let store = InboxStore(
+                bookingService: bookingService,
+                messagingService: TestMessagingService(),
+                vendorProfileService: TestVendorProfileService(),
+                sessionStore: sessionStore,
+                defaults: defaults
+            )
+
+            await store.loadConversations(for: .host)
+
+            // Before archiving, the conversation is visible in event queries
+            let before = store.eventConversations(eventID: conversation.eventID!)
+            #expect(before.count == 1)
+            #expect(!store.isArchived(conversation.id, for: .host))
+
+            // Archive the conversation (simulates "Remove from plan")
+            store.archiveConversation(conversation.id, for: .host)
+            #expect(store.isArchived(conversation.id, for: .host))
+
+            // Event conversations still returns it (raw query)
+            let after = store.eventConversations(eventID: conversation.eventID!)
+            #expect(after.count == 1)
+
+            // But filtered view excludes it
+            let filtered = after.filter { !$0.isHostCancelled && !store.isArchived($0.id, for: .host) }
+            #expect(filtered.isEmpty)
+        }
+    }
+
     private func makeConversation(stage: BookingStage) -> ConversationRecord {
         makeConversation(rawStage: stage.rawValue)
     }
@@ -332,7 +444,7 @@ struct BookingTransitionTests {
             id: UUID(),
             conversationID: conversationID,
             title: "Decor request",
-            budgetLabel: "$3k - $5k",
+            budgetLabel: nil,
             responseWindowLabel: "48 hours",
             requestedServices: ["Floral design"],
             note: "Need install support.",
@@ -345,19 +457,25 @@ struct BookingTransitionTests {
     private func makeBooking(
         conversation: ConversationRecord,
         stage: BookingStage,
-        depositPaidAt: Date? = nil
+        depositPaidAt: Date? = nil,
+        cancellationRequestedBy: UUID? = nil,
+        cancellationDeclinedAt: Date? = nil
     ) -> BookingRecord {
         makeBooking(
             conversation: conversation,
             rawStage: stage.rawValue,
-            depositPaidAt: depositPaidAt
+            depositPaidAt: depositPaidAt,
+            cancellationRequestedBy: cancellationRequestedBy,
+            cancellationDeclinedAt: cancellationDeclinedAt
         )
     }
 
     private func makeBooking(
         conversation: ConversationRecord,
         rawStage: String,
-        depositPaidAt: Date? = nil
+        depositPaidAt: Date? = nil,
+        cancellationRequestedBy: UUID? = nil,
+        cancellationDeclinedAt: Date? = nil
     ) -> BookingRecord {
         BookingRecord(
             id: UUID(),
@@ -372,6 +490,8 @@ struct BookingTransitionTests {
             eventDate: FixtureData.events[0].date,
             depositMethod: depositPaidAt == nil ? nil : "Apple Pay",
             depositPaidAt: depositPaidAt,
+            cancellationRequestedBy: cancellationRequestedBy,
+            cancellationDeclinedAt: cancellationDeclinedAt,
             stage: rawStage,
             createdAt: .now,
             updatedAt: .now

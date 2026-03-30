@@ -151,6 +151,22 @@ struct UnavailableVendorProfileService: VendorProfileServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
+    func fetchPackages(vendorID: UUID) async throws -> [VendorPackage] {
+        throw APIError.notConfigured(message)
+    }
+
+    func replacePackages(_ packages: [VendorPackage], vendorID: UUID) async throws {
+        throw APIError.notConfigured(message)
+    }
+
+    func fetchAddOns(vendorID: UUID) async throws -> [VendorAddOn] {
+        throw APIError.notConfigured(message)
+    }
+
+    func replaceAddOns(_ addOns: [VendorAddOn], vendorID: UUID) async throws {
+        throw APIError.notConfigured(message)
+    }
+
     func deleteVendorListing() async throws -> DeletionResult {
         throw APIError.notConfigured(message)
     }

@@ -276,6 +276,7 @@ final class ConversationBookingCoordinator {
 
         let mutation: (inout ConversationThread) -> Void = { [currentRole] thread in
             thread.stage = .cancelled
+            thread.cancellationRequestedByRole = currentRole
             thread.messages.append(
                 ChatMessage(
                     sender: .system,
@@ -378,7 +379,7 @@ final class ConversationBookingCoordinator {
             )
             thread.lastActivityAt = .now
             thread.cancellationRequestDeadline = nil
-            thread.cancellationRequestedByRole = nil
+            thread.cancellationRequestedByRole = currentRole
             thread.cancellationDeclinedAt = nil
 
             switch currentRole {

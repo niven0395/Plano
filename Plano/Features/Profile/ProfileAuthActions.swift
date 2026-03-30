@@ -3,7 +3,6 @@ import SwiftUI
 struct ProfileAuthActions: View {
     let isAnonymous: Bool
     let isVendorAuthenticated: Bool
-    let supportsAppleSignIn: Bool
     @Environment(AuthStore.self) private var authStore
 
     var body: some View {
@@ -16,19 +15,12 @@ struct ProfileAuthActions: View {
 
     private var anonymousActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button("List your business") {
-                authStore.startVendorSetup()
+            Button("Create an account") {
+                authStore.presentCreateAccount()
             }
             .buttonStyle(PrimaryActionButtonStyle())
 
-            if supportsAppleSignIn {
-                Button("Sign in with Apple") {
-                    authStore.presentHostUpgrade()
-                }
-                .buttonStyle(SecondaryActionButtonStyle())
-            }
-
-            Button("Sign in with email") {
+            Button("Sign in") {
                 authStore.presentEmailAuth()
             }
             .buttonStyle(SecondaryActionButtonStyle())

@@ -11,7 +11,6 @@ enum AppTab: Hashable {
 enum InboxFilter: String, CaseIterable, Identifiable {
     case all
     case unread
-    case actionNeeded
     case archived
 
     var id: Self { self }
@@ -22,8 +21,6 @@ enum InboxFilter: String, CaseIterable, Identifiable {
             "All"
         case .unread:
             "Unread"
-        case .actionNeeded:
-            "Action"
         case .archived:
             "Archived"
         }

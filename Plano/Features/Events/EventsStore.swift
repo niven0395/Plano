@@ -41,7 +41,7 @@ final class EventsStore {
                     EventSummary(
                         id: record.eventID ?? record.id,
                         title: record.eventTitle ?? "Direct inquiry",
-                        kind: VendorCategory(rawValue: record.vendorCategory)?.title ?? "Vendor work",
+                        kind: VendorCategory.fromDatabaseValue(record.vendorCategory)?.title ?? "Vendor work",
                         dateLabel: record.eventDateLabel ?? "Date pending",
                         venue: record.eventContextLine ?? "Location pending",
                         guestCountLabel: record.eventContextLine ?? "Guest count pending",

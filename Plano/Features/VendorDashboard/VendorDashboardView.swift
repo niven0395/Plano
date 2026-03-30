@@ -9,13 +9,6 @@ struct VendorDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                SectionHeader(
-                    title: "Dashboard",
-                    subtitle: workspaceStore.vendorWorkspaces.isEmpty
-                        ? "Everything is up to date."
-                        : "\(workspaceStore.vendorWorkspaces.count) upcoming event\(workspaceStore.vendorWorkspaces.count == 1 ? "" : "s") on your calendar"
-                )
-
                 VendorCalendarSection(
                     inboxStore: inboxStore,
                     workspaceStore: workspaceStore

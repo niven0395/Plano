@@ -276,41 +276,37 @@ struct VendorLeadDetailView: View {
     }
 
     private var actionStack: some View {
-        AppSurface(style: .highlighted) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Next step")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
+        VStack(spacing: 16) {
+            AppSurface(style: .highlighted) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Payment")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                Text(actionSummary)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if let paymentRequest, stage == .paymentRequested || stage == .paid {
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        detailRow(
-                            title: stage == .paid ? "Payment received" : "Requested amount",
-                            value: paymentRequest.amountLabel
-                        )
-
-                        if let requestedAt = paymentRequest.requestedAt, stage == .paymentRequested {
+                    if let paymentRequest, stage == .paymentRequested || stage == .paid {
+                        VStack(alignment: .leading, spacing: 12) {
                             detailRow(
-                                title: "Requested",
-                                value: requestedAt.formatted(.dateTime.month().day().hour().minute())
+                                title: stage == .paid ? "Payment received" : "Requested amount",
+                                value: paymentRequest.amountLabel
                             )
-                        }
 
-                        if !paymentRequest.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            detailRow(title: "Payment instructions", value: paymentRequest.note)
+                            if let requestedAt = paymentRequest.requestedAt, stage == .paymentRequested {
+                                detailRow(
+                                    title: "Requested",
+                                    value: requestedAt.formatted(.dateTime.month().day().hour().minute())
+                                )
+                            }
+
                         }
+                    } else {
+                        Text("No payment recorded yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.Palette.textSecondary)
                     }
                 }
-
-                actionButtons
             }
+
+            actionButtons
         }
     }
 

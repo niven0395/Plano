@@ -7,12 +7,13 @@ import UIKit
 enum VendorProfileEditSection: String, CaseIterable, Identifiable {
     case basicInfo
     case about
+    case services
     case categoryDetails
-    case servicesPricing
+    case pricing
+    case availability
     case leadIntake
     case gallery
     case policies
-    case availability
     case socialContact
     case tagsKeywords
 
@@ -26,8 +27,10 @@ enum VendorProfileEditSection: String, CaseIterable, Identifiable {
             "About"
         case .categoryDetails:
             "Category Details"
-        case .servicesPricing:
-            "Services & Pricing"
+        case .pricing:
+            "Pricing"
+        case .services:
+            "Services"
         case .leadIntake:
             "Lead Intake"
         case .gallery:
@@ -51,8 +54,10 @@ enum VendorProfileEditSection: String, CaseIterable, Identifiable {
             "Bio, style summary, and service area"
         case .categoryDetails:
             "Industry-specific details hosts need to know"
-        case .servicesPricing:
-            "Pricing model, visibility, and key services"
+        case .pricing:
+            "Pricing model and visibility"
+        case .services:
+            "Key services you offer"
         case .leadIntake:
             "Booking questions hosts answer before sending a request"
         case .gallery:
@@ -126,18 +131,18 @@ final class VendorProfileEditStore {
     }
 
     var sectionStatuses: [VendorProfileSectionStatus] {
-        let hasAvailabilitySchedule = !draft.availableDays.isEmpty
-        let hasBookingPreferences = draft.bookingMode != .inquiryOnly || draft.paymentMode != .external
+        let availabilitySectionComplete = draft.bookingMode == .inquiryOnly || !draft.availableDays.isEmpty
 
         return [
             .init(section: .basicInfo, isComplete: !draft.businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !draft.city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
             .init(section: .about, isComplete: !draft.bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.styleSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.serviceArea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+            .init(section: .services, isComplete: !draft.services.isEmpty),
             .init(section: .categoryDetails, isComplete: draft.categoryDetails.map { !$0.isEmpty } ?? false),
-            .init(section: .servicesPricing, isComplete: draft.computedBasePriceCents != nil || !draft.services.isEmpty),
+            .init(section: .pricing, isComplete: draft.computedBasePriceCents != nil),
+            .init(section: .availability, isComplete: availabilitySectionComplete),
             .init(section: .leadIntake, isComplete: !draft.enabledLeadIntakeQuestions.isEmpty),
             .init(section: .gallery, isComplete: !draft.galleryImages.isEmpty),
             .init(section: .policies, isComplete: !draft.policies.isEmpty),
-            .init(section: .availability, isComplete: hasAvailabilitySchedule && hasBookingPreferences),
             .init(section: .socialContact, isComplete: !draft.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.instagramHandle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.tiktokHandle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
             .init(section: .tagsKeywords, isComplete: !draft.tags.isEmpty),
         ]
@@ -190,6 +195,8 @@ final class VendorProfileEditStore {
             async let record = vendorProfileService.fetchOwnVendorProfile()
             async let galleryImages = vendorProfileService.fetchGalleryImages(vendorID: vendorID)
             async let serviceItems = vendorProfileService.fetchServiceItems(vendorID: vendorID)
+            async let packages = vendorProfileService.fetchPackages(vendorID: vendorID)
+            async let addOns = vendorProfileService.fetchAddOns(vendorID: vendorID)
             async let availability = availabilityService.fetchAvailability(
                 vendorID: sessionStore.currentUserID ?? UUID(),
                 from: .now,
@@ -200,7 +207,9 @@ final class VendorProfileEditStore {
                 draft.apply(
                     record: record,
                     galleryImages: try await galleryImages,
-                    serviceItems: try await serviceItems
+                    serviceItems: try await serviceItems,
+                    packages: try await packages,
+                    addOns: try await addOns
                 )
             } else if let profile = sessionStore.authenticatedProfile {
                 draft.businessName = profile.vendorDisplayName ?? ""
@@ -238,10 +247,14 @@ final class VendorProfileEditStore {
             let savedRecord = try await vendorProfileService.updateVendorProfile(record)
             try await vendorProfileService.replaceGalleryImages(draft.galleryImages, vendorID: userID)
             try await vendorProfileService.replaceServiceItems(draft.preparedServiceItems, vendorID: userID)
+            try await vendorProfileService.replacePackages(draft.preparedPackages, vendorID: userID)
+            try await vendorProfileService.replaceAddOns(draft.preparedAddOns, vendorID: userID)
             draft.apply(
                 record: savedRecord,
                 galleryImages: draft.galleryImages,
-                serviceItems: draft.preparedServiceItems
+                serviceItems: draft.preparedServiceItems,
+                packages: draft.preparedPackages,
+                addOns: draft.preparedAddOns
             )
 
             if let existing = sessionStore.authenticatedProfile {
@@ -417,6 +430,45 @@ final class VendorProfileEditStore {
             try await vendorProfileService.replaceGalleryImages(draft.galleryImages, vendorID: userID)
             loadingState = .loaded
             lastSaveOutcome = .saved
+        } catch is CancellationError {
+            // Normal task lifecycle
+        } catch {
+            loadingState = .failed(error.localizedDescription)
+            lastSaveOutcome = .failed(error.localizedDescription)
+        }
+    }
+
+    func addPricingImage(data: Data) async {
+        guard let userID = sessionStore.currentUserID else { return }
+        guard draft.pricingImagePaths.count < 3 else { return }
+
+        do {
+            let variants = try await imageProcessor.processVariants(from: data)
+            let storagePath = try await mediaService.uploadImageVariants(variants, vendorID: userID)
+
+            if let thumbData = variants[.thumbnail], let image = UIImage(data: thumbData) {
+                await imageCache.stageLocalImage(image, for: storagePath)
+            }
+
+            draft.pricingImagePaths.append(storagePath)
+            await save()
+        } catch is CancellationError {
+            // Normal task lifecycle
+        } catch {
+            loadingState = .failed(error.localizedDescription)
+            lastSaveOutcome = .failed(error.localizedDescription)
+        }
+    }
+
+    func removePricingImage(at index: Int) async {
+        guard draft.pricingImagePaths.indices.contains(index) else { return }
+
+        let path = draft.pricingImagePaths[index]
+
+        do {
+            try await mediaService.deleteImage(path: path)
+            draft.pricingImagePaths.remove(at: index)
+            await save()
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {

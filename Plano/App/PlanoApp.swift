@@ -273,6 +273,7 @@ struct PlanoApp: App {
 
         case .authenticated:
             router.resetAllPaths()
+            hostPlanningStore.prepareForSignedOutState()
             loadDataForCurrentRole()
         }
     }
@@ -321,14 +322,15 @@ struct PlanoApp: App {
         case .host:
             if navigateToDefaultTab { router.selectedTab = .home }
             vendorDashboardStore.reset()
+            searchStore.reset()
 
             Task {
-                async let plannerLoad: Void = hostPlanningStore.loadIfNeeded()
+                async let plannerLoad: Void = hostPlanningStore.load()
                 async let inboxLoad: Void = inboxStore.loadConversations(for: .host)
 
                 await plannerLoad
                 searchStore.syncToSelectedEvent()
-                await searchStore.loadIfNeeded()
+                await searchStore.load()
                 _ = await inboxLoad
             }
             inboxStore.syncHostIdentityFromSession()
@@ -337,6 +339,7 @@ struct PlanoApp: App {
             if navigateToDefaultTab { router.selectedTab = .home }
             hostPlanningStore.prepareForSignedOutState()
             searchStore.reset()
+            inboxStore.syncVendorIdentityFromSession()
 
             Task {
                 async let e: Void = eventsStore.loadIfNeeded()

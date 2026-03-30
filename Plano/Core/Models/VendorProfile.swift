@@ -45,6 +45,8 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
     let policies: [VendorPolicy]
     let serviceItems: [VendorServiceItem]
     let packages: [VendorPackage]
+    let addOns: [VendorAddOn]
+    let pricingImagePaths: [String]
     let galleryHighlights: [String]
     let galleryImages: [VendorGalleryImage]
     let review: VendorReviewSnippet
@@ -100,7 +102,9 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         leadIntakeQuestions: [LeadIntakeQuestion]? = nil,
         policies: [VendorPolicy] = [],
         serviceItems: [VendorServiceItem] = [],
-        packages: [VendorPackage],
+        packages: [VendorPackage] = [],
+        addOns: [VendorAddOn] = [],
+        pricingImagePaths: [String] = [],
         galleryHighlights: [String],
         galleryImages: [VendorGalleryImage] = [],
         review: VendorReviewSnippet,
@@ -154,7 +158,9 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         self.leadIntakeQuestions = leadIntakeQuestions ?? LeadIntakeTemplateLibrary.defaultQuestions(for: category)
         self.policies = policies
         self.serviceItems = serviceItems.sorted { $0.displayOrder < $1.displayOrder }
-        self.packages = packages
+        self.packages = packages.sorted { $0.displayOrder < $1.displayOrder }
+        self.addOns = addOns.sorted { $0.displayOrder < $1.displayOrder }
+        self.pricingImagePaths = pricingImagePaths
         self.galleryHighlights = galleryHighlights
         self.galleryImages = galleryImages
         self.review = review
@@ -172,6 +178,10 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
 
     var usesEventTimeRange: Bool {
         schedulingMode == .eventTimeRange
+    }
+
+    var isInquiryOnly: Bool {
+        bookingMode == .inquiryOnly
     }
 
     var eventTimeRangeLabel: String? {

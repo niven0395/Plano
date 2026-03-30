@@ -55,7 +55,10 @@ private struct AuthMainContent: View {
 
                 switch mode {
                 case .emailAuth:
-                    EmailAuthForm(store: store)
+                    SignInOptionsView(store: store)
+
+                case .createAccount:
+                    CreateAccountOptionsView(store: store)
 
                 case .vendorSignIn, .hostUpgrade:
                     if store.supportsAppleSignIn {
@@ -99,17 +102,126 @@ private struct AuthMainContent: View {
     }
 }
 
+// MARK: - Sign In Options
+
+private struct SignInOptionsView: View {
+    let store: AuthStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if store.supportsAppleSignIn {
+                SignInWithAppleButton(.signIn) { request in
+                    store.configureAppleRequest(request)
+                } onCompletion: { result in
+                    Task {
+                        await store.handleAppleCompletion(result)
+                    }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius, style: .continuous))
+                .disabled(store.loadingState.isLoading)
+            }
+
+            NavigationLink {
+                EmailAuthScreen(store: store, initialSignUp: false)
+            } label: {
+                Text("Sign in with email")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SecondaryActionButtonStyle())
+
+            NavigationLink {
+                EmailAuthScreen(store: store, initialSignUp: true)
+            } label: {
+                Text("Don't have an account? Create one")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.Palette.accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - Create Account Options
+
+private struct CreateAccountOptionsView: View {
+    let store: AuthStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if store.supportsAppleSignIn {
+                SignInWithAppleButton(.signUp) { request in
+                    store.configureAppleRequest(request)
+                } onCompletion: { result in
+                    Task {
+                        await store.handleAppleCompletion(result)
+                    }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 54)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius, style: .continuous))
+                .disabled(store.loadingState.isLoading)
+            }
+
+            NavigationLink {
+                EmailAuthScreen(store: store, initialSignUp: true)
+            } label: {
+                Text("Continue with email")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SecondaryActionButtonStyle())
+
+            NavigationLink {
+                EmailAuthScreen(store: store, initialSignUp: false)
+            } label: {
+                Text("Already have an account? Sign in")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.Palette.accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - Email Auth Screen
+
+private struct EmailAuthScreen: View {
+    let store: AuthStore
+    let initialSignUp: Bool
+
+    var body: some View {
+        ScrollView {
+            EmailAuthForm(store: store, initialSignUp: initialSignUp)
+                .padding(AppTheme.screenPadding)
+                .padding(.bottom, 32)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .scrollIndicators(.hidden)
+        .background(AppBackdrop())
+        .navigationTitle(initialSignUp ? "Create account" : "Sign in")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 // MARK: - Email Auth Form
 
 private struct EmailAuthForm: View {
     let store: AuthStore
+    let initialSignUp: Bool
 
-    @State private var isSignUp = false
+    @State private var isSignUp: Bool
     @State private var email = ""
     @State private var password = ""
     @State private var firstName = ""
     @State private var lastName = ""
     @FocusState private var focusedField: Field?
+
+    init(store: AuthStore, initialSignUp: Bool = false) {
+        self.store = store
+        self.initialSignUp = initialSignUp
+        self._isSignUp = State(initialValue: initialSignUp)
+    }
 
     private enum Field: Hashable {
         case firstName, lastName, email, password

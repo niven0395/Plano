@@ -40,6 +40,7 @@ struct EventPlanningView: View {
                                             category: slot.category,
                                             stage: stage,
                                             priceLabel: vendor.visibleStartingPriceLabel ?? "Pricing on request",
+                                            eventDateLabel: "",
                                             conversationID: conversationID
                                         )
                                     } else {
@@ -120,13 +121,13 @@ struct EventPlanningView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Label(event.formattedDate, systemImage: "calendar")
+                    Label(event.formattedDateWithTime, systemImage: "calendar")
                     Label(event.venue, systemImage: "mappin.and.ellipse")
                 }
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
 
-                Text("\(event.guestCountLabel) • \(event.budgetLabel)")
+                Text("\(event.guestCountLabel) · \(event.venueSetting.title)")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
 

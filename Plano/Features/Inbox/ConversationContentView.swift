@@ -37,14 +37,16 @@ struct ConversationContentView: View {
                         hasEverConnected: realtimeManager.hasEverConnected
                     )
 
-                    ConversationContextCard(
-                        eventTitle: conversation.eventTitle,
-                        eventContextLine: conversation.eventContextLine,
-                        stage: conversation.stage,
-                        eventDateLabel: conversation.eventDateLabel,
-                        vendorName: conversation.vendorName,
-                        vendorCategory: conversation.vendorCategory
-                    )
+                    if conversation.eventID != nil {
+                        ConversationContextCard(
+                            eventTitle: conversation.eventTitle,
+                            eventContextLine: conversation.eventContextLine,
+                            stage: conversation.stage,
+                            eventDateLabel: conversation.eventDateLabel,
+                            vendorName: conversation.vendorName,
+                            vendorCategory: conversation.vendorCategory
+                        )
+                    }
 
                     if session.currentRole == .vendor,
                        conversation.stage.isConfirmed,
@@ -174,6 +176,11 @@ struct ConversationContentView: View {
             }
             .onChange(of: isTyping) { _, _ in
                 scrollToBottom(using: proxy)
+            }
+            .onChange(of: isComposerFocused) { _, focused in
+                if focused {
+                    scrollToBottom(using: proxy)
+                }
             }
             .onChange(of: conversation.stage) { _, _ in
                 guard session.currentRole == .vendor else { return }

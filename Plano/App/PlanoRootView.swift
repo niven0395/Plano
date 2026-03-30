@@ -53,21 +53,15 @@ struct PlanoRootView: View {
             if !session.isAnonymous && session.currentRole == .host {
                 Tab("Planning", systemImage: "checklist", value: .events) {
                     NavigationStack(path: $router.eventsPath) {
-                        RequestsView(store: requestsStore)
+                        EventListView()
                             .navigationDestination(for: EventsRoute.self) { route in
                                 switch route {
+                                case .eventDetail(let eventID):
+                                    EventDetailView(eventID: eventID)
                                 case .eventPlanning(let eventID):
-                                    EventPlanningView(
-                                        store: EventPlanningStore(
-                                            eventID: eventID,
-                                            planner: hostPlanningStore,
-                                            inboxStore: inboxStore,
-                                            bookingService: environment.services.bookingService,
-                                            availabilityService: environment.services.availabilityService
-                                        )
-                                    )
+                                    EventDetailView(eventID: eventID)
                                 case .hostWorkspace(let eventID):
-                                    HostEventWorkspaceView(eventID: eventID)
+                                    EventDetailView(eventID: eventID)
                                 case .vendorWorkspace(let workspaceID):
                                     VendorEventWorkspaceView(workspaceID: workspaceID)
                                 }
@@ -173,7 +167,7 @@ private struct DiscoveryDestinationView: View {
         case .vendorLead(let request):
             VendorLeadDetailView(summary: request)
         case .eventWorkspace(let eventID):
-            HostEventWorkspaceView(eventID: eventID)
+            EventDetailView(eventID: eventID)
         case .categoryBrowse(let category):
             CategoryBrowseView(
                 store: CategoryBrowseStore(

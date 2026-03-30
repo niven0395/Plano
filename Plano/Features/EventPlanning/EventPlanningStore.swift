@@ -79,9 +79,10 @@ final class EventPlanningStore {
 
     private func rebuildSlots(for event: PartyEvent, conversations: [ConversationThread]) {
         let categories = planner.categories(for: event)
+        let visible = conversations.filter { !$0.isHostCancelled && !inboxStore.isArchived($0.id, for: .host) }
 
         categorySlots = categories.map { category in
-            let thread = conversations
+            let thread = visible
                 .filter { $0.vendorCategory == category }
                 .sorted(by: compareThreads)
                 .first

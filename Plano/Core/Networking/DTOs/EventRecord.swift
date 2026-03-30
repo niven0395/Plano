@@ -9,7 +9,11 @@ nonisolated struct EventRecord: Codable, Hashable {
     let venue: String
     let city: String
     let guestCount: String
-    let budgetLabel: String
+    let budgetLabel: String?
+    let startTime: String?
+    let endTime: String?
+    let durationHours: Double?
+    let venueSetting: String?
     let planningNote: String
     let progress: Double
     let stage: String
@@ -25,6 +29,10 @@ nonisolated struct EventRecord: Codable, Hashable {
         case city
         case guestCount = "guest_count"
         case budgetLabel = "budget_label"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case durationHours = "duration_hours"
+        case venueSetting = "venue_setting"
         case planningNote = "planning_note"
         case progress
         case stage
@@ -41,6 +49,10 @@ nonisolated struct EventRecord: Codable, Hashable {
         city = event.city
         guestCount = String(event.guestCount)
         budgetLabel = event.budgetLabel
+        startTime = event.startTime.map(Self.formatTime)
+        endTime = event.endTime.map(Self.formatTime)
+        durationHours = event.durationHours
+        venueSetting = event.venueSetting.rawValue
         planningNote = event.planningNote
         progress = event.progress
         stage = event.stage.rawValue
@@ -57,10 +69,29 @@ nonisolated struct EventRecord: Codable, Hashable {
             city: city,
             guestCount: GuestCountValue.resolve(from: guestCount),
             budgetLabel: budgetLabel,
+            startTime: startTime.flatMap(Self.parseTime),
+            endTime: endTime.flatMap(Self.parseTime),
+            durationHours: durationHours,
+            venueSetting: VenueSetting(rawValue: venueSetting ?? "tbd") ?? .tbd,
             planningNote: planningNote,
             progress: progress,
             stage: BookingStage.fromDatabaseValue(stage),
             eventStage: EventStage(rawValue: eventStage ?? "planning") ?? .planning
         )
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    private static func formatTime(_ date: Date) -> String {
+        timeFormatter.string(from: date)
+    }
+
+    private static func parseTime(_ string: String) -> Date? {
+        timeFormatter.date(from: string)
     }
 }

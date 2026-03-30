@@ -64,9 +64,9 @@ final class CategoryBrowseStore {
             async let vendorsTask = planner.searchVendors(matching: request)
 
             let availableIDs: [UUID]
-            if let eventDate = hasEventContext ? selectedEvent.date : nil {
+            if let date = filterState.availabilityDate {
                 availableIDs = try await availabilityService.vendorsAvailable(
-                    on: eventDate,
+                    on: date,
                     category: category,
                     city: nil
                 )
@@ -93,6 +93,27 @@ final class CategoryBrowseStore {
     }
 
     func applyFilters() {
+        recomputeVisibleResults()
+    }
+
+    func refreshAvailability() async {
+        guard let date = filterState.availabilityDate else {
+            availableVendorIDs = []
+            recomputeVisibleResults()
+            return
+        }
+        do {
+            let ids = try await availabilityService.vendorsAvailable(
+                on: date,
+                category: category,
+                city: nil
+            )
+            availableVendorIDs = Set(ids)
+        } catch is CancellationError {
+            return
+        } catch {
+            availableVendorIDs = []
+        }
         recomputeVisibleResults()
     }
 
@@ -169,15 +190,8 @@ final class CategoryBrowseStore {
         if vendor.ratingValue < filterState.ratingFilter.minimumValue {
             return false
         }
-        if hasEventContext {
-            switch filterState.availabilityFilter {
-            case .all:
-                break
-            case .eventDateMatch:
-                if !availableVendorIDs.contains(vendor.id) { return false }
-            case .openSoon:
-                if !availableVendorIDs.contains(vendor.id) && vendor.availability == .limited { return false }
-            }
+        if filterState.availabilityDate != nil {
+            if !availableVendorIDs.contains(vendor.id) { return false }
         }
         return true
     }

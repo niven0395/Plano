@@ -57,6 +57,7 @@ final class RequestsStore {
         let category: VendorCategory
         let stage: BookingStage
         let priceLabel: String
+        let eventDateLabel: String
         let conversationID: UUID
     }
 
@@ -104,12 +105,16 @@ let planner: HostPlanningStore
     var eventContextChips: [String] {
         guard hasEvents else { return [] }
 
-        return [
+        var chips = [
             activeEvent.formattedDate,
             activeEvent.city,
             activeEvent.guestCountLabel,
-            activeEvent.budgetLabel,
+            activeEvent.venueSetting.title,
         ]
+        if activeEvent.startTime != nil {
+            chips.append(activeEvent.timeRangeLabel)
+        }
+        return chips
     }
 
     var daysUntilEvent: Int {
@@ -159,6 +164,7 @@ let planner: HostPlanningStore
         let existingEventIDs = Set(planner.events.map(\.id))
         return inboxStore.conversations
             .filter { $0.stage != .active }
+            .filter { !$0.isHostCancelled && !inboxStore.isArchived($0.id, for: .host) }
             .filter { $0.eventID == nil || !existingEventIDs.contains($0.eventID!) }
             .sorted { $0.lastActivityAt > $1.lastActivityAt }
     }
@@ -187,6 +193,7 @@ let planner: HostPlanningStore
 
     private func buildCategoryGroups(for event: PartyEvent) -> [CategoryGroup] {
         let threads = inboxStore.eventConversations(eventID: event.id)
+            .filter { !$0.isHostCancelled && !inboxStore.isArchived($0.id, for: .host) }
 
         let grouped = Dictionary(grouping: threads) { $0.vendorCategory }
 
@@ -213,6 +220,7 @@ let planner: HostPlanningStore
                             category: thread.vendorCategory,
                             stage: thread.stage,
                             priceLabel: priceLabel,
+                            eventDateLabel: thread.eventDateLabel,
                             conversationID: thread.id
                         )
                     }

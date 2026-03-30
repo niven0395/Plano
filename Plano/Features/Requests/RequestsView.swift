@@ -17,6 +17,7 @@ struct RequestsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if store.hasEvents {
+                    eventContent
                     if store.hasUngroupedBookings {
                         UngroupedVendorsSection(
                             items: store.ungroupedItems,
@@ -30,15 +31,16 @@ struct RequestsView: View {
                                     category: item.vendorCategory,
                                     stage: item.stage,
                                     priceLabel: item.amountLabel,
+                                    eventDateLabel: item.eventDateLabel,
                                     conversationID: item.id
                                 )
                             },
                             onLinkToEvent: { conversationID, eventID in
                                 Task { await store.linkToEvent(conversationID: conversationID, eventID: eventID) }
-                            }
+                            },
+                            onRemoveVendor: { store.inboxStore.archiveConversation($0, for: .host) }
                         )
                     }
-                    eventContent
                 } else if store.hasUngroupedBookings {
                     UngroupedVendorsSection(
                         items: store.ungroupedItems,
@@ -52,10 +54,12 @@ struct RequestsView: View {
                                 category: item.vendorCategory,
                                 stage: item.stage,
                                 priceLabel: item.amountLabel,
+                                eventDateLabel: item.eventDateLabel,
                                 conversationID: item.id
                             )
                         },
-                        onLinkToEvent: { _, _ in }
+                        onLinkToEvent: { _, _ in },
+                        onRemoveVendor: { store.inboxStore.archiveConversation($0, for: .host) }
                     )
 
                     if store.shouldShowEventPrompt {
@@ -171,12 +175,17 @@ struct RequestsView: View {
 
     @ViewBuilder
     private var eventContent: some View {
-        EventHeaderCard(
-            event: store.activeEvent,
-            daysUntil: store.daysUntilEvent,
-            onRemove: store.activeEvent.eventStage == .cancelled
-                ? { isConfirmingEventDelete = true } : nil
-        )
+        Button {
+            router.openHostEventWorkspace(store.activeEvent.id)
+        } label: {
+            EventHeaderCard(
+                event: store.activeEvent,
+                daysUntil: store.daysUntilEvent,
+                onRemove: store.activeEvent.eventStage == .cancelled
+                    ? { isConfirmingEventDelete = true } : nil
+            )
+        }
+        .buttonStyle(.plain)
 
         if store.events.count > 1 {
             Button {
@@ -189,7 +198,9 @@ struct RequestsView: View {
         }
 
         ForEach(store.categoryGroups) { group in
-            CategoryVendorSection(group: group, selectedVendor: $selectedVendor)
+            CategoryVendorSection(group: group, selectedVendor: $selectedVendor) { conversationID in
+                store.inboxStore.archiveConversation(conversationID, for: .host)
+            }
         }
     }
 
@@ -255,7 +266,7 @@ private struct EventHeaderCard: View {
                 HStack(spacing: 14) {
                     Label(event.city, systemImage: "location.fill")
                     Label(event.guestCountLabel, systemImage: "person.2.fill")
-                    Label(event.budgetLabel, systemImage: "creditcard.fill")
+                    Label(event.venueSetting.title, systemImage: "building.2")
                 }
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
@@ -275,6 +286,18 @@ private struct EventHeaderCard: View {
                     Button("Remove event", systemImage: "xmark.circle", action: onRemove)
                         .buttonStyle(SecondaryActionButtonStyle())
                 }
+
+                HStack {
+                    Text("View workspace")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.accent)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.subdued)
+                }
             }
         }
     }
@@ -285,6 +308,7 @@ private struct EventHeaderCard: View {
 private struct CategoryVendorSection: View {
     let group: RequestsStore.CategoryGroup
     @Binding var selectedVendor: RequestsStore.VendorItem?
+    var onRemoveVendor: ((UUID) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -306,6 +330,13 @@ private struct CategoryVendorSection: View {
                         CategoryVendorCard(vendor: vendor)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        if vendor.stage.isTerminal, let onRemoveVendor {
+                            Button("Remove from plan", systemImage: "eye.slash", role: .destructive) {
+                                onRemoveVendor(vendor.conversationID)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -326,6 +357,12 @@ private struct CategoryVendorCard: View {
                     Text(vendor.priceLabel)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.subdued)
+
+                    if !vendor.eventDateLabel.isEmpty {
+                        Label(vendor.eventDateLabel, systemImage: "calendar")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Palette.subdued)
+                    }
                 }
 
                 Spacer()
@@ -348,6 +385,7 @@ private struct UngroupedVendorsSection: View {
     let onOpenChat: (UUID) -> Void
     let onSelectVendor: (RequestsStore.RequestItem) -> Void
     let onLinkToEvent: (UUID, UUID) -> Void
+    var onRemoveVendor: ((UUID) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -363,7 +401,8 @@ private struct UngroupedVendorsSection: View {
                         events: events,
                         onOpenChat: onOpenChat,
                         onSelectVendor: onSelectVendor,
-                        onLinkToEvent: onLinkToEvent
+                        onLinkToEvent: onLinkToEvent,
+                        onRemoveVendor: onRemoveVendor
                     )
                 }
             }
@@ -377,6 +416,7 @@ private struct UngroupedVendorCard: View {
     let onOpenChat: (UUID) -> Void
     let onSelectVendor: (RequestsStore.RequestItem) -> Void
     let onLinkToEvent: (UUID, UUID) -> Void
+    var onRemoveVendor: ((UUID) -> Void)?
 
     var body: some View {
         Button {
@@ -433,6 +473,12 @@ private struct UngroupedVendorCard: View {
                             onLinkToEvent(item.id, event.id)
                         }
                     }
+                }
+            }
+
+            if item.stage.isTerminal, let onRemoveVendor {
+                Button("Remove", systemImage: "trash", role: .destructive) {
+                    onRemoveVendor(item.id)
                 }
             }
         }
@@ -546,7 +592,7 @@ private struct RequestEventRow: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
 
-                Text("\(event.guestCountLabel) • \(event.budgetLabel)")
+                Text("\(event.guestCountLabel) · \(event.venueSetting.title)")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
 

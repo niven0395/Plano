@@ -158,11 +158,8 @@ final class RealtimeManager {
             subscribeToMessageBroadcast(client: client, conversationID: conversationID)
         }
 
-        // Mark connected after first subscription batch
-        if !conversationIDs.isEmpty {
-            connectionState = .connected
-            hasEverConnected = true
-        }
+        connectionState = .connected
+        hasEverConnected = true
     }
 
     private func subscribeToMessageBroadcast(client: SupabaseClient, conversationID: UUID) {

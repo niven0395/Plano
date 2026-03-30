@@ -14,54 +14,76 @@ extension InboxStore {
             throw ConversationError.selfMessaging
         }
 
+        // Fast path: already in memory
         if let existingID = existingConversationID(vendorID: vendor.id, eventID: event?.id) {
             return existingID
         }
 
-        let record = try await bookingService.createConversation(
-            vendorID: vendor.id,
-            hostID: hostUserID,
-            eventID: event?.id
-        )
+        // Dedup key: same vendor + event = same in-flight task
+        let key = "\(vendor.id)-\(event?.id.uuidString ?? "nil")"
 
-        let thread = ConversationThread(
-            id: record.id,
-            eventID: record.eventID,
-            eventDate: event?.date,
-            vendorID: record.vendorID,
-            hostUserID: record.hostID,
-            hostName: record.hostDisplayName,
-            vendorName: record.vendorDisplayName,
-            vendorCategory: VendorCategory(rawValue: record.vendorCategory) ?? vendor.category,
-            eventTitle: record.eventTitle ?? "Direct inquiry",
-            eventDateLabel: record.eventDateLabel ?? "Date pending",
-            eventContextLine: record.eventContextLine ?? "Guest count pending",
-            stage: BookingStage.fromDatabaseValue(record.stage),
-            messages: [
-                ChatMessage(
-                    sender: .system,
-                    body: event == nil
-                        ? "Conversation started from a direct vendor inquiry."
-                        : "Conversation started with the event brief attached.",
-                    sentAt: record.createdAt ?? .now
-                ),
-            ],
-            lastActivityAt: record.lastActivityAt,
-            hostUnreadCount: 0,
-            vendorUnreadCount: 0
-        )
+        if let inflight = conversationCreationTasks[key] {
+            return try await inflight.value
+        }
 
-        vendorProfilesByID[vendor.id] = vendor
-        conversations.insert(thread, at: 0)
-        conversations.sort { $0.lastActivityAt > $1.lastActivityAt }
+        let task = Task<UUID, Error> { [weak self] in
+            guard let self else { throw APIError.unauthorized }
+            defer { conversationCreationTasks[key] = nil }
 
-        analyticsService.track(AnalyticsEvent(
-            eventType: .conversationStarted,
-            vendorID: vendor.id,
-            eventID: event?.id
-        ))
+            let record = try await bookingService.createConversation(
+                vendorID: vendor.id,
+                hostID: hostUserID,
+                eventID: event?.id
+            )
 
-        return thread.id
+            // Server may have returned an existing conversation — check before adding
+            if conversations.contains(where: { $0.id == record.id }) {
+                return record.id
+            }
+
+            let thread = ConversationThread(
+                id: record.id,
+                eventID: record.eventID,
+                eventDate: event?.date,
+                vendorID: record.vendorID,
+                hostUserID: record.hostID,
+                hostName: record.hostDisplayName,
+                vendorName: record.vendorDisplayName,
+                vendorCategory: VendorCategory.fromDatabaseValue(record.vendorCategory) ?? vendor.category,
+                eventTitle: record.eventTitle ?? "Direct inquiry",
+                eventDateLabel: record.eventDateLabel ?? "Date pending",
+                eventContextLine: record.eventContextLine ?? "Guest count pending",
+                stage: BookingStage.fromDatabaseValue(record.stage),
+                messages: [
+                    ChatMessage(
+                        sender: .system,
+                        body: event == nil
+                            ? "Conversation started from a direct vendor inquiry."
+                            : "Conversation started with the event brief attached.",
+                        sentAt: record.createdAt ?? .now
+                    ),
+                ],
+                lastActivityAt: record.lastActivityAt,
+                hostUnreadCount: 0,
+                vendorUnreadCount: 0
+            )
+
+            vendorProfilesByID[vendor.id] = vendor
+            conversations.insert(thread, at: 0)
+            conversations.sort { $0.lastActivityAt > $1.lastActivityAt }
+            realtimeManager?.addConversation(thread.id)
+
+            analyticsService.track(AnalyticsEvent(
+                eventType: .conversationStarted,
+                vendorID: vendor.id,
+                eventID: event?.id
+            ))
+
+            return thread.id
+        }
+
+        conversationCreationTasks[key] = task
+        return try await task.value
     }
 
     // MARK: - Booking actions (delegates to ConversationBookingCoordinator)

@@ -43,7 +43,7 @@ struct SearchBarView: View {
 
                 if !store.query.isEmpty ||
                     store.selectedCategory != nil ||
-                    store.selectedAvailability != .all ||
+                    store.availabilityDate != nil ||
                     store.ratingFilter != .all {
                     Button("Clear", action: store.clearFilters)
                         .font(.footnote.weight(.semibold))
@@ -77,29 +77,15 @@ private struct SearchControlsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.textSecondary)
 
-            if store.hasEventContext {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Availability")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.subdued)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(VendorAvailabilityFilter.allCases) { filter in
-                                Button {
-                                    store.selectedAvailability = filter
-                                } label: {
-                                    FilterChip(title: filter.title, isSelected: store.selectedAvailability == filter)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-            }
-
             HStack(spacing: 12) {
+                AvailabilityDateChip(
+                    date: Binding(
+                        get: { store.availabilityDate },
+                        set: { store.availabilityDate = $0 }
+                    )
+                )
+
+
                 Picker("Rating", selection: $store.ratingFilter) {
                     ForEach(SearchRatingFilter.allCases) { filter in
                         Text(filter.title).tag(filter)

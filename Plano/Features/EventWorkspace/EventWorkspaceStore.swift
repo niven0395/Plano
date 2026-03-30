@@ -58,6 +58,8 @@ struct VendorEventWorkspaceSnapshot: Identifiable, Hashable {
     let dateLabel: String
     let venue: String
     let guestCountLabel: String
+    let venueSettingLabel: String
+    let timeRangeLabel: String?
     let countdownLabel: String
     let stage: BookingStage
     let paymentLabel: String
@@ -163,6 +165,7 @@ final class EventWorkspaceStore {
     var vendorWorkspaces: [VendorEventWorkspaceSnapshot] {
         let confirmedThreads = inboxStore.vendorScopedConversations()
             .filter { $0.stage == .paid }
+            .filter { bookingDateMatchesEvent($0) }
             .map { thread in
                 let coVendors = coVendorCache[thread.eventID ?? thread.id] ?? []
                 return vendorWorkspace(from: thread, coVendors: coVendors)
@@ -270,6 +273,8 @@ final class EventWorkspaceStore {
             dateLabel: thread.eventDateLabel,
             venue: venue(from: thread.eventContextLine),
             guestCountLabel: thread.guestCountLabel,
+            venueSettingLabel: thread.venueSettingLabel ?? VenueSetting.tbd.title,
+            timeRangeLabel: thread.timeRangeLabel,
             countdownLabel: eventDate.map(countdownLabel(for:)) ?? "Upcoming event",
             stage: thread.stage,
             paymentLabel: paymentLabel(for: thread),
@@ -308,6 +313,8 @@ final class EventWorkspaceStore {
             dateLabel: summary.dateLabel,
             venue: summary.venue,
             guestCountLabel: summary.guestCountLabel,
+            venueSettingLabel: summary.venueSettingLabel,
+            timeRangeLabel: summary.timeRangeLabel == "Times TBD" ? nil : summary.timeRangeLabel,
             countdownLabel: parsedDate(from: summary.dateLabel).map(countdownLabel(for:)) ?? "Upcoming event",
             stage: summary.stage,
             paymentLabel: summary.stage == .paid ? "Deposit received" : summary.completionText,
@@ -742,5 +749,16 @@ final class EventWorkspaceStore {
 
     private func workspaceKey(title: String, dateLabel: String) -> String {
         "\(title.lowercased())|\(dateLabel.lowercased())"
+    }
+
+    /// Returns true if the thread's booking date falls on the same day as the
+    /// linked event date. Threads without a booking date or without an event
+    /// date pass through (no date to compare).
+    private func bookingDateMatchesEvent(_ thread: ConversationThread) -> Bool {
+        guard let bookingDate = thread.bookingEventDate,
+              let eventDate = thread.eventDate else {
+            return true
+        }
+        return calendar.isDate(bookingDate, inSameDayAs: eventDate)
     }
 }

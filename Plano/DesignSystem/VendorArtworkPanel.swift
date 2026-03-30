@@ -19,12 +19,12 @@ struct VendorArtworkPanel: View {
             PlanoImage(
                 storagePath: path,
                 size: .standard,
-                cornerRadius: AppTheme.cardCornerRadius,
+                cornerRadius: AppTheme.compactCornerRadius,
                 contentMode: .fill
             )
             .frame(maxWidth: .infinity)
             .frame(height: height)
-            .clipped()
+            .clipShape(.rect(cornerRadius: AppTheme.compactCornerRadius))
         } else {
             EditorialArtworkPanel(
                 tone: tone,

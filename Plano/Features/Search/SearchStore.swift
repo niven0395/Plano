@@ -2,25 +2,6 @@ import Foundation
 import Observation
 import OSLog
 
-enum VendorAvailabilityFilter: String, CaseIterable, Identifiable, Hashable {
-    case all
-    case eventDateMatch
-    case openSoon
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .all:
-            "All"
-        case .eventDateMatch:
-            "Fits date"
-        case .openSoon:
-            "Open soon"
-        }
-    }
-}
-
 enum SearchRatingFilter: CaseIterable, Identifiable, Hashable {
     case all
     case fourPointEight
@@ -132,11 +113,11 @@ final class SearchStore {
             scheduleRemoteSearch(after: .zero, showLoading: !hasLoaded)
         }
     }
-    var selectedAvailability: VendorAvailabilityFilter = .all {
+    var availabilityDate: Date? {
         didSet {
-            guard selectedAvailability != oldValue else { return }
+            guard availabilityDate != oldValue else { return }
             filterChangeCounter += 1
-            recomputeVisibleResults()
+            refreshAvailability()
         }
     }
     var ratingFilter: SearchRatingFilter = .all {
@@ -187,7 +168,7 @@ final class SearchStore {
     var activeFilterSummary: String {
         [
             selectedCategory?.title,
-            hasEventContext && selectedAvailability != .all ? selectedAvailability.title : nil,
+            availabilityDate != nil ? "Fits date" : nil,
             ratingFilter == .all ? nil : ratingFilter.title,
             sortMode == .recommended ? nil : sortMode.title,
         ]
@@ -198,7 +179,7 @@ final class SearchStore {
     var activeRefinementCount: Int {
         [
             selectedCategory != nil,
-            hasEventContext && selectedAvailability != .all,
+            availabilityDate != nil,
             ratingFilter != .all,
             sortMode != .recommended,
         ]
@@ -209,7 +190,7 @@ final class SearchStore {
     var isShowingDiscoveryState: Bool {
         query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         selectedCategory == nil &&
-        selectedAvailability == .all &&
+        availabilityDate == nil &&
         ratingFilter == .all &&
         sortMode == .recommended
     }
@@ -239,13 +220,37 @@ final class SearchStore {
         performWithoutAutoRefresh {
             query = ""
             selectedCategory = nil
-            selectedAvailability = .all
+            availabilityDate = nil
             ratingFilter = .all
             sortMode = .recommended
         }
         visibleResults = []
         hasLoaded = false
         presentationState = .live
+    }
+
+    private func refreshAvailability() {
+        scheduledRefreshTask?.cancel()
+        scheduledRefreshTask = Task {
+            guard let date = availabilityDate else {
+                availableVendorIDs = []
+                recomputeVisibleResults()
+                return
+            }
+            do {
+                let ids = try await availabilityService.vendorsAvailable(
+                    on: date,
+                    category: selectedCategory,
+                    city: nil
+                )
+                availableVendorIDs = Set(ids)
+            } catch is CancellationError {
+                return
+            } catch {
+                availableVendorIDs = []
+            }
+            recomputeVisibleResults()
+        }
     }
 
     func toggleCategory(_ category: VendorCategory) {
@@ -264,7 +269,7 @@ final class SearchStore {
     func applyShortcutSearch(category: VendorCategory?, query: String) {
         performWithoutAutoRefresh {
             selectedCategory = category
-            selectedAvailability = .all
+            availabilityDate = nil
             ratingFilter = .all
             sortMode = .recommended
             self.query = query
@@ -302,7 +307,7 @@ final class SearchStore {
         performWithoutAutoRefresh {
             query = ""
             selectedCategory = nil
-            selectedAvailability = .all
+            availabilityDate = nil
             ratingFilter = .all
             sortMode = .recommended
             presentationState = .live
@@ -338,16 +343,8 @@ final class SearchStore {
     }
 
     private func matchesAvailability(_ vendor: VendorProfile) -> Bool {
-        guard hasEventContext else { return true }
-
-        switch selectedAvailability {
-        case .all:
-            return true
-        case .eventDateMatch:
-            return availableVendorIDs.contains(vendor.id)
-        case .openSoon:
-            return availableVendorIDs.contains(vendor.id) || vendor.availability != .limited
-        }
+        guard availabilityDate != nil else { return true }
+        return availableVendorIDs.contains(vendor.id)
     }
 
     private func rankingScore(for vendor: VendorProfile, query: String) -> Int {
@@ -507,9 +504,9 @@ final class SearchStore {
             async let vendorsTask = planner.searchVendors(matching: request)
             let availableIDs: [UUID]
 
-            if let eventDate = activeContextEvent?.date {
+            if let date = availabilityDate {
                 availableIDs = try await availabilityService.vendorsAvailable(
-                    on: eventDate,
+                    on: date,
                     category: selectedCategory,
                     city: nil
                 )

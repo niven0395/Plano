@@ -47,6 +47,7 @@ struct VendorOnboardingStoreTests {
 
             #expect(store.slideOneSubmitted)
             #expect(store.currentSlide == 1)
+            #expect(sessionStore.requiresVendorOnboarding)
         }
     }
 

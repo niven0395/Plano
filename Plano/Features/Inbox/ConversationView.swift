@@ -561,9 +561,11 @@ struct MessageRow: View {
             }
 
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
-                Text(senderLabel)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.subdued)
+                if !isCurrentUser {
+                    Text(senderLabel)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.subdued)
+                }
 
                 content()
 

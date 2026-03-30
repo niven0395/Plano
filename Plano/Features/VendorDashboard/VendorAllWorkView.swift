@@ -2,7 +2,7 @@ import SwiftUI
 
 struct VendorAllWorkView: View {
     @Environment(EventWorkspaceStore.self) private var workspaceStore
-    @Environment(AppRouter.self) private var router
+    @Environment(VendorDashboardStore.self) private var dashboardStore
 
     var body: some View {
         ScrollView {
@@ -23,12 +23,14 @@ struct VendorAllWorkView: View {
                 } else {
                     LazyVStack(spacing: 16) {
                         ForEach(workspaceStore.vendorWorkspaces) { workspace in
-                            Button {
-                                router.openVendorEventWorkspace(workspace.id)
-                            } label: {
+                            if let summary = dashboardStore.confirmedLead(forConversationID: workspace.conversationID ?? workspace.id) {
+                                NavigationLink(value: DiscoveryRoute.vendorLead(summary)) {
+                                    VendorUpcomingWorkspaceCard(workspace: workspace)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
                                 VendorUpcomingWorkspaceCard(workspace: workspace)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }

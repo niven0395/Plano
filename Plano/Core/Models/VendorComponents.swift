@@ -140,25 +140,73 @@ nonisolated struct VendorSummary: Identifiable, Hashable {
     }
 }
 
-nonisolated struct VendorPackage: Identifiable, Hashable {
-    let id: UUID
-    let title: String
-    let priceLabel: String
-    let summary: String
-    let includedItems: [String]
+nonisolated struct VendorPackage: Identifiable, Hashable, Codable {
+    var id: UUID
+    var title: String
+    var priceCents: Int
+    var description: String
+    var includedItems: [String]
+    var isHighlighted: Bool
+    var pricingUnit: String?
+    var displayOrder: Int
 
     init(
         id: UUID = UUID(),
-        title: String,
-        priceLabel: String,
-        summary: String,
-        includedItems: [String] = []
+        title: String = "",
+        priceCents: Int = 0,
+        description: String = "",
+        includedItems: [String] = [],
+        isHighlighted: Bool = false,
+        pricingUnit: String? = nil,
+        displayOrder: Int = 0
     ) {
         self.id = id
         self.title = title
-        self.priceLabel = priceLabel
-        self.summary = summary
+        self.priceCents = priceCents
+        self.description = description
         self.includedItems = includedItems
+        self.isHighlighted = isHighlighted
+        self.pricingUnit = pricingUnit
+        self.displayOrder = displayOrder
+    }
+
+    var priceLabel: String {
+        let base = PricingAmountFormatter.currencyLabel(forCents: priceCents)
+        if let pricingUnit {
+            switch pricingUnit {
+            case "per_person": return "\(base)/person"
+            case "per_hour": return "\(base)/hr"
+            case "per_event": return "\(base) per event"
+            default: return base
+            }
+        }
+        return base
+    }
+}
+
+nonisolated struct VendorAddOn: Identifiable, Hashable, Codable {
+    var id: UUID
+    var title: String
+    var priceCents: Int
+    var description: String
+    var displayOrder: Int
+
+    init(
+        id: UUID = UUID(),
+        title: String = "",
+        priceCents: Int = 0,
+        description: String = "",
+        displayOrder: Int = 0
+    ) {
+        self.id = id
+        self.title = title
+        self.priceCents = priceCents
+        self.description = description
+        self.displayOrder = displayOrder
+    }
+
+    var priceLabel: String {
+        PricingAmountFormatter.currencyLabel(forCents: priceCents)
     }
 }
 

@@ -106,6 +106,32 @@ final class HostPlanningStore {
         events.first(where: { $0.id == selectedEventID }) ?? events.first ?? .placeholder
     }
 
+    func event(on date: Date) -> PartyEvent? {
+        events.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
+    }
+
+    /// Returns the nearest event whose date falls within a proximity window of the booking date.
+    /// Window: up to 7 days before the event, up to 1 day after the event.
+    func nearestEvent(to bookingDate: Date) -> PartyEvent? {
+        if let exact = event(on: bookingDate) { return exact }
+
+        let calendar = Calendar.current
+        let bookingDay = calendar.startOfDay(for: bookingDate)
+
+        return events
+            .compactMap { event -> (event: PartyEvent, distance: Int)? in
+                let eventDay = calendar.startOfDay(for: event.date)
+                let days = calendar.dateComponents([.day], from: bookingDay, to: eventDay).day ?? 0
+                // days > 0: event is after booking (prep scenario, e.g. dessert pickup before party)
+                // days < 0: event is before booking (cleanup scenario)
+                if days >= 0, days <= 7 { return (event, days) }
+                if days < 0, days >= -1 { return (event, abs(days)) }
+                return nil
+            }
+            .min(by: { $0.distance < $1.distance })?
+            .event
+    }
+
     var currentActionItems: [BookingRequestSummary] {
         []
     }

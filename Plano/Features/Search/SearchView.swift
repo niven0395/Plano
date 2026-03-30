@@ -27,7 +27,7 @@ struct SearchView: View {
             .padding(AppTheme.screenPadding)
             .padding(.bottom, 32)
         }
-        .scrollDismissesKeyboard(.interactively)
+        .scrollDismissesKeyboard(.immediately)
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .hapticFeedback(.selection, trigger: showsFilters)
@@ -118,7 +118,7 @@ struct SearchDiscoveryState: View {
         case .loading:
             LazyVStack(spacing: 16) {
                 ForEach(0..<3, id: \.self) { _ in
-                    SearchResultCardSkeleton()
+                    CategoryBrowseResultCardSkeleton()
                 }
             }
 
@@ -169,9 +169,7 @@ struct SearchResultState: View {
                     ForEach(Array(store.visibleResults.enumerated()), id: \.element.id) { index, result in
                         ZStack(alignment: .topTrailing) {
                             NavigationLink(value: DiscoveryRoute.vendorProfile(result.vendor.id)) {
-                                SearchResultCard(
-                                    result: result
-                                )
+                                CategoryBrowseResultCard(result: result, showsCategoryTag: true)
                             }
                             .buttonStyle(.plain)
 
@@ -183,15 +181,15 @@ struct SearchResultState: View {
                             }
                             .labelStyle(.iconOnly)
                             .font(.headline.weight(.semibold))
-                            .foregroundStyle(store.isSaved(result.vendor.id) ? AppTheme.toneColor(.coral) : AppTheme.Palette.textPrimary)
+                            .foregroundStyle(store.isSaved(result.vendor.id) ? AppTheme.toneColor(.coral) : .white)
                             .accessibilityLabel(store.isSaved(result.vendor.id) ? "Remove from shortlist" : "Add to shortlist")
                             .frame(width: 38, height: 38)
-                            .background(AppTheme.Palette.elevatedSurface, in: Circle())
+                            .background(.ultraThinMaterial.opacity(0.6), in: Circle())
                             .symbolEffect(.bounce, value: store.isSaved(result.vendor.id))
                             .buttonStyle(.plain)
                             .disabled(store.isSavePending(result.vendor.id))
                             .opacity(store.isSavePending(result.vendor.id) ? 0.55 : 1)
-                            .padding(16)
+                            .padding(12)
                         }
                         .staggeredAppear(index: index)
                     }
@@ -202,145 +200,12 @@ struct SearchResultState: View {
         case .loading:
             LazyVStack(spacing: 16) {
                 ForEach(0..<3, id: \.self) { _ in
-                    SearchResultCardSkeleton()
+                    CategoryBrowseResultCardSkeleton()
                 }
             }
 
         case .error(let message):
             SearchErrorCard(message: message, retryAction: store.retryPresentation)
-        }
-    }
-}
-
-struct SearchResultCard: View {
-    let result: SearchResultSnapshot
-
-    var body: some View {
-        let vendor = result.vendor
-
-        return AppSurface {
-            VStack(alignment: .leading, spacing: 18) {
-                VendorArtworkPanel(
-                    profileImagePath: vendor.profileImagePath,
-                    listingImagePath: vendor.listingImagePath,
-                    tone: artworkTone,
-                    symbolName: vendor.category.symbolName,
-                    height: 188
-                )
-
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(vendor.category.title.uppercased())
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.subdued)
-
-                        Text(vendor.businessName)
-                            .font(.system(size: 26, weight: .regular))
-                            .tracking(-0.8)
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                        HStack(spacing: 8) {
-                            Label(vendor.city, systemImage: "mappin.and.ellipse")
-
-                            if let priceLabel = vendor.visibleStartingPriceLabel {
-                                Label(priceLabel, systemImage: "creditcard.fill")
-                            }
-                        }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                        .padding(.trailing, 34)
-                    }
-
-                    Spacer()
-
-                    if vendor.reviewCount > 0 {
-                        VStack(alignment: .trailing, spacing: 6) {
-                            Text(vendor.ratingText)
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                            Text("\(vendor.reviewCount) reviews")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(AppTheme.Palette.subdued)
-                        }
-                    }
-                }
-
-                HStack(spacing: 10) {
-                    SearchRouteChip(
-                        title: vendor.hostBookingLabel,
-                        symbolName: vendor.bookingMode.symbolName,
-                        tone: .blue
-                    )
-
-                    SearchRouteChip(
-                        title: vendor.hostPaymentLabel,
-                        symbolName: vendor.paymentMode.symbolName,
-                        tone: vendor.paymentMode == .platform ? .sage : .sand
-                    )
-                }
-            }
-        }
-    }
-
-    private var artworkTone: AccentTone {
-        result.vendor.category.accentTone
-    }
-}
-
-struct SearchRouteChip: View {
-    let title: String
-    let symbolName: String
-    let tone: AccentTone
-
-    var body: some View {
-        Label(title, systemImage: symbolName)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(AppTheme.toneColor(tone))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(AppTheme.toneBackground(tone), in: Capsule())
-    }
-}
-
-struct SearchResultCardSkeleton: View {
-    var body: some View {
-        AppSurface {
-            VStack(alignment: .leading, spacing: 18) {
-                SkeletonRect(height: 188)
-
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        SkeletonLine(width: 90, height: 10)
-                        SkeletonLine.long
-                        SkeletonLine.medium
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 6) {
-                        SkeletonLine(width: 40, height: 18)
-                        SkeletonLine(width: 70, height: 10)
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    SkeletonLine(width: 100, height: 28)
-                    SkeletonLine(width: 80, height: 28)
-                    SkeletonLine(width: 90, height: 28)
-                }
-
-                HStack(spacing: 10) {
-                    SkeletonLine(width: 120, height: 32)
-                    SkeletonLine(width: 110, height: 32)
-                }
-
-                HStack {
-                    SkeletonLine(width: 80, height: 24)
-                    Spacer()
-                    SkeletonLine(width: 100, height: 12)
-                }
-            }
         }
     }
 }

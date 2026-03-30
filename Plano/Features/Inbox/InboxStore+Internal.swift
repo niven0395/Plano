@@ -91,6 +91,14 @@ extension InboxStore {
             onStageChanged?()
         }
 
+        // Realtime updates don't carry cancellation metadata; reload to resolve it.
+        if newStage.isTerminal, previousStage != newStage {
+            Task { [weak self] in
+                guard let self else { return }
+                await loadConversations(for: sessionStore.currentRole)
+            }
+        }
+
         if newStage == .paymentRequested, previousStage != .paymentRequested {
             Task { [weak self] in
                 await self?.refreshPaymentRequest(for: record.id)
@@ -215,8 +223,6 @@ extension InboxStore {
             true
         case .unread:
             thread.unreadCount(for: role) > 0
-        case .actionNeeded:
-            thread.stage.isActionable && !thread.stage.isConfirmed
         case .archived:
             false
         }

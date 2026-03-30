@@ -22,6 +22,7 @@ final class VendorBookingRequestStore {
     var schedulingMode: SchedulingMode = .calendar
     var requestedStartTime: Date?
     var requestedEndTime: Date?
+    var linkedEvent: PartyEvent?
 
     init(
         vendorID: UUID,
@@ -60,6 +61,18 @@ final class VendorBookingRequestStore {
         schedulingMode == .eventTimeRange
     }
 
+    func resolveLinkedEvent(for date: Date?) {
+        guard let date else {
+            linkedEvent = nil
+            return
+        }
+        linkedEvent = planner.nearestEvent(to: date)
+    }
+
+    func setLinkedEvent(_ event: PartyEvent?) {
+        linkedEvent = event
+    }
+
     func updateTimeslotsForSelectedDate(vendor: VendorProfile) {
         guard vendor.hasTimeslots, let date = selectedBookingDate else {
             availableTimeslots = []
@@ -71,8 +84,19 @@ final class VendorBookingRequestStore {
         )
     }
 
+    func initializeEventTimeRangeDefaults() {
+        guard schedulingMode == .eventTimeRange else { return }
+        if requestedStartTime == nil {
+            requestedStartTime = Calendar.current.date(from: DateComponents(hour: 9, minute: 0))
+        }
+        if requestedEndTime == nil {
+            requestedEndTime = Calendar.current.date(from: DateComponents(hour: 17, minute: 0))
+        }
+    }
+
     func loadTimeslotBookings(vendor: VendorProfile) async {
         schedulingMode = vendor.schedulingMode
+        initializeEventTimeRangeDefaults()
         guard vendor.hasTimeslots else { return }
         let advanceDays = vendor.timeslotConfig.rollingWindowDays
         do {
@@ -93,11 +117,10 @@ final class VendorBookingRequestStore {
     ) async -> [VendorAvailabilityRecord]? {
         guard !isSubmittingBooking else { return nil }
 
-        let selectedEvent = planner.selectedEvent
-        let existingConversationID = inboxStore.existingConversationID(
-            vendorID: vendor.id,
-            eventID: selectedEvent.id
-        )
+        let resolvedEvent = linkedEvent
+        let existingConversationID = resolvedEvent.flatMap {
+            inboxStore.existingConversationID(vendorID: vendor.id, eventID: $0.id)
+        }
 
         if let conversationID = existingConversationID {
             let stage = inboxStore.conversation(id: conversationID, for: .host)?.stage
@@ -150,10 +173,9 @@ final class VendorBookingRequestStore {
             if let existing = existingConversationID {
                 conversationID = existing
             } else {
-                let event = planner.events.isEmpty ? nil : selectedEvent
                 conversationID = try await inboxStore.startConversation(
                     with: vendor,
-                    event: event
+                    event: resolvedEvent
                 )
             }
 
@@ -163,9 +185,9 @@ final class VendorBookingRequestStore {
                 note: note,
                 requestedTimeStart: resolvedTimeStart,
                 requestedTimeEnd: resolvedTimeEnd,
-                title: selectedEvent.title,
-                budgetLabel: selectedEvent.budgetLabel,
-                guestCountLabel: selectedEvent.guestCountLabel,
+                title: resolvedEvent?.title ?? "Direct inquiry",
+                budgetLabel: nil,
+                guestCountLabel: resolvedEvent?.guestCountLabel ?? "",
                 requestedServices: nil
             )
 
@@ -176,6 +198,7 @@ final class VendorBookingRequestStore {
             selectedTimeslot = nil
             requestedStartTime = nil
             requestedEndTime = nil
+            linkedEvent = nil
             bookingNote = ""
             isSubmittingBooking = false
 

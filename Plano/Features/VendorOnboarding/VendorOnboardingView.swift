@@ -57,19 +57,25 @@ struct VendorOnboardingView: View {
                     removal: .move(edge: .leading)
                 ))
         case 2:
-            VendorOnboardingSlideThreeView(store: store)
+            VendorOnboardingSlideFiveView(store: store)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .leading)
                 ))
         case 3:
-            VendorOnboardingSlideFourView(store: store)
+            VendorOnboardingServicesSlideView(store: store)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .leading)
                 ))
         case 4:
-            VendorOnboardingSlideFiveView(store: store)
+            VendorOnboardingSlideThreeView(store: store)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing),
+                    removal: .move(edge: .leading)
+                ))
+        case 5:
+            VendorOnboardingSlideFourView(store: store)
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing),
                     removal: .move(edge: .leading)
@@ -137,9 +143,10 @@ struct VendorOnboardingView: View {
         switch store.currentSlide {
         case 0: "Set up your business"
         case 1: "About your business"
-        case 2: CategoryDetails.empty(for: store.selectedCategory).sectionTitle
-        case 3: "Show your work"
-        case 4: "Set your availability"
+        case 2: "Set your availability"
+        case 3: "Your key services"
+        case 4: CategoryDetails.empty(for: store.selectedCategory).sectionTitle
+        case 5: "Show your work"
         default: "Vendor setup"
         }
     }

@@ -29,8 +29,7 @@ struct ProfileView: View {
 
                 ProfileAuthActions(
                     isAnonymous: session.isAnonymous,
-                    isVendorAuthenticated: session.isVendorAuthenticated,
-                    supportsAppleSignIn: authStore.supportsAppleSignIn
+                    isVendorAuthenticated: session.isVendorAuthenticated
                 )
 
                 if session.isAuthenticated {
@@ -38,8 +37,10 @@ struct ProfileView: View {
                     ProfileNotificationsSection()
                 }
 
-                SectionHeader(title: "Preferences")
-                ProfilePreferencesSection()
+                if !session.isAnonymous {
+                    SectionHeader(title: "Preferences")
+                    ProfilePreferencesSection()
+                }
 
                 SectionHeader(title: "Support")
                 ProfileSupportSection()

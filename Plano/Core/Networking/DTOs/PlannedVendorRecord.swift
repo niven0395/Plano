@@ -42,7 +42,7 @@ nonisolated struct PlannedVendorRecord: Codable, Hashable, Identifiable {
     }
 
     var vendorCategory: VendorCategory {
-        VendorCategory(rawValue: category) ?? .entertainer
+        VendorCategory.fromDatabaseValue(category) ?? .entertainer
     }
 
     var plannedVendorStatus: PlannedVendorStatus {

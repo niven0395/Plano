@@ -23,6 +23,8 @@ final class InboxStore {
     @ObservationIgnored var lastRealtimeMessageAt: [UUID: Date] = [:]
     /// Local SwiftData cache for offline message persistence.
     @ObservationIgnored var messageCacheManager: MessageCacheManager?
+    /// In-flight conversation creation tasks keyed by "vendorID-eventID" to prevent duplicate requests.
+    @ObservationIgnored var conversationCreationTasks: [String: Task<UUID, Error>] = [:]
 
     // MARK: - Internal managers
 
@@ -249,7 +251,7 @@ final class InboxStore {
                     hostUserID: record.hostID,
                     hostName: record.hostDisplayName,
                     vendorName: record.vendorDisplayName,
-                    vendorCategory: VendorCategory(rawValue: record.vendorCategory) ?? .entertainer,
+                    vendorCategory: VendorCategory.fromDatabaseValue(record.vendorCategory) ?? .entertainer,
                     eventTitle: record.eventTitle ?? "Direct inquiry",
                     eventDateLabel: record.eventDateLabel ?? "Date pending",
                     eventContextLine: record.eventContextLine ?? "Guest count pending",

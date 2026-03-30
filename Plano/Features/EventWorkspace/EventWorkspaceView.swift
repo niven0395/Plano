@@ -256,7 +256,7 @@ private struct HostWorkspaceHeroCard: View {
 
                     Spacer()
 
-                    Text(workspace.event.formattedDate)
+                    Text(workspace.event.formattedDateWithTime)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.textSecondary)
                 }
@@ -369,13 +369,20 @@ private struct VendorWorkspaceHeroCard: View {
                 HStack(spacing: 14) {
                     Label(workspace.venue, systemImage: "mappin.and.ellipse")
                     Label(workspace.guestCountLabel, systemImage: "person.3.fill")
+                    Label(workspace.venueSettingLabel, systemImage: "building.2")
                 }
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
 
-                Label(workspace.countdownLabel, systemImage: "calendar.badge.clock")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.subdued)
+                HStack(spacing: 14) {
+                    Label(workspace.countdownLabel, systemImage: "calendar.badge.clock")
+
+                    if let timeRange = workspace.timeRangeLabel {
+                        Label(timeRange, systemImage: "clock")
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Palette.subdued)
 
                 if let conversationID = workspace.conversationID {
                     Button("Open thread") {
@@ -428,13 +435,20 @@ struct VendorUpcomingWorkspaceCard: View {
                 HStack(spacing: 14) {
                     Label(workspace.dateLabel, systemImage: "calendar")
                     Label(workspace.venue, systemImage: "mappin.and.ellipse")
+                    Label(workspace.venueSettingLabel, systemImage: "building.2")
                 }
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.subdued)
 
-                Text(workspace.countdownLabel)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.subdued)
+                HStack(spacing: 14) {
+                    Text(workspace.countdownLabel)
+
+                    if let timeRange = workspace.timeRangeLabel {
+                        Text("· \(timeRange)")
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Palette.subdued)
             }
         }
     }

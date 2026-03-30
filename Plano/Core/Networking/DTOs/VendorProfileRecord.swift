@@ -46,6 +46,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
     let timeslotBufferMinutes: Int?
     let timeslotRollingWindowDays: Int?
     let timeslotTimezone: String?
+    let pricingImageURLs: [String]?
     let profileCompleteness: Int?
     let tags: [String]?
     let onboardedAt: Date?
@@ -96,6 +97,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         case timeslotBufferMinutes = "timeslot_buffer_minutes"
         case timeslotRollingWindowDays = "timeslot_rolling_window_days"
         case timeslotTimezone = "timeslot_timezone"
+        case pricingImageURLs = "pricing_image_urls"
         case profileCompleteness = "profile_completeness"
         case tags
         case onboardedAt = "onboarded_at"
@@ -147,6 +149,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         timeslotBufferMinutes: Int? = nil,
         timeslotRollingWindowDays: Int? = nil,
         timeslotTimezone: String? = nil,
+        pricingImageURLs: [String]? = nil,
         profileCompleteness: Int? = nil,
         tags: [String]? = nil,
         onboardedAt: Date? = nil
@@ -196,6 +199,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         self.timeslotBufferMinutes = timeslotBufferMinutes
         self.timeslotRollingWindowDays = timeslotRollingWindowDays
         self.timeslotTimezone = timeslotTimezone
+        self.pricingImageURLs = pricingImageURLs
         self.profileCompleteness = profileCompleteness
         self.tags = tags
         self.onboardedAt = onboardedAt
@@ -251,6 +255,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         timeslotBufferMinutes = try container.decodeIfPresent(Int.self, forKey: .timeslotBufferMinutes)
         timeslotRollingWindowDays = try container.decodeIfPresent(Int.self, forKey: .timeslotRollingWindowDays)
         timeslotTimezone = try container.decodeIfPresent(String.self, forKey: .timeslotTimezone)
+        pricingImageURLs = try container.decodeIfPresent([String].self, forKey: .pricingImageURLs)
         profileCompleteness = try container.decodeIfPresent(Int.self, forKey: .profileCompleteness)
         tags = try container.decodeIfPresent([String].self, forKey: .tags)
         onboardedAt = try container.decodeIfPresent(Date.self, forKey: .onboardedAt)
@@ -302,6 +307,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         timeslotBufferMinutes = profile.timeslotConfig.bufferMinutes
         timeslotRollingWindowDays = profile.timeslotConfig.rollingWindowDays
         timeslotTimezone = profile.timeslotConfig.timezone
+        pricingImageURLs = profile.pricingImagePaths
         profileCompleteness = profile.profileCompleteness
         tags = profile.tags
         onboardedAt = profile.onboardedAt
@@ -318,6 +324,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         services: [String] = [],
         serviceItems: [VendorServiceItem] = [],
         packages: [VendorPackage] = [],
+        addOns: [VendorAddOn] = [],
         galleryImages: [VendorGalleryImage] = [],
         review: VendorReviewSnippet = VendorReviewSnippet(
             author: "Recent host",
@@ -335,7 +342,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         repeatBookingRateLabel: String = "New listing",
         searchMomentumScore: Int = 72
     ) -> VendorProfile {
-        let category = self.category.flatMap(VendorCategory.init(rawValue:)) ?? fallbackCategory
+        let category = self.category.flatMap(VendorCategory.fromDatabaseValue) ?? fallbackCategory
         let resolvedServices = services.isEmpty ? (self.services ?? []) : services
         let resolvedBookingMode = bookingMode.flatMap(BookingMode.init(rawValue:)) ?? .inquiryOnly
         let resolvedLegacyAvailabilityMode = availabilityMode.flatMap(AvailabilityMode.init(rawValue:))
@@ -419,6 +426,8 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
             policies: policies ?? [],
             serviceItems: serviceItems,
             packages: packages,
+            addOns: addOns,
+            pricingImagePaths: pricingImageURLs ?? [],
             galleryHighlights: galleryHighlights,
             galleryImages: galleryImages,
             review: review,

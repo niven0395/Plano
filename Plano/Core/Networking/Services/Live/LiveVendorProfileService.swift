@@ -84,6 +84,7 @@ actor LiveVendorProfileService: VendorProfileServiceProtocol {
         try await client.from("vendor_service_items")
             .delete()
             .eq("vendor_id", value: vendorID)
+            .or("item_type.eq.service,item_type.is.null")
             .execute()
 
         guard !items.isEmpty else { return }
@@ -98,6 +99,85 @@ actor LiveVendorProfileService: VendorProfileServiceProtocol {
             )
         }
         let records = orderedItems.map { VendorServiceItemRecord(item: $0, vendorID: vendorID) }
+        try await client.from("vendor_service_items")
+            .insert(records)
+            .execute()
+    }
+
+    func fetchPackages(vendorID: UUID) async throws -> [VendorPackage] {
+        let records: [VendorPackageRecord] = try await client.from("vendor_packages")
+            .select()
+            .eq("vendor_id", value: vendorID)
+            .execute()
+            .value
+
+        return records
+            .map { $0.makePackage() }
+            .sorted { $0.displayOrder < $1.displayOrder }
+    }
+
+    func replacePackages(_ packages: [VendorPackage], vendorID: UUID) async throws {
+        try await client.from("vendor_packages")
+            .delete()
+            .eq("vendor_id", value: vendorID)
+            .execute()
+
+        guard !packages.isEmpty else { return }
+
+        let records = packages.enumerated().map { index, pkg in
+            VendorPackageRecord(
+                package: VendorPackage(
+                    id: pkg.id,
+                    title: pkg.title,
+                    priceCents: pkg.priceCents,
+                    description: pkg.description,
+                    includedItems: pkg.includedItems,
+                    isHighlighted: pkg.isHighlighted,
+                    pricingUnit: pkg.pricingUnit,
+                    displayOrder: index
+                ),
+                vendorID: vendorID
+            )
+        }
+        try await client.from("vendor_packages")
+            .insert(records)
+            .execute()
+    }
+
+    func fetchAddOns(vendorID: UUID) async throws -> [VendorAddOn] {
+        let records: [VendorServiceItemRecord] = try await client.from("vendor_service_items")
+            .select()
+            .eq("vendor_id", value: vendorID)
+            .eq("item_type", value: "addon")
+            .execute()
+            .value
+
+        return records
+            .map { $0.makeAddOn() }
+            .sorted { $0.displayOrder < $1.displayOrder }
+    }
+
+    func replaceAddOns(_ addOns: [VendorAddOn], vendorID: UUID) async throws {
+        try await client.from("vendor_service_items")
+            .delete()
+            .eq("vendor_id", value: vendorID)
+            .eq("item_type", value: "addon")
+            .execute()
+
+        guard !addOns.isEmpty else { return }
+
+        let records = addOns.enumerated().map { index, addOn in
+            VendorServiceItemRecord(
+                addOn: VendorAddOn(
+                    id: addOn.id,
+                    title: addOn.title,
+                    priceCents: addOn.priceCents,
+                    description: addOn.description,
+                    displayOrder: index
+                ),
+                vendorID: vendorID
+            )
+        }
         try await client.from("vendor_service_items")
             .insert(records)
             .execute()
@@ -170,6 +250,22 @@ actor LiveVendorProfileService: VendorProfileServiceProtocol {
     }
 
     func replaceServiceItems(_ items: [VendorServiceItem], vendorID: UUID) async throws {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func fetchPackages(vendorID: UUID) async throws -> [VendorPackage] {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func replacePackages(_ packages: [VendorPackage], vendorID: UUID) async throws {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func fetchAddOns(vendorID: UUID) async throws -> [VendorAddOn] {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func replaceAddOns(_ addOns: [VendorAddOn], vendorID: UUID) async throws {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 

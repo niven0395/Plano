@@ -45,7 +45,7 @@ struct HomeView: View {
             .padding(AppTheme.screenPadding)
             .padding(.bottom, 32)
         }
-        .scrollDismissesKeyboard(.interactively)
+        .scrollDismissesKeyboard(.immediately)
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .hapticFeedback(.selection, trigger: showsFilters)
@@ -80,11 +80,6 @@ private struct HomePopularCategoriesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Start browsing the vendor types hosts usually book first, even before an event brief exists.")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(AppTheme.Palette.textSecondary)
-                .lineSpacing(2)
-
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                 ForEach(Array(categories.enumerated()), id: \.element.id) { index, shortcut in
                     Button {

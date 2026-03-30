@@ -84,7 +84,7 @@ struct FoundationRuntimeTests {
             draft.type = .dinnerParty
             draft.venue = "The Atrium"
             draft.city = "Toronto"
-            draft.budgetLabel = "$7k - $11k"
+            draft.venueSetting = .outdoor
 
             let createdEvent = await planner.addEvent(from: draft)
             let persistedEvents = try await service.fetchEvents()

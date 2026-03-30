@@ -2,75 +2,103 @@ import SwiftUI
 
 struct CategoryBrowseResultCard: View {
     let result: SearchResultSnapshot
+    var showsCategoryTag = false
+
+    private let imageHeight: Double = 220
+    private let cornerRadius = AppTheme.cardCornerRadius
 
     var body: some View {
         let vendor = result.vendor
+        let imagePath = vendor.listingImagePath.flatMap({ $0.isEmpty ? nil : $0 })
+            ?? vendor.profileImagePath
 
-        AppSurface {
-            VStack(alignment: .leading, spacing: 18) {
-                VendorArtworkPanel(
-                    profileImagePath: vendor.profileImagePath,
-                    listingImagePath: vendor.listingImagePath,
-                    tone: vendor.category.accentTone,
-                    symbolName: vendor.category.symbolName,
-                    height: 160
-                )
-
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(vendor.businessName)
-                            .font(.system(size: 24, weight: .regular))
-                            .tracking(-0.6)
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                        HStack(spacing: 8) {
-                            Label(vendor.city, systemImage: "mappin.and.ellipse")
-
-                            if let priceLabel = vendor.visibleStartingPriceLabel {
-                                Label(priceLabel, systemImage: "creditcard.fill")
-                            }
+        ZStack(alignment: .bottom) {
+            // Image layer
+            Group {
+                if let path = imagePath, !path.isEmpty {
+                    PlanoImage(
+                        storagePath: path,
+                        size: .standard,
+                        cornerRadius: 0,
+                        contentMode: .fill
+                    )
+                } else {
+                    Rectangle()
+                        .fill(AppTheme.toneBackground(vendor.category.accentTone))
+                        .overlay {
+                            Image(systemName: vendor.category.symbolName)
+                                .font(.system(size: 40))
+                                .foregroundStyle(AppTheme.toneColor(vendor.category.accentTone))
                         }
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                        .padding(.trailing, 34)
-                    }
+                }
+            }
+            .frame(height: imageHeight)
+            .frame(maxWidth: .infinity)
+            .clipped()
 
-                    Spacer()
+            // Tag capsule — top-leading
+            Label(
+                showsCategoryTag ? vendor.category.title : vendor.city,
+                systemImage: showsCategoryTag ? vendor.category.symbolName : "mappin.and.ellipse"
+            )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial.opacity(0.8), in: Capsule())
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                    if vendor.reviewCount > 0 {
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text(vendor.ratingText)
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(AppTheme.Palette.textPrimary)
+            // Frosted name strip
+            HStack(alignment: .bottom, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(vendor.businessName)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .lineLimit(1)
 
-                            Text("\(vendor.reviewCount) reviews")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.Palette.subdued)
-                        }
+                    if let subtitle = CategoryDetailText.highlight(for: vendor) {
+                        Text(subtitle)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .opacity(0.85)
                     }
                 }
 
-                CategoryDetailHighlight(vendor: vendor)
+                Spacer(minLength: 0)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    if vendor.reviewCount > 0 {
+                        Label(vendor.ratingText, systemImage: "star.fill")
+                            .font(.caption.weight(.semibold))
+                    }
+
+                    if let priceLabel = vendor.visibleStartingPriceLabel {
+                        Text(priceLabel)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                }
             }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial)
         }
+        .frame(maxWidth: .infinity)
+        .clipShape(.rect(cornerRadius: cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(AppTheme.Palette.textPrimary.opacity(0.08), lineWidth: 1)
+        }
+        .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 12)
     }
 }
 
-// MARK: - Category-Specific Detail Highlight
+// MARK: - Category Detail Text Helper
 
-private struct CategoryDetailHighlight: View {
-    let vendor: VendorProfile
-
-    var body: some View {
-        if let text = highlightText {
-            Text(text)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(AppTheme.Palette.textSecondary)
-                .lineLimit(2)
-        }
-    }
-
-    private var highlightText: String? {
+private enum CategoryDetailText {
+    static func highlight(for vendor: VendorProfile) -> String? {
         guard let details = vendor.categoryDetails else { return nil }
 
         switch details {
@@ -79,7 +107,7 @@ private struct CategoryDetailHighlight: View {
             if let seated = d.seatedCapacity { parts.append("Seats \(seated)") }
             if let standing = d.standingCapacity { parts.append("Standing \(standing)") }
             if !d.venueStyle.isEmpty { parts.append(d.venueStyle) }
-            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+            return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
 
         case .catering(let d):
             let cuisines = d.cuisineTypes.prefix(3).joined(separator: ", ")
@@ -138,21 +166,17 @@ private struct FlexibleBrowseReasonRow: View {
 
 struct CategoryBrowseResultCardSkeleton: View {
     var body: some View {
-        AppSurface {
-            VStack(alignment: .leading, spacing: 18) {
-                SkeletonRect(height: 160)
-
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        SkeletonLine.long
-                        SkeletonLine.medium
-                    }
-
+        SkeletonRect(height: 220)
+            .overlay(alignment: .bottom) {
+                HStack {
+                    SkeletonLine(width: 140, height: 14)
                     Spacer()
+                    SkeletonLine(width: 60, height: 14)
                 }
-
-                SkeletonLine.medium
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-        }
+            .clipShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
+            .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 12)
     }
 }

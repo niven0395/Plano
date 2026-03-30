@@ -14,5 +14,9 @@ protocol VendorProfileServiceProtocol {
     func replaceGalleryImages(_ images: [VendorGalleryImage], vendorID: UUID) async throws
     func fetchServiceItems(vendorID: UUID) async throws -> [VendorServiceItem]
     func replaceServiceItems(_ items: [VendorServiceItem], vendorID: UUID) async throws
+    func fetchPackages(vendorID: UUID) async throws -> [VendorPackage]
+    func replacePackages(_ packages: [VendorPackage], vendorID: UUID) async throws
+    func fetchAddOns(vendorID: UUID) async throws -> [VendorAddOn]
+    func replaceAddOns(_ addOns: [VendorAddOn], vendorID: UUID) async throws
     func deleteVendorListing() async throws -> DeletionResult
 }

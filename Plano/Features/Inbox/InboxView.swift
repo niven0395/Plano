@@ -10,7 +10,7 @@ struct InboxView: View {
         @Bindable var store = store
         let visibleConversations = store.visibleConversations(for: session.currentRole)
 
-        ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 24) {
                 ConnectionStatusBanner(
                     connectionState: realtimeManager.connectionState,
@@ -37,54 +37,100 @@ struct InboxView: View {
                     }
                 }
                 .hapticFeedback(.selection, trigger: store.filter)
+            }
+            .padding(AppTheme.screenPadding)
 
-                if store.loadingState == .loading, visibleConversations.isEmpty {
-                    ForEach(0..<4, id: \.self) { _ in
-                        ConversationCardSkeleton()
+            if store.loadingState == .loading, visibleConversations.isEmpty {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            ConversationCardSkeleton()
+                        }
                     }
-                } else if visibleConversations.isEmpty {
+                    .padding(AppTheme.screenPadding)
+                    .padding(.bottom, 32)
+                }
+                .scrollIndicators(.hidden)
+            } else if visibleConversations.isEmpty {
+                ScrollView {
                     EmptyStateCard(
                         symbolName: "bubble.left.and.bubble.right",
                         title: "Nothing in this inbox view",
-                        message: "Switch the filter to inspect unread or action-heavy threads."
+                        message: "Switch the filter to inspect unread or archived threads."
                     )
-                } else {
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(visibleConversations.enumerated()), id: \.element.id) { index, conversation in
+                    .padding(AppTheme.screenPadding)
+                    .padding(.bottom, 32)
+                }
+                .scrollIndicators(.hidden)
+            } else {
+                List {
+                    ForEach(Array(visibleConversations.enumerated()), id: \.element.id) { index, conversation in
+                        ZStack {
                             NavigationLink(value: InboxRoute.conversation(conversation.id)) {
-                                ConversationCard(conversation: conversation)
+                                EmptyView()
                             }
-                            .buttonStyle(.plain)
-                            .staggeredAppear(index: index)
-                            .contextMenu {
-                                if store.filter == .archived {
-                                    Button {
-                                        store.unarchiveConversation(conversation.id, for: session.currentRole)
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    } label: {
-                                        Label("Unarchive", systemImage: "tray.and.arrow.up")
-                                    }
-                                } else {
-                                    Button(role: .destructive) {
-                                        store.archiveConversation(conversation.id, for: session.currentRole)
-                                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                                    } label: {
-                                        Label(
-                                            conversation.stage == .active ? "Delete" : "Archive",
-                                            systemImage: conversation.stage == .active ? "trash" : "archivebox"
-                                        )
-                                    }
+                            .opacity(0)
+
+                            ConversationCard(conversation: conversation)
+                        }
+                        .staggeredAppear(index: index)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: 6,
+                            leading: AppTheme.screenPadding,
+                            bottom: 6,
+                            trailing: AppTheme.screenPadding
+                        ))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if store.filter == .archived {
+                                Button {
+                                    store.unarchiveConversation(conversation.id, for: session.currentRole)
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Label("Unarchive", systemImage: "tray.and.arrow.up")
+                                }
+                                .tint(.blue)
+                            } else {
+                                Button(role: .destructive) {
+                                    store.archiveConversation(conversation.id, for: session.currentRole)
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                } label: {
+                                    Label(
+                                        conversation.stage == .active ? "Delete" : "Archive",
+                                        systemImage: conversation.stage == .active ? "trash" : "archivebox"
+                                    )
+                                }
+                            }
+                        }
+                        .contextMenu {
+                            if store.filter == .archived {
+                                Button {
+                                    store.unarchiveConversation(conversation.id, for: session.currentRole)
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Label("Unarchive", systemImage: "tray.and.arrow.up")
+                                }
+                            } else {
+                                Button(role: .destructive) {
+                                    store.archiveConversation(conversation.id, for: session.currentRole)
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                } label: {
+                                    Label(
+                                        conversation.stage == .active ? "Delete" : "Archive",
+                                        systemImage: conversation.stage == .active ? "trash" : "archivebox"
+                                    )
                                 }
                             }
                         }
                     }
-                    .animation(.easeOut(duration: 0.3), value: visibleConversations.map(\.id))
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .scrollIndicators(.hidden)
+                .animation(.easeOut(duration: 0.3), value: visibleConversations.map(\.id))
             }
-            .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
         }
-        .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .toolbar(.hidden, for: .navigationBar)
         .task(id: session.currentRole) {

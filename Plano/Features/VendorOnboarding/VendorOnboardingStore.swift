@@ -35,6 +35,10 @@ final class VendorOnboardingStore {
     var galleryImages: [VendorGalleryImage] = []
     var pendingUploads: [ImageUploadProgress] = []
 
+    // MARK: - Slide 3 (Services)
+
+    var services: [String] = []
+
     // MARK: - Slide 5 (Availability)
 
     var schedulePreset: SchedulePreset = .everyDay
@@ -48,7 +52,7 @@ final class VendorOnboardingStore {
     var loadingState: LoadingState = .idle
     var lastSaveOutcome: SaveOutcome = .idle
 
-    static let totalSlides = 5
+    static let totalSlides = 6
 
     init(
         vendorProfileService: any VendorProfileServiceProtocol,
@@ -177,7 +181,7 @@ final class VendorOnboardingStore {
             _ = try await vendorProfileService.updateVendorProfile(record)
 
             // Save gallery images if on gallery slide
-            if currentSlide == 3, !galleryImages.isEmpty {
+            if currentSlide == 5, !galleryImages.isEmpty {
                 try await vendorProfileService.replaceGalleryImages(galleryImages, vendorID: userID)
             }
 
@@ -319,6 +323,7 @@ final class VendorOnboardingStore {
             availableDays: weeklySchedule.availableDays.sorted().map(\.rawValue),
             schedulePreset: weeklySchedule.preset.rawValue,
             bookingMode: bookingMode.rawValue,
+            services: services.isEmpty ? nil : services,
             categoryDetails: categoryDetails,
             onboardedAt: .now
         )

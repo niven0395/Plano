@@ -7,6 +7,7 @@ nonisolated struct VendorServiceItemRecord: Codable, Hashable {
     let priceCents: Int
     let description: String?
     let displayOrder: Int
+    let itemType: String
     let createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -16,6 +17,7 @@ nonisolated struct VendorServiceItemRecord: Codable, Hashable {
         case priceCents = "price_cents"
         case description
         case displayOrder = "display_order"
+        case itemType = "item_type"
         case createdAt = "created_at"
     }
 
@@ -26,6 +28,7 @@ nonisolated struct VendorServiceItemRecord: Codable, Hashable {
         priceCents: Int,
         description: String? = nil,
         displayOrder: Int,
+        itemType: String = "service",
         createdAt: Date? = nil
     ) {
         self.id = id
@@ -34,6 +37,7 @@ nonisolated struct VendorServiceItemRecord: Codable, Hashable {
         self.priceCents = priceCents
         self.description = description
         self.displayOrder = displayOrder
+        self.itemType = itemType
         self.createdAt = createdAt
     }
 
@@ -44,11 +48,33 @@ nonisolated struct VendorServiceItemRecord: Codable, Hashable {
         priceCents = item.priceCents
         description = item.description.isEmpty ? nil : item.description
         displayOrder = item.displayOrder
+        itemType = "service"
+        createdAt = nil
+    }
+
+    init(addOn: VendorAddOn, vendorID: UUID) {
+        id = addOn.id
+        self.vendorID = vendorID
+        title = addOn.title
+        priceCents = addOn.priceCents
+        description = addOn.description.isEmpty ? nil : addOn.description
+        displayOrder = addOn.displayOrder
+        itemType = "addon"
         createdAt = nil
     }
 
     func makeServiceItem() -> VendorServiceItem {
         VendorServiceItem(
+            id: id,
+            title: title,
+            priceCents: priceCents,
+            description: description ?? "",
+            displayOrder: displayOrder
+        )
+    }
+
+    func makeAddOn() -> VendorAddOn {
+        VendorAddOn(
             id: id,
             title: title,
             priceCents: priceCents,

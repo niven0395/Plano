@@ -6,6 +6,9 @@ struct BookingRequestSheet: View {
     let selectedTimeslot: TimeslotOption?
     let requestedStartTime: Date?
     let requestedEndTime: Date?
+    let linkedEvent: PartyEvent?
+    let availableEvents: [PartyEvent]
+    let onEventChanged: (PartyEvent?) -> Void
     @Binding var note: String
     let isSubmitting: Bool
     let onSubmit: () -> Void
@@ -27,6 +30,39 @@ struct BookingRequestSheet: View {
                     if let start = requestedStartTime, let end = requestedEndTime {
                         LabeledContent("Event time") {
                             Text("\(start.formatted(date: .omitted, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))")
+                        }
+                    }
+                    LabeledContent("Event") {
+                        if availableEvents.isEmpty {
+                            Text("No events")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Menu {
+                                Button {
+                                    onEventChanged(nil)
+                                } label: {
+                                    if linkedEvent == nil {
+                                        Label("No event", systemImage: "checkmark")
+                                    } else {
+                                        Text("No event")
+                                    }
+                                }
+                                Divider()
+                                ForEach(availableEvents) { event in
+                                    Button {
+                                        onEventChanged(event)
+                                    } label: {
+                                        if linkedEvent?.id == event.id {
+                                            Label("\(event.title) · \(event.formattedDate)", systemImage: "checkmark")
+                                        } else {
+                                            Text("\(event.title) · \(event.formattedDate)")
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Text(linkedEvent?.title ?? "No event")
+                                    .foregroundStyle(linkedEvent != nil ? .primary : .secondary)
+                            }
                         }
                     }
                 }

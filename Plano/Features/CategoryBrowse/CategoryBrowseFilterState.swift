@@ -4,7 +4,7 @@ struct CategoryBrowseFilterState {
     var selectedCity: String?
     var ratingFilter: SearchRatingFilter = .all
     var sortMode: SearchSortMode = .recommended
-    var availabilityFilter: VendorAvailabilityFilter = .all
+    var availabilityDate: Date?
 
     var selectedMultiChoice: [String: Set<String>] = [:]
     var selectedToggles: [String: Bool] = [:]
@@ -14,7 +14,7 @@ struct CategoryBrowseFilterState {
         selectedCity != nil
             || ratingFilter != .all
             || sortMode != .recommended
-            || availabilityFilter != .all
+            || availabilityDate != nil
             || !selectedMultiChoice.values.allSatisfy(\.isEmpty)
             || selectedToggles.values.contains(true)
             || guestCount != nil
@@ -25,7 +25,7 @@ struct CategoryBrowseFilterState {
         if selectedCity != nil { count += 1 }
         if ratingFilter != .all { count += 1 }
         if sortMode != .recommended { count += 1 }
-        if availabilityFilter != .all { count += 1 }
+        if availabilityDate != nil { count += 1 }
         count += selectedMultiChoice.values.filter { !$0.isEmpty }.count
         count += selectedToggles.values.filter { $0 }.count
         if guestCount != nil { count += 1 }
@@ -36,7 +36,7 @@ struct CategoryBrowseFilterState {
         selectedCity = nil
         ratingFilter = .all
         sortMode = .recommended
-        availabilityFilter = .all
+        availabilityDate = nil
         selectedMultiChoice = [:]
         selectedToggles = [:]
         guestCount = nil

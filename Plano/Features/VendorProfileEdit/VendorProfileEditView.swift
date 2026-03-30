@@ -146,8 +146,10 @@ private struct VendorProfileEditDestinationView: View {
             AboutEditView(store: store)
         case .categoryDetails:
             CategoryDetailsEditView(store: store)
-        case .servicesPricing:
+        case .pricing:
             PricingEditView(store: store)
+        case .services:
+            ServicesEditView(store: store)
         case .leadIntake:
             LeadIntakeEditView(store: store)
         case .gallery:

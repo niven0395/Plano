@@ -8,6 +8,7 @@ struct VendorProfileLoadedView: View {
     @Environment(InboxStore.self) private var inboxStore
     @Environment(AppRouter.self) private var router
     @Environment(HostIdentityPromptStore.self) private var hostIdentityPromptStore
+    @Environment(AuthStore.self) private var authStore
     @Environment(AppEnvironment.self) private var environment
 
     @State private var bookingStore: VendorBookingRequestStore?
@@ -17,10 +18,18 @@ struct VendorProfileLoadedView: View {
         store.isSaved(planner: planner)
     }
 
+    private var resolvedEventForBookingCheck: PartyEvent? {
+        if let bookingStore, bookingStore.selectedBookingDate != nil {
+            return bookingStore.linkedEvent
+        }
+        return planner.events.isEmpty ? nil : planner.selectedEvent
+    }
+
     private var existingConversationID: UUID? {
-        inboxStore.existingConversationID(
+        guard let event = resolvedEventForBookingCheck else { return nil }
+        return inboxStore.existingConversationID(
             vendorID: vendor.id,
-            eventID: planner.selectedEvent.id
+            eventID: event.id
         )
     }
 
@@ -102,7 +111,9 @@ struct VendorProfileLoadedView: View {
                 }
 
                 if store.canInitiateConversation {
-                    if hasBlockingBooking, let stage = existingConversationStage {
+                    if store.sessionStore.isAnonymous {
+                        VendorProfileAuthPrompt(authStore: authStore)
+                    } else if hasBlockingBooking, let stage = existingConversationStage {
                         AppSurface {
                             HStack(spacing: 12) {
                                 Image(systemName: "calendar.badge.clock")
@@ -124,6 +135,19 @@ struct VendorProfileLoadedView: View {
                                 StatusBadge(title: stage.title, tone: stage.tone)
                             }
                         }
+                    } else if vendor.isInquiryOnly {
+                        VendorProfileInquiryCard(
+                            vendorName: vendor.businessName,
+                            businessEmail: vendor.businessEmail,
+                            onSendInquiry: {
+                                store.openConversation(
+                                    planner: planner,
+                                    inboxStore: inboxStore,
+                                    router: router,
+                                    hostIdentityPromptStore: hostIdentityPromptStore
+                                )
+                            }
+                        )
                     } else if vendor.usesEventTimeRange {
                         SectionHeader(title: "Request a booking")
 
@@ -159,6 +183,7 @@ struct VendorProfileLoadedView: View {
                                             if date != nil {
                                                 initBookingStore()
                                                 bookingStore?.selectedBookingDate = date
+                                                bookingStore?.resolveLinkedEvent(for: date)
                                             }
                                         }
                                     )
@@ -181,6 +206,16 @@ struct VendorProfileLoadedView: View {
                     }
                 }
 
+                if !vendor.addOns.isEmpty {
+                    SectionHeader(title: "Add-ons")
+                    VendorProfileAddOnsCard(addOns: vendor.addOns)
+                }
+
+                if !vendor.pricingImagePaths.isEmpty {
+                    SectionHeader(title: "Price sheet")
+                    VendorProfilePricingImagesCard(imagePaths: vendor.pricingImagePaths)
+                }
+
                 if store.shouldShowReviews {
                     SectionHeader(title: "Reviews")
                     LazyVStack(spacing: 16) {
@@ -195,31 +230,31 @@ struct VendorProfileLoadedView: View {
                     VendorProfilePoliciesCard(policies: vendor.policies)
                 }
 
-                if store.shouldShowSocial {
-                    SectionHeader(title: "Social & Contact")
-                    VendorProfileSocialCard(socialLinks: vendor.socialLinks)
+                if !store.isOwnVendorProfile, !vendor.isInquiryOnly, store.canInitiateConversation || vendor.businessEmail != nil {
+                    SectionHeader(title: "Contact")
+                    VendorProfileContactCard(
+                        vendor: vendor,
+                        primaryActionTitle: store.sessionStore.isAnonymous ? "Create an account" : primaryActionTitle,
+                        canInitiateConversation: store.canInitiateConversation,
+                        onMessageAction: {
+                            if store.sessionStore.isAnonymous {
+                                authStore.presentCreateAccount()
+                            } else {
+                                store.openConversation(
+                                    planner: planner,
+                                    inboxStore: inboxStore,
+                                    router: router,
+                                    hostIdentityPromptStore: hostIdentityPromptStore
+                                )
+                            }
+                        }
+                    )
                 }
 
-                VendorProfileCTACardView(
-                    vendor: vendor,
-                    hasBlockingBooking: hasBlockingBooking,
-                    existingConversationStage: existingConversationStage,
-                    hasSelectedEvent: hasSelectedEvent,
-                    primaryActionTitle: primaryActionTitle,
-                    shortlistActionTitle: shortlistActionTitle,
-                    canInitiateConversation: store.canInitiateConversation,
-                    isOwnVendorProfile: store.isOwnVendorProfile,
-                    isSaved: isSaved,
-                    onPrimaryAction: {
-                        store.openConversation(
-                            planner: planner,
-                            inboxStore: inboxStore,
-                            router: router,
-                            hostIdentityPromptStore: hostIdentityPromptStore
-                        )
-                    },
-                    onToggleSaved: { store.toggleSaved(planner: planner) }
-                )
+                if store.shouldShowSocial {
+                    SectionHeader(title: "Social")
+                    VendorProfileSocialCard(socialLinks: vendor.socialLinks)
+                }
             }
             .padding(AppTheme.screenPadding)
             .padding(.bottom, 32)
@@ -241,6 +276,9 @@ struct VendorProfileLoadedView: View {
                     selectedTimeslot: bookingStore.selectedTimeslot,
                     requestedStartTime: bookingStore.requestedStartTime,
                     requestedEndTime: bookingStore.requestedEndTime,
+                    linkedEvent: bookingStore.linkedEvent,
+                    availableEvents: planner.events,
+                    onEventChanged: { bookingStore.setLinkedEvent($0) },
                     note: Bindable(bookingStore).bookingNote,
                     isSubmitting: bookingStore.isSubmittingBooking,
                     onSubmit: {
@@ -311,6 +349,7 @@ struct VendorProfileLoadedView: View {
             router: router
         )
         newStore.schedulingMode = vendor.schedulingMode
+        newStore.initializeEventTimeRangeDefaults()
         bookingStore = newStore
         return newStore
     }
@@ -346,103 +385,129 @@ private struct VendorProfileBookingSection: View {
                 .disabled(!store.canSubmitBooking)
             }
         }
-        .onChange(of: store.selectedBookingDate) { _, _ in
+        .onChange(of: store.selectedBookingDate) { _, newDate in
             store.selectedTimeslot = nil
             store.updateTimeslotsForSelectedDate(vendor: vendor)
+            store.resolveLinkedEvent(for: newDate)
         }
     }
 }
 
-private struct VendorProfileCTACardView: View {
-    let vendor: VendorProfile
-    let hasBlockingBooking: Bool
-    let existingConversationStage: BookingStage?
-    let hasSelectedEvent: Bool
-    let primaryActionTitle: String
-    let shortlistActionTitle: String
-    let canInitiateConversation: Bool
-    let isOwnVendorProfile: Bool
-    let isSaved: Bool
-    let onPrimaryAction: () -> Void
-    let onToggleSaved: () -> Void
+private struct VendorProfileAuthPrompt: View {
+    let authStore: AuthStore
 
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Next steps")
+                Text("Want to book this vendor?")
                     .font(.headline)
                     .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                if hasBlockingBooking, let stage = existingConversationStage {
-                    Text("Your booking with \(vendor.businessName) is \(stage.title.lowercased()). Open the conversation to manage it.")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                } else if hasSelectedEvent {
-                    Text("Interested in \(vendor.businessName)? Start a conversation or request a booking.")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                } else {
-                    Text("Send a message to learn more about availability and pricing.")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                Text("Create an account to request bookings and message vendors.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+
+                Button("Create an account") {
+                    authStore.presentCreateAccount()
                 }
+                .buttonStyle(PrimaryActionButtonStyle())
 
-                Text(vendor.availabilitySummary.eventDateSupportLabel)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(
-                        vendor.availabilitySummary.supportsSelectedEventDate
-                            ? AppTheme.toneColor(.sage)
-                            : AppTheme.toneColor(.coral)
-                    )
-
-                HStack(spacing: 10) {
-                    routingBadge(
-                        title: vendor.hostBookingLabel,
-                        symbolName: vendor.bookingMode.symbolName,
-                        tone: .blue
-                    )
-
-                    routingBadge(
-                        title: vendor.hostPaymentLabel,
-                        symbolName: vendor.paymentMode.symbolName,
-                        tone: vendor.paymentMode == .platform ? .sage : .sand
-                    )
+                Button("Already have an account? Sign in") {
+                    authStore.presentEmailAuth()
                 }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.accent)
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
 
-                if let days = vendor.cancellationDeadlineDays {
-                    Label("Free cancellation up to \(days) days before your event", systemImage: "clock.badge.checkmark")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                }
+private struct VendorProfileContactCard: View {
+    let vendor: VendorProfile
+    let primaryActionTitle: String
+    let canInitiateConversation: Bool
+    let onMessageAction: () -> Void
 
+    @Environment(\.openURL) private var openURL
+
+    private var hasEmail: Bool {
+        guard let email = vendor.businessEmail else { return false }
+        return !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        AppSurface {
+            VStack(spacing: 12) {
                 if canInitiateConversation {
-                    HStack(spacing: 12) {
-                        Button(primaryActionTitle, action: onPrimaryAction)
-                            .buttonStyle(PrimaryActionButtonStyle())
-
-                        Button(shortlistActionTitle, action: onToggleSaved)
-                            .buttonStyle(SecondaryActionButtonStyle())
+                    Button(action: onMessageAction) {
+                        Label(primaryActionTitle, systemImage: "bubble.left.fill")
                     }
-                } else if isOwnVendorProfile {
-                    HStack(spacing: 12) {
-                        Button(primaryActionTitle) {}
-                            .buttonStyle(PrimaryActionButtonStyle())
-                            .disabled(true)
+                    .buttonStyle(PrimaryActionButtonStyle())
+                }
 
-                        Button(shortlistActionTitle, action: onToggleSaved)
-                            .buttonStyle(SecondaryActionButtonStyle())
+                if hasEmail, let email = vendor.businessEmail,
+                   let url = URL(string: "mailto:\(email)") {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Email", systemImage: "envelope")
                     }
+                    .buttonStyle(SecondaryActionButtonStyle())
                 }
             }
         }
     }
+}
 
-    private func routingBadge(title: String, symbolName: String, tone: AccentTone) -> some View {
-        Label(title, systemImage: symbolName)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(AppTheme.toneColor(tone))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(AppTheme.toneBackground(tone), in: Capsule())
+private struct VendorProfileInquiryCard: View {
+    let vendorName: String
+    let businessEmail: String?
+    let onSendInquiry: () -> Void
+
+    @Environment(\.openURL) private var openURL
+
+    private var hasEmail: Bool {
+        guard let email = businessEmail else { return false }
+        return !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        SectionHeader(title: "Get in touch")
+
+        AppSurface {
+            VStack(alignment: .leading, spacing: 16) {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Inquiry only")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                        Text("\(vendorName) manages bookings directly. Send a message to get started.")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.Palette.textSecondary)
+                    }
+                } icon: {
+                    Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.Palette.accent)
+                }
+
+                Button(action: onSendInquiry) {
+                    Label("Send inquiry", systemImage: "bubble.left.fill")
+                }
+                .buttonStyle(PrimaryActionButtonStyle())
+
+                if hasEmail, let email = businessEmail,
+                   let url = URL(string: "mailto:\(email)") {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Label("Email", systemImage: "envelope")
+                    }
+                    .buttonStyle(SecondaryActionButtonStyle())
+                }
+            }
+        }
     }
 }

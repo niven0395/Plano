@@ -242,6 +242,16 @@ struct VendorBookingDetailSheet: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(AppTheme.toneColor(.coral))
             }
+
+            if vendor.stage.isTerminal {
+                Button("Remove from plan", systemImage: "eye.slash", role: .destructive) {
+                    inboxStore.archiveConversation(vendor.conversationID, for: .host)
+                    dismiss()
+                }
+                .buttonStyle(.borderless)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.toneColor(.coral))
+            }
         }
     }
 

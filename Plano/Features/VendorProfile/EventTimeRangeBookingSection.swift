@@ -12,29 +12,9 @@ struct EventTimeRangeBookingSection: View {
         Calendar.current.date(byAdding: .day, value: vendor.advanceBookingDays, to: .now) ?? .now
     }
 
-    private var vendorStartTime: Date {
-        Calendar.current.date(from: DateComponents(
-            hour: vendor.timeslotConfig.startHour,
-            minute: vendor.timeslotConfig.startMinute
-        )) ?? .now
-    }
-
-    private var vendorEndTime: Date {
-        Calendar.current.date(from: DateComponents(
-            hour: vendor.timeslotConfig.endHour,
-            minute: vendor.timeslotConfig.endMinute
-        )) ?? .now
-    }
-
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 16) {
-                if let rangeLabel = vendor.eventTimeRangeLabel {
-                    Label("Available \(rangeLabel)", systemImage: "clock")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.toneColor(.sage))
-                }
-
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Event date")
                         .font(.footnote.weight(.medium))
@@ -61,10 +41,9 @@ struct EventTimeRangeBookingSection: View {
                         DatePicker(
                             "Start time",
                             selection: Binding(
-                                get: { store.requestedStartTime ?? vendorStartTime },
+                                get: { store.requestedStartTime ?? .now },
                                 set: { store.requestedStartTime = $0 }
                             ),
-                            in: vendorStartTime...vendorEndTime,
                             displayedComponents: .hourAndMinute
                         )
                         .labelsHidden()
@@ -78,10 +57,9 @@ struct EventTimeRangeBookingSection: View {
                         DatePicker(
                             "End time",
                             selection: Binding(
-                                get: { store.requestedEndTime ?? vendorEndTime },
+                                get: { store.requestedEndTime ?? .now },
                                 set: { store.requestedEndTime = $0 }
                             ),
-                            in: vendorStartTime...vendorEndTime,
                             displayedComponents: .hourAndMinute
                         )
                         .labelsHidden()
@@ -96,6 +74,9 @@ struct EventTimeRangeBookingSection: View {
                 .buttonStyle(PrimaryActionButtonStyle())
                 .disabled(!store.canSubmitBooking)
             }
+        }
+        .onChange(of: store.selectedBookingDate) { _, newDate in
+            store.resolveLinkedEvent(for: newDate)
         }
     }
 }

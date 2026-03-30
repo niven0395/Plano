@@ -32,6 +32,7 @@ struct NextEventHeroCard: View {
                     HStack(spacing: 14) {
                         Label(workspace.dateLabel, systemImage: "calendar")
                         Label(workspace.venue, systemImage: "mappin.and.ellipse")
+                        Label(workspace.venueSettingLabel, systemImage: "building.2")
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.Palette.subdued)
@@ -68,6 +69,8 @@ struct NextEventHeroCard: View {
             dateLabel: "Saturday, April 12",
             venue: "The Broadview Hotel",
             guestCountLabel: "45 guests",
+            venueSettingLabel: "Indoor",
+            timeRangeLabel: "6:00 PM – 11:00 PM (5 hrs)",
             countdownLabel: "29 days out",
             stage: .paid,
             paymentLabel: "$800 paid",
@@ -96,6 +99,8 @@ struct NextEventHeroCard: View {
             dateLabel: "Sunday, March 15",
             venue: "Casa Loma",
             guestCountLabel: "80 guests",
+            venueSettingLabel: "Outdoor",
+            timeRangeLabel: "2:00 PM – 7:00 PM (5 hrs)",
             countdownLabel: "Tomorrow",
             stage: .paid,
             paymentLabel: "$500 paid",

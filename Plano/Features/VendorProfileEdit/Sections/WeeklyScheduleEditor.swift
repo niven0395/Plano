@@ -16,12 +16,12 @@ struct WeeklyScheduleEditor: View {
                     .foregroundStyle(AppTheme.Palette.textSecondary)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(SchedulePreset.allCases) { preset in
                     Button {
                         selectPreset(preset)
                     } label: {
-                        FilterChip(title: preset.title, isSelected: schedulePreset == preset)
+                        FilterChip(title: preset.title, isSelected: schedulePreset == preset, expands: true)
                     }
                     .buttonStyle(.plain)
                 }

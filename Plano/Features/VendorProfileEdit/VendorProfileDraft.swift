@@ -43,6 +43,9 @@ struct VendorProfileDraft: Hashable {
     var leadIntakeQuestions: [LeadIntakeQuestion] = []
     var policies: [VendorPolicy] = []
     var serviceItems: [VendorServiceItem] = []
+    var packages: [VendorPackage] = []
+    var addOns: [VendorAddOn] = []
+    var pricingImagePaths: [String] = []
     var profileImagePath: String?
     var listingImagePath: String?
     var galleryImages: [VendorGalleryImage] = []
@@ -113,6 +116,39 @@ struct VendorProfileDraft: Hashable {
                 title: title,
                 priceCents: max(item.priceCents, 0),
                 description: item.description.trimmed,
+                displayOrder: index
+            )
+        }
+    }
+
+    var preparedPackages: [VendorPackage] {
+        packages.enumerated().compactMap { index, pkg in
+            let title = pkg.title.trimmed
+            guard !title.isEmpty else { return nil }
+
+            return VendorPackage(
+                id: pkg.id,
+                title: title,
+                priceCents: max(pkg.priceCents, 0),
+                description: pkg.description.trimmed,
+                includedItems: pkg.includedItems.map(\.trimmed).filter { !$0.isEmpty },
+                isHighlighted: pkg.isHighlighted,
+                pricingUnit: pkg.pricingUnit,
+                displayOrder: index
+            )
+        }
+    }
+
+    var preparedAddOns: [VendorAddOn] {
+        addOns.enumerated().compactMap { index, addOn in
+            let title = addOn.title.trimmed
+            guard !title.isEmpty else { return nil }
+
+            return VendorAddOn(
+                id: addOn.id,
+                title: title,
+                priceCents: max(addOn.priceCents, 0),
+                description: addOn.description.trimmed,
                 displayOrder: index
             )
         }
@@ -204,13 +240,15 @@ struct VendorProfileDraft: Hashable {
     mutating func apply(
         record: VendorProfileRecord,
         galleryImages: [VendorGalleryImage],
-        serviceItems: [VendorServiceItem]
+        serviceItems: [VendorServiceItem],
+        packages: [VendorPackage] = [],
+        addOns: [VendorAddOn] = []
     ) {
         profileImagePath = record.profileImagePath
         listingImagePath = record.listingImagePath
         businessName = record.businessName
         businessEmail = record.businessEmail ?? ""
-        category = record.category.flatMap(VendorCategory.init(rawValue:)) ?? .decorator
+        category = record.category.flatMap(VendorCategory.fromDatabaseValue) ?? .decorator
         customCategoryName = record.customCategoryName ?? ""
         bio = record.bio ?? ""
         styleSummary = record.styleSummary ?? ""
@@ -257,6 +295,9 @@ struct VendorProfileDraft: Hashable {
         leadIntakeQuestions = LeadIntakeTemplateLibrary.resolvedQuestions(for: category, stored: record.leadIntakeQuestions)
         policies = record.policies ?? []
         self.serviceItems = serviceItems.sorted { $0.displayOrder < $1.displayOrder }
+        self.packages = packages.sorted { $0.displayOrder < $1.displayOrder }
+        self.addOns = addOns.sorted { $0.displayOrder < $1.displayOrder }
+        self.pricingImagePaths = record.pricingImageURLs ?? []
         self.galleryImages = galleryImages.sorted { $0.displayOrder < $1.displayOrder }
     }
 
@@ -307,6 +348,7 @@ struct VendorProfileDraft: Hashable {
             timeslotBufferMinutes: timeslotBufferMinutes,
             timeslotRollingWindowDays: timeslotRollingWindowDays,
             timeslotTimezone: timeslotTimezone,
+            pricingImageURLs: pricingImagePaths.isEmpty ? nil : pricingImagePaths,
             profileCompleteness: profileCompleteness,
             tags: tags.map(\.trimmed).filter { !$0.isEmpty },
             onboardedAt: onboardedAt

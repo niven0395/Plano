@@ -133,6 +133,10 @@ final class SessionStore {
         return anonymousSession?.resolvedDisplayName ?? "Guest host"
     }
 
+    var vendorName: String {
+        authenticatedProfile?.vendorDisplayName ?? "Vendor"
+    }
+
     func resetToAnonymous() {
         authenticatedProfile = nil
         anonymousSession = nil
@@ -173,7 +177,6 @@ final class SessionStore {
 
     func completeVendorOnboarding(with profile: AuthenticatedUserProfile) {
         authenticatedProfile = profile
-        requiresVendorOnboarding = false
         identityState = .authenticated
         currentRole = .vendor
     }
@@ -209,6 +212,7 @@ enum DiscoveryRoute: Hashable {
 }
 
 enum EventsRoute: Hashable {
+    case eventDetail(UUID)
     case eventPlanning(UUID)
     case hostWorkspace(UUID)
     case vendorWorkspace(UUID)
@@ -278,14 +282,17 @@ final class AppRouter {
         eventsPath = []
     }
 
-    func openHostEventWorkspace(_ eventID: UUID) {
+    func openEventDetail(_ eventID: UUID) {
         selectedTab = .events
-        eventsPath = [.hostWorkspace(eventID)]
+        eventsPath = [.eventDetail(eventID)]
+    }
+
+    func openHostEventWorkspace(_ eventID: UUID) {
+        openEventDetail(eventID)
     }
 
     func openEventPlanning(_ eventID: UUID) {
-        selectedTab = .events
-        eventsPath = [.eventPlanning(eventID)]
+        openEventDetail(eventID)
     }
 
     func openVendorEventWorkspace(_ workspaceID: UUID) {

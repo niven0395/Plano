@@ -15,7 +15,7 @@ struct CoBookedVendorRecord: Codable, Hashable {
         CoBookedVendor(
             vendorID: vendorID,
             displayName: vendorDisplayName,
-            category: VendorCategory(rawValue: vendorCategory) ?? .entertainer
+            category: VendorCategory.fromDatabaseValue(vendorCategory) ?? .entertainer
         )
     }
 }

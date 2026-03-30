@@ -41,7 +41,7 @@ final class VendorProfileStore {
 
     var shouldShowStats: Bool {
         guard let vendor else { return false }
-        return vendor.reviewCount > 0 || vendor.visibleStartingPriceLabel != nil
+        return vendor.reviewCount > 0
     }
 
     var shouldShowAbout: Bool {
@@ -96,6 +96,8 @@ final class VendorProfileStore {
             if let record = try await vendorProfileService.fetchPublicVendorProfile(vendorID: vendorID) {
                 async let galleryImages = vendorProfileService.fetchGalleryImages(vendorID: vendorID)
                 async let serviceItems = vendorProfileService.fetchServiceItems(vendorID: vendorID)
+                async let packages = vendorProfileService.fetchPackages(vendorID: vendorID)
+                async let addOns = vendorProfileService.fetchAddOns(vendorID: vendorID)
 
                 let advanceDays = record.advanceBookingDays ?? 180
                 async let records = availabilityService.fetchAvailability(
@@ -115,7 +117,8 @@ final class VendorProfileStore {
                     availability: fallback?.availability ?? .bookingFast,
                     services: record.services ?? fallback?.services ?? [],
                     serviceItems: try await serviceItems,
-                    packages: fallback?.packages ?? [],
+                    packages: try await packages,
+                    addOns: try await addOns,
                     galleryImages: try await galleryImages,
                     review: fallback?.review ?? VendorReviewSnippet(
                         author: "Recent host",

@@ -7,6 +7,7 @@ enum AuthSheetMode: String, Identifiable {
     case vendorSignIn
     case hostUpgrade
     case emailAuth
+    case createAccount
 
     var id: String { rawValue }
 
@@ -18,6 +19,8 @@ enum AuthSheetMode: String, Identifiable {
             "Sign in with Apple"
         case .emailAuth:
             "Sign in"
+        case .createAccount:
+            "Create an account"
         }
     }
 
@@ -29,6 +32,8 @@ enum AuthSheetMode: String, Identifiable {
             "Link this device session to Apple so your saved vendors and messages carry across devices."
         case .emailAuth:
             "Sign in or create an account with your email address."
+        case .createAccount:
+            "Keep your saved vendors, messages, and bookings across devices."
         }
     }
 }
@@ -171,6 +176,10 @@ final class AuthStore {
             email: email.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         )
         sessionStore.applyAnonymousSession(updatedSession)
+    }
+
+    func presentCreateAccount() {
+        presentedSheet = .createAccount
     }
 
     func presentEmailAuth() {
@@ -362,7 +371,7 @@ final class AuthStore {
             let preferredRole: UserRole? = switch mode {
             case .vendorSignIn:
                 profile.isVendorOnboarded ? .vendor : .host
-            case .hostUpgrade, .emailAuth, nil:
+            case .hostUpgrade, .emailAuth, .createAccount, nil:
                 .host
             }
 

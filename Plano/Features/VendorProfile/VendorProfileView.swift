@@ -40,12 +40,14 @@ struct VendorProfileView: View {
 struct VendorProfileHeroCard: View {
     let vendor: VendorProfile
 
-    private let imageHeight: Double = 200
+    private let imageHeight: Double = 260
+    private let nameStripHeight: Double = 60
     private let cornerRadius = AppTheme.cardCornerRadius
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
+        ZStack(alignment: .bottom) {
+            // Image fills the full height (visible area + behind the frosted strip)
+            Group {
                 if let path = vendor.profileImagePath, !path.isEmpty {
                     PlanoImage(
                         storagePath: path,
@@ -53,47 +55,30 @@ struct VendorProfileHeroCard: View {
                         cornerRadius: 0,
                         contentMode: .fill
                     )
-                    .frame(height: imageHeight)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
                 } else {
                     Rectangle()
                         .fill(AppTheme.toneBackground(vendor.category.accentTone))
-                        .frame(height: imageHeight)
                         .overlay {
                             Image(systemName: vendor.category.symbolName)
                                 .font(.system(size: 40))
                                 .foregroundStyle(AppTheme.toneColor(vendor.category.accentTone))
                         }
                 }
-
-                Text(vendor.badge)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(16)
             }
+            .frame(height: imageHeight)
+            .frame(maxWidth: .infinity)
+            .clipped()
 
+            // Frosted name strip at the bottom, over the image
             Text(vendor.businessName)
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.Palette.textPrimary)
-                .padding(22)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.ultraThinMaterial)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [
-                    AppTheme.Palette.elevatedSurface,
-                    AppTheme.Palette.elevatedSurface,
-                    AppTheme.Palette.surface,
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            ),
-            in: .rect(cornerRadius: cornerRadius)
-        )
+        .frame(maxWidth: .infinity)
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -111,16 +96,6 @@ struct VendorProfileStatsCard: View {
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    if let priceLabel = vendor.visiblePricingDetailLabel {
-                        Label(priceLabel, systemImage: "creditcard.fill")
-                    }
-
-
-                }
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(AppTheme.Palette.subdued)
-
                 if vendor.reviewCount > 0 {
                     HStack {
                         Text(vendor.ratingText)
@@ -220,10 +195,23 @@ struct VendorProfilePackageCard: View {
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(package.title)
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(package.title)
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                            if package.isHighlighted {
+                                Text("Popular")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(AppTheme.Palette.elevatedSurface)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(AppTheme.Palette.accent, in: Capsule())
+                            }
+                        }
+                    }
 
                     Spacer()
 
@@ -232,15 +220,82 @@ struct VendorProfilePackageCard: View {
                         .foregroundStyle(AppTheme.Palette.textPrimary)
                 }
 
-                Text(package.summary)
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.Palette.textSecondary)
+                if !package.description.isEmpty {
+                    Text(package.description)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                }
 
                 if !package.includedItems.isEmpty {
-                    HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         ForEach(package.includedItems, id: \.self) { item in
-                            FilterChip(title: item, isSelected: false)
+                            Label(item, systemImage: "checkmark")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Add-ons Card
+
+struct VendorProfileAddOnsCard: View {
+    let addOns: [VendorAddOn]
+
+    var body: some View {
+        AppSurface {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(addOns) { addOn in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(addOn.title)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                            if !addOn.description.isEmpty {
+                                Text(addOn.description)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.Palette.textSecondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text("+ \(addOn.priceLabel)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.Palette.textPrimary)
+                    }
+
+                    if addOn.id != addOns.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Pricing Images Card
+
+struct VendorProfilePricingImagesCard: View {
+    let imagePaths: [String]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(Array(imagePaths.enumerated()), id: \.offset) { _, path in
+                    AppSurface {
+                        PlanoImage(
+                            storagePath: path,
+                            size: .standard,
+                            cornerRadius: AppTheme.smallCornerRadius,
+                            contentMode: .fit
+                        )
+                        .frame(width: 260, height: 200)
+                        .clipped()
                     }
                 }
             }

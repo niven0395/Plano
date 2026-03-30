@@ -3,7 +3,6 @@ import SwiftUI
 struct CommonBrowseFilters: View {
     @Binding var filterState: CategoryBrowseFilterState
     let availableCities: [String]
-    let showsAvailability: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -32,25 +31,10 @@ struct CommonBrowseFilters: View {
                 }
             }
 
-            if showsAvailability {
-                FilterGroup(title: "Availability") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(VendorAvailabilityFilter.allCases) { filter in
-                                Button {
-                                    filterState.availabilityFilter = filter
-                                } label: {
-                                    FilterChip(title: filter.title, isSelected: filterState.availabilityFilter == filter)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-            }
-
             HStack(spacing: 12) {
+                AvailabilityDateChip(date: $filterState.availabilityDate)
+
+
                 Picker("Rating", selection: $filterState.ratingFilter) {
                     ForEach(SearchRatingFilter.allCases) { filter in
                         Text(filter.title).tag(filter)

@@ -20,7 +20,7 @@ enum FixtureData {
                 venue: "Maison North",
                 city: "Toronto",
                 guestCount: 50,
-                budgetLabel: "$10k - $16k",
+                venueSetting: .outdoor,
                 planningNote: "Need calm, fast-moving vendor decisions.",
                 progress: 0.22,
                 stage: .requested,
@@ -34,7 +34,7 @@ enum FixtureData {
                 venue: "The Atrium",
                 city: "Toronto",
                 guestCount: 90,
-                budgetLabel: "$14k - $22k",
+                venueSetting: .indoor,
                 planningNote: "Music, venue flow, and fast hospitality are the priorities.",
                 progress: 0.3,
                 stage: .requested,
@@ -78,8 +78,8 @@ enum FixtureData {
                 packages: [
                     VendorPackage(
                         title: "Floral styling",
-                        priceLabel: "$3.5k",
-                        summary: "Floral direction and installation for a dinner-scale event.",
+                        priceCents: 350_000,
+                        description: "Floral direction and installation for a dinner-scale event.",
                         includedItems: ["Install", "Centerpieces", "Candles"]
                     )
                 ],
@@ -167,9 +167,8 @@ enum FixtureData {
                 packages: [
                     VendorPackage(
                         title: "Starter set",
-                        priceLabel: "$550",
-                        summary: "Four-hour music coverage with MC support for birthday and shower events.",
-                        tier: .starter,
+                        priceCents: 55_000,
+                        description: "Four-hour music coverage with MC support for birthday and shower events.",
                         includedItems: ["4 hours", "MC support", "Basic lighting"]
                     )
                 ],
@@ -470,10 +469,14 @@ actor TestVendorSearchService: VendorSearchServiceProtocol {
 actor TestVendorProfileService: VendorProfileServiceProtocol {
     var profilesByID: [UUID: VendorProfile]
     var serviceItemsByVendorID: [UUID: [VendorServiceItem]]
+    var packagesByVendorID: [UUID: [VendorPackage]] = [:]
+    var addOnsByVendorID: [UUID: [VendorAddOn]] = [:]
 
     init(vendorProfiles: [VendorProfile] = FixtureData.vendorProfiles) {
         profilesByID = Dictionary(uniqueKeysWithValues: vendorProfiles.map { ($0.id, $0) })
         serviceItemsByVendorID = Dictionary(uniqueKeysWithValues: vendorProfiles.map { ($0.id, $0.serviceItems) })
+        packagesByVendorID = Dictionary(uniqueKeysWithValues: vendorProfiles.map { ($0.id, $0.packages) })
+        addOnsByVendorID = Dictionary(uniqueKeysWithValues: vendorProfiles.map { ($0.id, $0.addOns) })
     }
 
     func createVendorProfile(
@@ -662,6 +665,22 @@ actor TestVendorProfileService: VendorProfileServiceProtocol {
             searchMomentumScore: existing.searchMomentumScore,
             onboardedAt: existing.onboardedAt
         )
+    }
+
+    func fetchPackages(vendorID: UUID) async throws -> [VendorPackage] {
+        packagesByVendorID[vendorID] ?? []
+    }
+
+    func replacePackages(_ packages: [VendorPackage], vendorID: UUID) async throws {
+        packagesByVendorID[vendorID] = packages
+    }
+
+    func fetchAddOns(vendorID: UUID) async throws -> [VendorAddOn] {
+        addOnsByVendorID[vendorID] ?? []
+    }
+
+    func replaceAddOns(_ addOns: [VendorAddOn], vendorID: UUID) async throws {
+        addOnsByVendorID[vendorID] = addOns
     }
 
     func deleteVendorListing() async throws -> DeletionResult {

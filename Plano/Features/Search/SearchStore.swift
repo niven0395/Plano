@@ -157,20 +157,10 @@ final class SearchStore {
         recentQueries = defaults.stringArray(forKey: Self.recentQueriesKey) ?? []
     }
 
-    var selectedEvent: PartyEvent {
-        planner.selectedEvent
-    }
-
-    var hasEventContext: Bool {
-        !planner.events.isEmpty
-    }
-
     var activeFilterSummary: String {
         [
             selectedCategory?.title,
             availabilityDate != nil ? "Fits date" : nil,
-            ratingFilter == .all ? nil : ratingFilter.title,
-            sortMode == .recommended ? nil : sortMode.title,
         ]
         .compactMap { $0 }
         .joined(separator: " • ")
@@ -180,8 +170,6 @@ final class SearchStore {
         [
             selectedCategory != nil,
             availabilityDate != nil,
-            ratingFilter != .all,
-            sortMode != .recommended,
         ]
         .filter { $0 }
         .count
@@ -190,9 +178,7 @@ final class SearchStore {
     var isShowingDiscoveryState: Bool {
         query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         selectedCategory == nil &&
-        availabilityDate == nil &&
-        ratingFilter == .all &&
-        sortMode == .recommended
+        availabilityDate == nil
     }
 
     var discoveryCategories: [VendorCategory] {
@@ -283,11 +269,7 @@ final class SearchStore {
     }
 
     func suggestedSearchText(for category: VendorCategory) -> String {
-        guard let event = activeContextEvent else {
-            return category.title
-        }
-
-        return "\(event.type.searchPromptTitle) \(category.title.lowercased())"
+        category.title
     }
 
     func commitCurrentSearch() {
@@ -329,11 +311,6 @@ final class SearchStore {
         recomputeVisibleResults()
     }
 
-    func syncToSelectedEvent() {
-        presentationState = .live
-        scheduleRemoteSearch(after: .zero, showLoading: hasLoaded)
-    }
-
     func retryPresentation() {
         scheduleRemoteSearch(after: .zero, showLoading: true)
     }
@@ -352,14 +329,6 @@ final class SearchStore {
 
         if planner.isSavedVendor(vendor.id) {
             score += 110
-        }
-
-        if hasEventContext && contextualRecommendedCategories.contains(vendor.category) {
-            score += 45
-        }
-
-        if hasEventContext && availableVendorIDs.contains(vendor.id) {
-            score += 35
         }
 
         if vendor.pricingVisibility == .public, vendor.priceValue > 0 {
@@ -407,14 +376,6 @@ final class SearchStore {
 
         if planner.isSavedVendor(vendor.id) {
             reasons.append(SearchRankingReason(title: "Saved shortlist", tone: .coral))
-        }
-
-        if hasEventContext && contextualRecommendedCategories.contains(vendor.category) {
-            reasons.append(SearchRankingReason(title: "Strong event fit", tone: .blue))
-        }
-
-        if hasEventContext && availableVendorIDs.contains(vendor.id) {
-            reasons.append(SearchRankingReason(title: "Fits event date", tone: .sage))
         }
 
         if vendor.responseMinutes <= 20 {
@@ -490,7 +451,7 @@ final class SearchStore {
             text: query,
             category: selectedCategory,
             city: nil,
-            eventDate: activeContextEvent?.date,
+            eventDate: nil,
             limit: 48
         )
 
@@ -627,22 +588,9 @@ final class SearchStore {
         }
     }
 
-    private var activeContextEvent: PartyEvent? {
-        hasEventContext ? selectedEvent : nil
-    }
-
     private var contextualRecommendedCategories: [VendorCategory] {
-        guard let event = activeContextEvent else {
-            return Self.genericDiscoveryCategories
-        }
-
-        var categories = planner.categories(for: event)
-        if !categories.contains(.dj) {
-            categories.append(.dj)
-        }
-        return categories
+        Self.genericDiscoveryCategories
     }
-
 
     private func performWithoutAutoRefresh(_ updates: () -> Void) {
         isApplyingProgrammaticChanges = true

@@ -1,10 +1,21 @@
 import SwiftUI
+#if canImport(TipKit)
+import TipKit
+#endif
 
 struct CategoryBrowseView: View {
-    let store: CategoryBrowseStore
+    @State private var store: CategoryBrowseStore
 
     @Environment(AppRouter.self) private var router
     @State private var showsFilters = false
+
+    init(category: VendorCategory, planner: HostPlanningStore, availabilityService: any VendorAvailabilityServiceProtocol) {
+        _store = State(initialValue: CategoryBrowseStore(
+            category: category,
+            planner: planner,
+            availabilityService: availabilityService
+        ))
+    }
 
     var body: some View {
         @Bindable var store = store
@@ -53,7 +64,7 @@ struct CategoryBrowseView: View {
         .onChange(of: store.filterState.guestCount) { _, _ in store.applyFilters() }
         .onChange(of: store.photoVideoTab) { _, _ in store.applyFilters() }
         .task {
-            await store.load()
+            await store.loadIfNeeded()
         }
     }
 
@@ -107,6 +118,7 @@ private struct BrowseFilterContent: View {
 
 private struct BrowseResultsSection: View {
     let store: CategoryBrowseStore
+    private let shortlistTip = SearchRankingTip()
 
     var body: some View {
         switch store.presentationState {
@@ -125,7 +137,7 @@ private struct BrowseResultsSection: View {
                     .foregroundStyle(AppTheme.Palette.textSecondary)
 
                 LazyVStack(spacing: 16) {
-                    ForEach(store.displayedResults) { result in
+                    ForEach(Array(store.displayedResults.enumerated()), id: \.element.id) { index, result in
                         ZStack(alignment: .topTrailing) {
                             NavigationLink(value: DiscoveryRoute.vendorProfile(result.vendor.id)) {
                                 CategoryBrowseResultCard(result: result)
@@ -157,6 +169,7 @@ private struct BrowseResultsSection: View {
                             .buttonStyle(.plain)
                             .disabled(store.isSavePending(result.vendor.id))
                             .opacity(store.isSavePending(result.vendor.id) ? 0.55 : 1)
+                            .popoverTip(index == 0 ? shortlistTip : nil)
                             .padding(12)
                         }
                     }

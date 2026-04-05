@@ -34,24 +34,6 @@ extension InboxStore {
             .first?.id
     }
 
-    func eventConversations(eventID: UUID) -> [ConversationThread] {
-        conversations
-            .filter { $0.eventID == eventID }
-            .sorted { $0.lastActivityAt > $1.lastActivityAt }
-    }
-
-    func ungroupedBookingConversations() -> [ConversationThread] {
-        conversations
-            .filter { $0.eventID == nil && $0.stage != .active }
-            .sorted { $0.lastActivityAt > $1.lastActivityAt }
-    }
-
-    func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
-        try await bookingService.linkConversationToEvent(conversationID: conversationID, eventID: eventID)
-        guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
-        conversations[index].eventID = eventID
-    }
-
     func vendorScopedConversations() -> [ConversationThread] {
         guard sessionStore.isVendorAuthenticated, sessionStore.currentRole == .vendor else { return [] }
         return scopedConversations(for: .vendor)
@@ -73,13 +55,12 @@ extension InboxStore {
         await loadConversations(for: sessionStore.currentRole)
     }
 
-    func existingConversationID(vendorID: UUID, eventID: UUID?) -> UUID? {
+    func existingConversationID(vendorID: UUID) -> UUID? {
         guard let hostUserID = sessionStore.currentUserID else { return nil }
 
         return conversations.first { thread in
             thread.hostUserID == hostUserID &&
-            thread.vendorID == vendorID &&
-            thread.eventID == eventID
+            thread.vendorID == vendorID
         }?.id
     }
 

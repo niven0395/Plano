@@ -3,7 +3,7 @@ import Foundation
 protocol BookingServiceProtocol: Sendable {
     func fetchConversations(hostID: UUID) async throws -> [ConversationRecord]
     func fetchVendorConversations(vendorID: UUID) async throws -> [ConversationRecord]
-    func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord
+    func createConversation(vendorID: UUID, hostID: UUID) async throws -> ConversationRecord
 
     func fetchMessages(conversationID: UUID) async throws -> [MessageRecord]
     func sendMessage(conversationID: UUID, body: String, kind: String, senderRole: String) async throws -> MessageRecord
@@ -13,7 +13,7 @@ protocol BookingServiceProtocol: Sendable {
     func fetchHostBookings(hostID: UUID) async throws -> [BookingRecord]
     func fetchVendorBookings(vendorID: UUID) async throws -> [BookingRecord]
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?) async throws -> BookingTransitionResult
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?) async throws -> BookingTransitionResult
     func acceptBooking(conversationID: UUID) async throws -> BookingTransitionResult
     func declineBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult
     func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?) async throws -> BookingTransitionResult
@@ -24,11 +24,8 @@ protocol BookingServiceProtocol: Sendable {
     func forceCancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult
 
     func checkVendorDateConflicts(vendorID: UUID, eventDate: Date) async throws -> [DateConflict]
-    func fetchEventConfirmedVendors(eventID: UUID, requestingVendorID: UUID) async throws -> [CoBookedVendorRecord]
-    func createConversationServer(vendorID: UUID, eventID: UUID?) async throws -> ConversationRecord
+    func createConversationServer(vendorID: UUID) async throws -> ConversationRecord
     func fetchConversationSummaries(role: String) async throws -> [ConversationSummaryRecord]
-
-    func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws
 
     func fetchVendorNote(conversationID: UUID) async throws -> String?
     func saveVendorNote(conversationID: UUID, content: String) async throws
@@ -36,10 +33,10 @@ protocol BookingServiceProtocol: Sendable {
 
 extension BookingServiceProtocol {
     func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String) async throws -> BookingTransitionResult {
-        try await submitBookingRequest(conversationID: conversationID, eventDate: eventDate, note: note, requestedTimeStart: nil, requestedTimeEnd: nil, title: nil, budgetLabel: nil, guestCountLabel: nil, requestedServices: nil)
+        try await submitBookingRequest(conversationID: conversationID, eventDate: eventDate, note: note, requestedTimeStart: nil, requestedTimeEnd: nil, title: nil, budgetLabel: nil, guestCountLabel: nil, requestedServices: nil, intakeAnswers: nil)
     }
 
     func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?) async throws -> BookingTransitionResult {
-        try await submitBookingRequest(conversationID: conversationID, eventDate: eventDate, note: note, requestedTimeStart: requestedTimeStart, requestedTimeEnd: requestedTimeEnd, title: nil, budgetLabel: nil, guestCountLabel: nil, requestedServices: nil)
+        try await submitBookingRequest(conversationID: conversationID, eventDate: eventDate, note: note, requestedTimeStart: requestedTimeStart, requestedTimeEnd: requestedTimeEnd, title: nil, budgetLabel: nil, guestCountLabel: nil, requestedServices: nil, intakeAnswers: nil)
     }
 }

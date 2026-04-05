@@ -27,7 +27,6 @@ protocol AuthServiceProtocol {
         password: String,
         displayName: String?
     ) async throws -> EmailSignUpResult
-    func verifyEmailOTP(email: String, token: String) async throws -> AuthenticatedUserProfile
     func resendEmailConfirmation(email: String) async throws
     func signInWithEmail(
         email: String,

@@ -8,7 +8,6 @@ final class VendorBookingRequestStore {
     @ObservationIgnored private let bookingService: any BookingServiceProtocol
     @ObservationIgnored private let availabilityService: any VendorAvailabilityServiceProtocol
     @ObservationIgnored private let inboxStore: InboxStore
-    @ObservationIgnored private let planner: HostPlanningStore
     @ObservationIgnored private let router: AppRouter
 
     var selectedBookingDate: Date?
@@ -22,21 +21,19 @@ final class VendorBookingRequestStore {
     var schedulingMode: SchedulingMode = .calendar
     var requestedStartTime: Date?
     var requestedEndTime: Date?
-    var linkedEvent: PartyEvent?
+    var intakeAnswers: [LeadIntakeAnswer] = []
 
     init(
         vendorID: UUID,
         bookingService: any BookingServiceProtocol,
         availabilityService: any VendorAvailabilityServiceProtocol,
         inboxStore: InboxStore,
-        planner: HostPlanningStore,
         router: AppRouter
     ) {
         self.vendorID = vendorID
         self.bookingService = bookingService
         self.availabilityService = availabilityService
         self.inboxStore = inboxStore
-        self.planner = planner
         self.router = router
     }
 
@@ -59,18 +56,6 @@ final class VendorBookingRequestStore {
 
     var vendorUsesEventTimeRange: Bool {
         schedulingMode == .eventTimeRange
-    }
-
-    func resolveLinkedEvent(for date: Date?) {
-        guard let date else {
-            linkedEvent = nil
-            return
-        }
-        linkedEvent = planner.nearestEvent(to: date)
-    }
-
-    func setLinkedEvent(_ event: PartyEvent?) {
-        linkedEvent = event
     }
 
     func updateTimeslotsForSelectedDate(vendor: VendorProfile) {
@@ -117,16 +102,13 @@ final class VendorBookingRequestStore {
     ) async -> [VendorAvailabilityRecord]? {
         guard !isSubmittingBooking else { return nil }
 
-        let resolvedEvent = linkedEvent
-        let existingConversationID = resolvedEvent.flatMap {
-            inboxStore.existingConversationID(vendorID: vendor.id, eventID: $0.id)
-        }
+        let existingConversationID = inboxStore.existingConversationID(vendorID: vendor.id)
 
         if let conversationID = existingConversationID {
             let stage = inboxStore.conversation(id: conversationID, for: .host)?.stage
             let blockingStages: Set<BookingStage> = [.requested, .accepted, .paymentRequested, .paid]
             if let stage, blockingStages.contains(stage) {
-                bookingError = "You already have an active booking with this vendor for this event."
+                bookingError = "You already have an active booking with this vendor."
                 return nil
             }
         }
@@ -174,10 +156,13 @@ final class VendorBookingRequestStore {
                 conversationID = existing
             } else {
                 conversationID = try await inboxStore.startConversation(
-                    with: vendor,
-                    event: resolvedEvent
+                    with: vendor
                 )
             }
+
+            let normalizedAnswers = intakeAnswers
+                .map { $0.normalized() }
+                .filter(\.hasValue)
 
             _ = try await bookingService.submitBookingRequest(
                 conversationID: conversationID,
@@ -185,10 +170,11 @@ final class VendorBookingRequestStore {
                 note: note,
                 requestedTimeStart: resolvedTimeStart,
                 requestedTimeEnd: resolvedTimeEnd,
-                title: resolvedEvent?.title ?? "Direct inquiry",
+                title: "Direct inquiry",
                 budgetLabel: nil,
-                guestCountLabel: resolvedEvent?.guestCountLabel ?? "",
-                requestedServices: nil
+                guestCountLabel: "",
+                requestedServices: nil,
+                intakeAnswers: normalizedAnswers.isEmpty ? nil : normalizedAnswers
             )
 
             await inboxStore.loadConversations(for: .host)
@@ -198,8 +184,8 @@ final class VendorBookingRequestStore {
             selectedTimeslot = nil
             requestedStartTime = nil
             requestedEndTime = nil
-            linkedEvent = nil
             bookingNote = ""
+            intakeAnswers = []
             isSubmittingBooking = false
 
             router.openConversation(conversationID)

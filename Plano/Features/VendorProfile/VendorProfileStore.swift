@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if canImport(TipKit)
+import TipKit
+#endif
 
 @MainActor
 @Observable
@@ -148,6 +151,8 @@ final class VendorProfileStore {
                 eventType: .profileView,
                 vendorID: vendorID
             ))
+
+            await SearchRankingTip.vendorProfileViewed.donate()
         } catch {
             isRefreshing = false
             loadingState = .failed(error.localizedDescription)
@@ -205,15 +210,13 @@ final class VendorProfileStore {
 
     private func beginConversation(planner: HostPlanningStore, inboxStore: InboxStore, router: AppRouter) {
         guard let vendor else { return }
-        let event = planner.events.isEmpty ? nil : planner.selectedEvent
 
         Task { [weak self] in
             guard let self else { return }
 
             do {
                 let conversationID = try await inboxStore.startConversation(
-                    with: vendor,
-                    event: event
+                    with: vendor
                 )
                 router.openConversation(conversationID)
             } catch {

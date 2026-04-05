@@ -274,7 +274,7 @@ struct PendingTransactionRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                    Text("\(item.eventTitle) · \(item.eventDateLabel)")
+                    Text("\(item.hostName) · \(item.bookingDateLabel)")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(AppTheme.Palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -349,8 +349,8 @@ struct RevenueItemSummaryRow: View {
             confirmedItems: [
                 RevenueLineItem(
                     id: UUID(), conversationID: UUID(),
-                    hostName: "Maya Chen", eventTitle: "Garden Dinner",
-                    eventDateLabel: "April 15, 2026", amountCents: 240_000,
+                    hostName: "Maya Chen",
+                    bookingDateLabel: "April 15, 2026", amountCents: 240_000,
                     amountLabel: "$2,400", paymentType: .deposit,
                     requestedAt: .now, confirmedAt: .now, stage: .paid
                 ),
@@ -361,8 +361,8 @@ struct RevenueItemSummaryRow: View {
             pendingItems: [
                 RevenueLineItem(
                     id: UUID(), conversationID: UUID(),
-                    hostName: "Jordan Brooks", eventTitle: "Cocktail Night",
-                    eventDateLabel: "May 1, 2026", amountCents: 80_000,
+                    hostName: "Jordan Brooks",
+                    bookingDateLabel: "May 1, 2026", amountCents: 80_000,
                     amountLabel: "$800", paymentType: .deposit,
                     requestedAt: .now, confirmedAt: nil, stage: .paymentRequested
                 ),
@@ -400,8 +400,8 @@ struct RevenueItemSummaryRow: View {
                 confirmedItems: [
                     RevenueLineItem(
                         id: UUID(), conversationID: UUID(),
-                        hostName: "Maya Chen", eventTitle: "Garden Dinner",
-                        eventDateLabel: "April 15, 2026", amountCents: 240_000,
+                        hostName: "Maya Chen",
+                        bookingDateLabel: "April 15, 2026", amountCents: 240_000,
                         amountLabel: "$2,400", paymentType: .deposit,
                         requestedAt: .now, confirmedAt: .now, stage: .paid
                     ),
@@ -412,15 +412,15 @@ struct RevenueItemSummaryRow: View {
                 pendingItems: [
                     RevenueLineItem(
                         id: UUID(), conversationID: UUID(),
-                        hostName: "Jordan Brooks", eventTitle: "Cocktail Night",
-                        eventDateLabel: "May 1, 2026", amountCents: 80_000,
+                        hostName: "Jordan Brooks",
+                        bookingDateLabel: "May 1, 2026", amountCents: 80_000,
                         amountLabel: "$800", paymentType: .deposit,
                         requestedAt: .now, confirmedAt: nil, stage: .paymentRequested
                     ),
                     RevenueLineItem(
                         id: UUID(), conversationID: UUID(),
-                        hostName: "Lena Park", eventTitle: "Birthday Bash",
-                        eventDateLabel: "May 10, 2026", amountCents: 40_000,
+                        hostName: "Lena Park",
+                        bookingDateLabel: "May 10, 2026", amountCents: 40_000,
                         amountLabel: "$400", paymentType: .fullPayment,
                         requestedAt: .now, confirmedAt: nil, stage: .paymentRequested
                     ),

@@ -4,24 +4,18 @@ struct EmailVerificationView: View {
     let email: String
     let store: AuthStore
 
-    @State private var code = ""
     @State private var resendCooldown = 0
-    @FocusState private var isCodeFieldFocused: Bool
-
-    private var isValid: Bool {
-        code.trimmingCharacters(in: .whitespacesAndNewlines).count == 8
-    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 AppSurface(style: .highlighted) {
                     VStack(alignment: .leading, spacing: 18) {
-                        StatusBadge(title: "Verify your email", tone: .sage)
+                        StatusBadge(title: "Check your email", tone: .sage)
 
                         SectionHeader(
-                            title: "Check your inbox",
-                            subtitle: "We sent an 8-digit code to \(email). Enter it below to verify your account."
+                            title: "Verification sent",
+                            subtitle: "We sent a verification link to \(email). Open the email and tap the link to verify your account, then come back here to sign in."
                         )
                     }
                 }
@@ -34,40 +28,12 @@ struct EmailVerificationView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Verification code")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                    TextField("8-digit code", text: $code)
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                        .focused($isCodeFieldFocused)
-                        .autocorrectionDisabled()
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(
-                            AppTheme.Palette.inputFill,
-                            in: .rect(cornerRadius: AppTheme.compactCornerRadius)
-                        )
-                        .overlay {
-                            RoundedRectangle(cornerRadius: AppTheme.compactCornerRadius)
-                                .stroke(AppTheme.Palette.border, lineWidth: 1)
-                        }
-                }
-
-                Button {
-                    isCodeFieldFocused = false
-                    Task {
-                        await store.verifyOTP(code: code.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                } label: {
-                    Text("Verify")
+                Button("Go to Sign In") {
+                    store.completeSignUpAndDismiss()
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
-                .disabled(!isValid || store.verificationLoadingState.isLoading)
 
-                ResendCodeButton(
+                ResendEmailButton(
                     cooldownRemaining: resendCooldown,
                     isLoading: store.verificationLoadingState.isLoading
                 ) {
@@ -82,7 +48,7 @@ struct EmailVerificationView: View {
                         ProgressView()
                             .tint(AppTheme.Palette.accent)
 
-                        Text("Verifying")
+                        Text("Sending")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(AppTheme.Palette.textSecondary)
                     }
@@ -97,13 +63,12 @@ struct EmailVerificationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Back") {
-                    store.cancelVerification()
+                Button("Close") {
+                    store.dismissPresentedSheet()
                 }
             }
         }
         .onAppear {
-            isCodeFieldFocused = true
             startResendCooldown()
         }
     }
@@ -119,9 +84,9 @@ struct EmailVerificationView: View {
     }
 }
 
-// MARK: - Resend Code Button
+// MARK: - Resend Email Button
 
-private struct ResendCodeButton: View {
+private struct ResendEmailButton: View {
     let cooldownRemaining: Int
     let isLoading: Bool
     let action: () -> Void
@@ -131,11 +96,11 @@ private struct ResendCodeButton: View {
             action()
         } label: {
             if cooldownRemaining > 0 {
-                Text("Resend code in \(cooldownRemaining)s")
+                Text("Resend email in \(cooldownRemaining)s")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.subdued)
             } else {
-                Text("Resend code")
+                Text("Resend verification email")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.accent)
             }

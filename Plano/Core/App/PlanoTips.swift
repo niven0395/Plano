@@ -2,7 +2,13 @@ import SwiftUI
 #if canImport(TipKit)
 import TipKit
 
+enum PlanoTipEvents {
+    static let vendorProfileViewed = Tips.Event(id: "vendorProfileViewed")
+}
+
 struct SearchRankingTip: Tip {
+    static let vendorProfileViewed = Tips.Event(id: "vendorProfileViewed")
+
     var title: Text {
         Text("Save strong candidates")
     }
@@ -13,6 +19,10 @@ struct SearchRankingTip: Tip {
 
     var image: Image? {
         Image(systemName: "heart.fill")
+    }
+
+    var rules: [Tips.Rule] {
+        #Rule(Self.vendorProfileViewed) { $0.donations.count >= 2 }
     }
 }
 

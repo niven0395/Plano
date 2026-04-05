@@ -5,7 +5,7 @@ import OSLog
 
 extension InboxStore {
 
-    func startConversation(with vendor: VendorProfile, event: PartyEvent?) async throws -> UUID {
+    func startConversation(with vendor: VendorProfile) async throws -> UUID {
         guard let hostUserID = sessionStore.currentUserID else {
             throw APIError.unauthorized
         }
@@ -15,12 +15,12 @@ extension InboxStore {
         }
 
         // Fast path: already in memory
-        if let existingID = existingConversationID(vendorID: vendor.id, eventID: event?.id) {
+        if let existingID = existingConversationID(vendorID: vendor.id) {
             return existingID
         }
 
-        // Dedup key: same vendor + event = same in-flight task
-        let key = "\(vendor.id)-\(event?.id.uuidString ?? "nil")"
+        // Dedup key: same vendor = same in-flight task
+        let key = "\(vendor.id)"
 
         if let inflight = conversationCreationTasks[key] {
             return try await inflight.value
@@ -32,8 +32,7 @@ extension InboxStore {
 
             let record = try await bookingService.createConversation(
                 vendorID: vendor.id,
-                hostID: hostUserID,
-                eventID: event?.id
+                hostID: hostUserID
             )
 
             // Server may have returned an existing conversation — check before adding
@@ -43,23 +42,21 @@ extension InboxStore {
 
             let thread = ConversationThread(
                 id: record.id,
-                eventID: record.eventID,
-                eventDate: event?.date,
+                eventID: nil,
+                eventDate: nil,
                 vendorID: record.vendorID,
                 hostUserID: record.hostID,
                 hostName: record.hostDisplayName,
                 vendorName: record.vendorDisplayName,
                 vendorCategory: VendorCategory.fromDatabaseValue(record.vendorCategory) ?? vendor.category,
-                eventTitle: record.eventTitle ?? "Direct inquiry",
-                eventDateLabel: record.eventDateLabel ?? "Date pending",
-                eventContextLine: record.eventContextLine ?? "Guest count pending",
+                eventTitle: "Direct inquiry",
+                eventDateLabel: "Date pending",
+                eventContextLine: "",
                 stage: BookingStage.fromDatabaseValue(record.stage),
                 messages: [
                     ChatMessage(
                         sender: .system,
-                        body: event == nil
-                            ? "Conversation started from a direct vendor inquiry."
-                            : "Conversation started with the event brief attached.",
+                        body: "Conversation started.",
                         sentAt: record.createdAt ?? .now
                     ),
                 ],
@@ -75,8 +72,7 @@ extension InboxStore {
 
             analyticsService.track(AnalyticsEvent(
                 eventType: .conversationStarted,
-                vendorID: vendor.id,
-                eventID: event?.id
+                vendorID: vendor.id
             ))
 
             return thread.id

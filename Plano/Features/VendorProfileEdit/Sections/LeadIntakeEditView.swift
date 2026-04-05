@@ -10,44 +10,42 @@ struct LeadIntakeEditView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 AppSurface(style: .highlighted) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Lead intake")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                        Text("Hosts answer these questions before a booking request becomes a lead. Keep only the questions that help you quote or respond faster.")
+                        Text("Pick the questions hosts answer before sending a booking request.")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.Palette.textSecondary)
                     }
                 }
 
                 AppSurface {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Using the \(store.draft.category.singularTitle.lowercased()) template")
-                            .font(.headline)
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                        Text("You can turn questions on or off and decide which ones are required before a host can submit.")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                        Button("Reset to template") {
-                            store.resetLeadIntakeQuestionsToTemplate()
-                        }
-                        .buttonStyle(SecondaryActionButtonStyle())
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(store.draft.leadIntakeQuestions.indices, id: \.self) { index in
-                        LeadIntakeQuestionEditorCard(
-                            question: Binding(
-                                get: { store.draft.leadIntakeQuestions[index] },
-                                set: { store.draft.leadIntakeQuestions[index] = $0 }
+                    VStack(spacing: 0) {
+                        ForEach(store.draft.leadIntakeQuestions.indices, id: \.self) { index in
+                            LeadIntakeQuestionRow(
+                                question: Binding(
+                                    get: { store.draft.leadIntakeQuestions[index] },
+                                    set: { store.draft.leadIntakeQuestions[index] = $0 }
+                                )
                             )
-                        )
+
+                            if index < store.draft.leadIntakeQuestions.count - 1 {
+                                Divider()
+                                    .padding(.leading, 44)
+                            }
+                        }
                     }
                 }
+
+                Button("Reset to template") {
+                    store.resetLeadIntakeQuestionsToTemplate()
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.accent)
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
 
                 Button(store.loadingState.isLoading ? "Saving..." : "Save intake form") {
                     Task {
@@ -76,81 +74,58 @@ struct LeadIntakeEditView: View {
     }
 }
 
-private struct LeadIntakeQuestionEditorCard: View {
+private struct LeadIntakeQuestionRow: View {
     @Binding var question: LeadIntakeQuestion
 
     var body: some View {
-        AppSurface {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(question.trimmedPrompt)
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                            if !question.helperText.isEmpty {
-                                Text(question.helperText)
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(AppTheme.Palette.textSecondary)
-                            }
-                        }
-
-                        Spacer(minLength: 12)
-
-                        Text(question.responseType.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(AppTheme.Palette.elevatedSurface, in: Capsule())
-                    }
-
-                    if !question.trimmedOptions.isEmpty {
-                        Text(question.trimmedOptions.joined(separator: " · "))
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.Palette.subdued)
-                    }
-
-                    if !question.placeholder.isEmpty {
-                        Text("Host hint: \(question.placeholder)")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.Palette.subdued)
-                    }
+        HStack(spacing: 12) {
+            Button {
+                question.isEnabled.toggle()
+                if !question.isEnabled {
+                    question.isRequired = false
                 }
+            } label: {
+                Image(systemName: question.isEnabled ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(question.isEnabled ? AppTheme.Palette.accent : AppTheme.Palette.subdued)
+            }
+            .buttonStyle(.plain)
 
-                Divider()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(question.trimmedPrompt)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(question.isEnabled ? AppTheme.Palette.textPrimary : AppTheme.Palette.subdued)
 
-                Toggle(isOn: $question.isEnabled) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Show this question")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                        Text("Disabled questions stay hidden from hosts.")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                    }
+                if !question.trimmedOptions.isEmpty {
+                    Text(question.trimmedOptions.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.Palette.subdued)
+                        .lineLimit(1)
                 }
-                .tint(AppTheme.Palette.accent)
+            }
 
-                Toggle(isOn: Binding(
-                    get: { question.isEnabled && question.isRequired },
-                    set: { question.isRequired = question.isEnabled ? $0 : false }
-                )) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Require an answer")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textPrimary)
+            Spacer(minLength: 8)
 
-                        Text("Hosts must answer required questions before sending a request.")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                    }
+            if question.isEnabled {
+                Button {
+                    question.isRequired.toggle()
+                } label: {
+                    Text("Required")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(question.isRequired ? .white : AppTheme.Palette.textSecondary)
+                        .background(
+                            question.isRequired ? AppTheme.Palette.accent : AppTheme.Palette.elevatedSurface,
+                            in: Capsule()
+                        )
                 }
-                .disabled(!question.isEnabled)
-                .tint(AppTheme.Palette.accent)
+                .buttonStyle(.plain)
             }
         }
+        .padding(.vertical, 12)
+        .contentShape(.rect)
+        .animation(.easeInOut(duration: 0.15), value: question.isEnabled)
+        .animation(.easeInOut(duration: 0.15), value: question.isRequired)
     }
 }

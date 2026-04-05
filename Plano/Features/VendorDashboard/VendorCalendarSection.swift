@@ -5,8 +5,7 @@ import SwiftUI
 struct VendorCalendarBooking: Identifiable, Hashable {
     let id: UUID
     let hostName: String
-    let eventTitle: String
-    let workspaceID: UUID?
+    let title: String
     let stage: BookingStage
     let kind: Kind
 
@@ -33,7 +32,6 @@ struct VendorCalendarDayEntry {
 
 struct VendorCalendarSection: View {
     let inboxStore: InboxStore
-    let workspaceStore: EventWorkspaceStore
 
     @Environment(VendorProfileEditStore.self) private var editStore
     @Environment(AppRouter.self) private var router
@@ -52,13 +50,11 @@ struct VendorCalendarSection: View {
 
             let normalizedDate = calendar.startOfDay(for: eventDate)
             let kind: VendorCalendarBooking.Kind = thread.stage == .paid ? .confirmed : .pending
-            let workspaceID: UUID? = kind == .confirmed ? (thread.eventID ?? thread.id) : nil
 
             let booking = VendorCalendarBooking(
                 id: thread.id,
                 hostName: thread.hostName,
-                eventTitle: thread.eventTitle,
-                workspaceID: workspaceID,
+                title: thread.eventTitle,
                 stage: thread.stage,
                 kind: kind
             )
@@ -376,8 +372,8 @@ private struct VendorCalendarBookingRow: View {
                 id: booking.id,
                 conversationID: booking.id,
                 counterpartName: booking.hostName,
-                eventTitle: booking.eventTitle,
-                eventDateLabel: "",
+                title: booking.title,
+                dateLabel: "",
                 detail: "",
                 amountLabel: "",
                 stage: booking.stage
@@ -402,7 +398,7 @@ private struct VendorCalendarBookingRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                Text(booking.eventTitle)
+                Text(booking.title)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.textSecondary)
             }
@@ -417,7 +413,7 @@ private struct VendorCalendarBookingRow: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(booking.hostName), \(booking.eventTitle), \(booking.kind == .confirmed ? "confirmed" : "pending")")
+        .accessibilityLabel("\(booking.hostName), \(booking.title), \(booking.kind == .confirmed ? "confirmed" : "pending")")
     }
 }
 

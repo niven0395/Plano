@@ -1,36 +1,27 @@
 import SwiftUI
 
 struct VendorAllWorkView: View {
-    @Environment(EventWorkspaceStore.self) private var workspaceStore
-    @Environment(VendorDashboardStore.self) private var dashboardStore
+    @Environment(VendorDashboardStore.self) private var store
+    @Environment(InboxStore.self) private var inboxStore
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                SectionHeader(
-                    title: "All upcoming work",
-                    subtitle: workspaceStore.vendorWorkspaces.isEmpty
-                        ? "Confirmed work will appear here."
-                        : "\(workspaceStore.vendorWorkspaces.count) confirmed events"
-                )
+            VStack(alignment: .leading, spacing: 24) {
+                SectionHeader(title: "All confirmed work")
 
-                if workspaceStore.vendorWorkspaces.isEmpty {
+                if store.confirmedLeads.isEmpty {
                     EmptyStateCard(
-                        symbolName: "calendar.badge.exclamationmark",
-                        title: "No active events yet",
-                        message: "Confirmed vendor work will surface here as bookings land."
+                        symbolName: "checkmark.seal",
+                        title: "No confirmed bookings",
+                        message: "Bookings with confirmed deposits will appear here."
                     )
                 } else {
                     LazyVStack(spacing: 16) {
-                        ForEach(workspaceStore.vendorWorkspaces) { workspace in
-                            if let summary = dashboardStore.confirmedLead(forConversationID: workspace.conversationID ?? workspace.id) {
-                                NavigationLink(value: DiscoveryRoute.vendorLead(summary)) {
-                                    VendorUpcomingWorkspaceCard(workspace: workspace)
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                VendorUpcomingWorkspaceCard(workspace: workspace)
+                        ForEach(store.confirmedLeads) { lead in
+                            NavigationLink(value: DiscoveryRoute.vendorLead(lead)) {
+                                VendorAllWorkRow(request: lead)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -40,7 +31,45 @@ struct VendorAllWorkView: View {
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
-        .navigationTitle("Upcoming Work")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle("All work")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct VendorAllWorkRow: View {
+    let request: BookingRequestSummary
+
+    var body: some View {
+        AppSurface {
+            HStack(alignment: .top, spacing: 12) {
+                Circle()
+                    .fill(AppTheme.toneColor(request.stage.tone))
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 7)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(request.counterpartName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                    Text("\(request.title) \u{00B7} \(request.dateLabel)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.Palette.subdued)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(request.counterpartName), \(request.title), \(request.dateLabel)")
     }
 }

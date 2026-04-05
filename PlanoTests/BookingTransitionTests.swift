@@ -394,22 +394,14 @@ struct BookingTransitionTests {
 
             await store.loadConversations(for: .host)
 
-            // Before archiving, the conversation is visible in event queries
-            let before = store.eventConversations(eventID: conversation.eventID!)
-            #expect(before.count == 1)
+            // Before archiving, the conversation is visible
+            let before = store.conversation(id: conversation.id, for: .host)
+            #expect(before != nil)
             #expect(!store.isArchived(conversation.id, for: .host))
 
             // Archive the conversation (simulates "Remove from plan")
             store.archiveConversation(conversation.id, for: .host)
             #expect(store.isArchived(conversation.id, for: .host))
-
-            // Event conversations still returns it (raw query)
-            let after = store.eventConversations(eventID: conversation.eventID!)
-            #expect(after.count == 1)
-
-            // But filtered view excludes it
-            let filtered = after.filter { !$0.isHostCancelled && !store.isArchived($0.id, for: .host) }
-            #expect(filtered.isEmpty)
         }
     }
 

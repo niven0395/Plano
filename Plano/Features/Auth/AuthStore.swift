@@ -53,6 +53,7 @@ final class AuthStore {
     var presentedSheet: AuthSheetMode?
     private(set) var pendingVerificationEmail: String?
     var verificationLoadingState: LoadingState = .idle
+    var showEmailSignInAfterVerification = false
 
     init(
         authService: any AuthServiceProtocol,
@@ -108,6 +109,7 @@ final class AuthStore {
         pendingVendorOnboarding = false
         pendingVerificationEmail = nil
         verificationLoadingState = .idle
+        showEmailSignInAfterVerification = false
     }
 
     func configureAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
@@ -234,27 +236,11 @@ final class AuthStore {
         }
     }
 
-    func verifyOTP(code: String) async {
-        guard let email = pendingVerificationEmail else { return }
-        verificationLoadingState = .loading
-
-        do {
-            let profile = try await authService.verifyEmailOTP(
-                email: email,
-                token: code
-            )
-
-            sessionStore.applyAuthenticatedSession(profile, preferredRole: .host)
-            pendingVerificationEmail = nil
-            presentedSheet = nil
-            pendingVendorOnboarding = false
-            verificationLoadingState = .loaded
-            loadingState = .loaded
-        } catch is CancellationError {
-            // Normal task lifecycle
-        } catch {
-            verificationLoadingState = .failed(error.localizedDescription)
-        }
+    func completeSignUpAndDismiss() {
+        pendingVerificationEmail = nil
+        verificationLoadingState = .idle
+        loadingState = .idle
+        showEmailSignInAfterVerification = true
     }
 
     func resendVerification() async {

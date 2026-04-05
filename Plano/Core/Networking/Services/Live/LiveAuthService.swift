@@ -159,33 +159,6 @@ actor LiveAuthService: AuthServiceProtocol {
         return .authenticated(try await fetchAuthenticatedProfile(from: supabaseSession))
     }
 
-    func verifyEmailOTP(email: String, token: String) async throws -> AuthenticatedUserProfile {
-        let response = try await client.auth.verifyOTP(
-            email: email,
-            token: token,
-            type: .signup
-        )
-
-        let session = try await client.auth.session
-
-        let existingUser = try await fetchOptionalRecord(from: "users", matching: "id", value: session.user.id) as UserRecord?
-        if existingUser == nil {
-            let displayName = makeDisplayName(email: email, givenName: nil, familyName: nil)
-            let userRecord = UserRecord(
-                id: session.user.id,
-                email: email,
-                displayName: displayName,
-                preferredRole: UserRole.host.rawValue,
-                anonymousDisplayName: nil,
-                contactPhone: nil,
-                contactEmail: email
-            )
-            try await upsertUser(userRecord)
-        }
-
-        return try await fetchAuthenticatedProfile(from: session)
-    }
-
     func resendEmailConfirmation(email: String) async throws {
         try await client.auth.resend(email: email, type: .signup)
     }
@@ -364,10 +337,6 @@ actor LiveAuthService: AuthServiceProtocol {
         password: String,
         displayName: String?
     ) async throws -> EmailSignUpResult {
-        throw APIError.notSupported("The Supabase SDK is not available in this build.")
-    }
-
-    func verifyEmailOTP(email: String, token: String) async throws -> AuthenticatedUserProfile {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 

@@ -1,28 +1,39 @@
 import SwiftUI
 
 struct HostOnboardingView: View {
-    @Environment(HostPlanningStore.self) private var planner
-    @Environment(AppRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @State private var pageIndex = 0
 
     private let pages: [OnboardingPage] = [
         OnboardingPage(
-            title: "Start from the event, not the vendor list",
-            body: "Every search, saved vendor, and booking stays connected to your event — so nothing gets lost or mixed up.",
-            symbolName: "calendar.badge.plus",
+            title: "Find the right vendors",
+            body: "Browse by category, filter by price and availability, and shortlist the ones that stand out.",
+            symbolName: "magnifyingglass",
             tone: .blue
         ),
         OnboardingPage(
-            title: "Shortlist with confidence",
-            body: "Filter by category, price, availability, and how quickly vendors respond — so you see the best matches first.",
-            symbolName: "heart.circle.fill",
+            title: "Message them directly",
+            body: "Ask questions, share details, and get quotes — all in one conversation thread per vendor.",
+            symbolName: "bubble.left.and.bubble.right.fill",
             tone: .coral
         ),
         OnboardingPage(
-            title: "Keep state visible",
-            body: "Pick an event once, and your searches, messages, and bookings all stay in sync automatically.",
-            symbolName: "square.stack.3d.up.fill",
+            title: "Book with confidence",
+            body: "Request a booking, review the quote, and confirm — with every step tracked in one place.",
+            symbolName: "checkmark.seal.fill",
             tone: .sage
+        ),
+        OnboardingPage(
+            title: "Pay securely",
+            body: "Approve deposits and payments through the app. Receipts land in your conversation automatically.",
+            symbolName: "creditcard.fill",
+            tone: .gold
+        ),
+        OnboardingPage(
+            title: "Stay organized",
+            body: "Save vendors to your shortlist, request bookings, and manage everything from your planning hub.",
+            symbolName: "list.clipboard.fill",
+            tone: .blue
         ),
     ]
 
@@ -72,17 +83,16 @@ struct HostOnboardingView: View {
                 }
 
                 VStack(spacing: 12) {
-                    Button(pageIndex == pages.indices.last ? "Start planning" : "Continue") {
+                    Button(pageIndex == pages.indices.last ? "Get started" : "Continue") {
                         if pageIndex == pages.indices.last {
-                            planner.completeOnboarding()
-                            router.selectedTab = .home
+                            dismiss()
                         } else {
                             pageIndex += 1
                         }
                     }
                     .buttonStyle(PrimaryActionButtonStyle())
 
-                    Text("Set up your event, browse vendors, and start building your shortlist.")
+                    Text("Your party planning starts here.")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.Palette.subdued)
                 }

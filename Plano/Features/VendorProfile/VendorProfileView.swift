@@ -1,7 +1,23 @@
 import SwiftUI
 
 struct VendorProfileView: View {
-    let store: VendorProfileStore
+    @State private var store: VendorProfileStore
+
+    init(
+        vendorID: UUID,
+        vendorProfileService: any VendorProfileServiceProtocol,
+        analyticsService: any AnalyticsServiceProtocol,
+        availabilityService: any VendorAvailabilityServiceProtocol,
+        sessionStore: SessionStore
+    ) {
+        _store = State(initialValue: VendorProfileStore(
+            vendorID: vendorID,
+            vendorProfileService: vendorProfileService,
+            analyticsService: analyticsService,
+            availabilityService: availabilityService,
+            sessionStore: sessionStore
+        ))
+    }
 
     var body: some View {
         Group {
@@ -133,13 +149,33 @@ struct VendorProfileAboutCard: View {
                         .foregroundStyle(AppTheme.Palette.textPrimary)
                 }
 
-                if !vendor.serviceArea.isEmpty {
-                    Label(vendor.serviceArea, systemImage: "mappin.and.ellipse")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.subdued)
+                if !vendor.serviceArea.isEmpty || guestCapacityLabel != nil {
+                    HStack(spacing: 14) {
+                        if !vendor.serviceArea.isEmpty {
+                            Label(vendor.serviceArea, systemImage: "mappin.and.ellipse")
+                        }
+
+                        if let capacity = guestCapacityLabel {
+                            Label(capacity, systemImage: "person.2.fill")
+                        }
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.Palette.subdued)
                 }
             }
         }
+    }
+
+    private var guestCapacityLabel: String? {
+        guard case .catering(let d) = vendor.categoryDetails else { return nil }
+        if let min = d.minimumHeadcount, let max = d.maximumHeadcount {
+            return "\(min)–\(max) guests"
+        } else if let min = d.minimumHeadcount {
+            return "Min \(min) guests"
+        } else if let max = d.maximumHeadcount {
+            return "Up to \(max) guests"
+        }
+        return nil
     }
 }
 
@@ -282,22 +318,36 @@ struct VendorProfileAddOnsCard: View {
 
 struct VendorProfilePricingImagesCard: View {
     let imagePaths: [String]
+    @State private var selectedImageIndex: Int?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
-                ForEach(Array(imagePaths.enumerated()), id: \.offset) { _, path in
-                    AppSurface {
-                        PlanoImage(
-                            storagePath: path,
-                            size: .standard,
-                            cornerRadius: AppTheme.smallCornerRadius,
-                            contentMode: .fit
-                        )
-                        .frame(width: 260, height: 200)
-                        .clipped()
+                ForEach(Array(imagePaths.enumerated()), id: \.offset) { index, path in
+                    Button {
+                        selectedImageIndex = index
+                    } label: {
+                        AppSurface {
+                            PlanoImage(
+                                storagePath: path,
+                                size: .thumbnail,
+                                cornerRadius: AppTheme.smallCornerRadius,
+                                contentMode: .fit
+                            )
+                            .frame(width: 260, height: 200)
+                            .clipped()
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { selectedImageIndex != nil },
+            set: { if !$0 { selectedImageIndex = nil } }
+        )) {
+            if let index = selectedImageIndex {
+                GalleryImageViewer(storagePaths: imagePaths, startIndex: index)
             }
         }
     }
@@ -338,7 +388,7 @@ struct VendorProfileGalleryCard: View {
                         AppSurface {
                             PlanoImage(
                                 storagePath: image.storagePath,
-                                size: .standard,
+                                size: .thumbnail,
                                 cornerRadius: AppTheme.smallCornerRadius,
                                 contentMode: .fill
                             )

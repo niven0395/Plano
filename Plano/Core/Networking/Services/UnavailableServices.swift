@@ -47,10 +47,6 @@ struct UnavailableAuthService: AuthServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func verifyEmailOTP(email: String, token: String) async throws -> AuthenticatedUserProfile {
-        throw APIError.notConfigured(message)
-    }
-
     func resendEmailConfirmation(email: String) async throws {
         throw APIError.notConfigured(message)
     }
@@ -67,26 +63,6 @@ struct UnavailableAuthService: AuthServiceProtocol {
     }
 
     func deleteAccount() async throws -> DeletionResult {
-        throw APIError.notConfigured(message)
-    }
-}
-
-struct UnavailableEventService: EventServiceProtocol {
-    let message: String
-
-    func fetchEvents() async throws -> [PartyEvent] {
-        throw APIError.notConfigured(message)
-    }
-
-    func createEvent(from draft: EventDraft) async throws -> PartyEvent {
-        throw APIError.notConfigured(message)
-    }
-
-    func updateEventVenue(_ venue: String, eventID: UUID) async throws -> PartyEvent {
-        throw APIError.notConfigured(message)
-    }
-
-    func deleteEvent(eventID: UUID) async throws -> DeletionResult {
         throw APIError.notConfigured(message)
     }
 }
@@ -207,7 +183,7 @@ struct UnavailableBookingService: BookingServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversation(vendorID: UUID, hostID: UUID) async throws -> ConversationRecord {
         throw APIError.notConfigured(message)
     }
 
@@ -235,7 +211,7 @@ struct UnavailableBookingService: BookingServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?) async throws -> BookingTransitionResult {
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
@@ -275,19 +251,11 @@ struct UnavailableBookingService: BookingServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func fetchEventConfirmedVendors(eventID: UUID, requestingVendorID: UUID) async throws -> [CoBookedVendorRecord] {
-        throw APIError.notConfigured(message)
-    }
-
-    func createConversationServer(vendorID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversationServer(vendorID: UUID) async throws -> ConversationRecord {
         throw APIError.notConfigured(message)
     }
 
     func fetchConversationSummaries(role: String) async throws -> [ConversationSummaryRecord] {
-        throw APIError.notConfigured(message)
-    }
-
-    func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
         throw APIError.notConfigured(message)
     }
 
@@ -296,34 +264,6 @@ struct UnavailableBookingService: BookingServiceProtocol {
     }
 
     func saveVendorNote(conversationID: UUID, content: String) async throws {
-        throw APIError.notConfigured(message)
-    }
-}
-
-struct UnavailablePlannedVendorService: PlannedVendorServiceProtocol {
-    let message: String
-
-    func fetchPlannedVendors(eventID: UUID) async throws -> [PlannedVendorRecord] {
-        throw APIError.notConfigured(message)
-    }
-
-    func fetchAllPlannedVendors(eventIDs: [UUID]) async throws -> [PlannedVendorRecord] {
-        throw APIError.notConfigured(message)
-    }
-
-    func planVendor(eventID: UUID, vendorID: UUID, category: VendorCategory) async throws -> PlannedVendorRecord {
-        throw APIError.notConfigured(message)
-    }
-
-    func removePlannedVendor(eventID: UUID, vendorID: UUID) async throws {
-        throw APIError.notConfigured(message)
-    }
-
-    func updateStatus(eventID: UUID, vendorID: UUID, status: PlannedVendorStatus) async throws {
-        throw APIError.notConfigured(message)
-    }
-
-    func batchUpdateStatus(eventID: UUID, vendorIDs: [UUID], status: PlannedVendorStatus) async throws {
         throw APIError.notConfigured(message)
     }
 }

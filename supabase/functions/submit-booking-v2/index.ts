@@ -13,6 +13,7 @@ interface SubmitBookingV2Payload {
   budget_label?: string;
   guest_count_label?: string;
   requested_services?: string[];
+  intake_answers?: unknown[];
 }
 
 Deno.serve(async (request) => {
@@ -40,6 +41,7 @@ Deno.serve(async (request) => {
         p_budget_label: payload.budget_label ?? null,
         p_guest_count_label: payload.guest_count_label ?? null,
         p_requested_services: payload.requested_services ?? null,
+        p_intake_answers: payload.intake_answers ?? null,
       },
     );
 

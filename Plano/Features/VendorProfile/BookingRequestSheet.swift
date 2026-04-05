@@ -6,13 +6,24 @@ struct BookingRequestSheet: View {
     let selectedTimeslot: TimeslotOption?
     let requestedStartTime: Date?
     let requestedEndTime: Date?
-    let linkedEvent: PartyEvent?
-    let availableEvents: [PartyEvent]
-    let onEventChanged: (PartyEvent?) -> Void
     @Binding var note: String
+    let intakeQuestions: [LeadIntakeQuestion]
+    @Binding var intakeAnswers: [LeadIntakeAnswer]
     let isSubmitting: Bool
     let onSubmit: () -> Void
     let onCancel: () -> Void
+
+    private var hasIntakeQuestions: Bool {
+        !intakeQuestions.isEmpty
+    }
+
+    private var requiredQuestionsAnswered: Bool {
+        let required = intakeQuestions.filter(\.isRequired)
+        guard !required.isEmpty else { return true }
+        return required.allSatisfy { question in
+            intakeAnswers.first(where: { $0.questionID == question.id })?.hasValue ?? false
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -32,38 +43,14 @@ struct BookingRequestSheet: View {
                             Text("\(start.formatted(date: .omitted, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))")
                         }
                     }
-                    LabeledContent("Event") {
-                        if availableEvents.isEmpty {
-                            Text("No events")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Menu {
-                                Button {
-                                    onEventChanged(nil)
-                                } label: {
-                                    if linkedEvent == nil {
-                                        Label("No event", systemImage: "checkmark")
-                                    } else {
-                                        Text("No event")
-                                    }
-                                }
-                                Divider()
-                                ForEach(availableEvents) { event in
-                                    Button {
-                                        onEventChanged(event)
-                                    } label: {
-                                        if linkedEvent?.id == event.id {
-                                            Label("\(event.title) · \(event.formattedDate)", systemImage: "checkmark")
-                                        } else {
-                                            Text("\(event.title) · \(event.formattedDate)")
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Text(linkedEvent?.title ?? "No event")
-                                    .foregroundStyle(linkedEvent != nil ? .primary : .secondary)
-                            }
-                        }
+                }
+
+                if hasIntakeQuestions {
+                    Section("A few questions from the vendor") {
+                        LeadIntakeFormView(
+                            questions: intakeQuestions,
+                            answers: $intakeAnswers
+                        )
                     }
                 }
 
@@ -84,6 +71,7 @@ struct BookingRequestSheet: View {
                         ProgressView()
                     } else {
                         Button("Request", action: onSubmit)
+                            .disabled(!requiredQuestionsAnswered)
                     }
                 }
             }
@@ -92,6 +80,6 @@ struct BookingRequestSheet: View {
                 old && !new
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents(hasIntakeQuestions ? [.medium, .large] : [.medium])
     }
 }

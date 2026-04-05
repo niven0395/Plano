@@ -10,7 +10,7 @@ struct PlanoRootView: View {
     @Environment(InboxStore.self) private var inboxStore
     @Environment(VendorOnboardingStore.self) private var vendorOnboardingStore
     @Environment(VendorDashboardStore.self) private var vendorDashboardStore
-    @Environment(RequestsStore.self) private var requestsStore
+    @AppStorage("plano.host.hasSeenTour") private var hasSeenTour = false
 
     var body: some View {
         @Bindable var router = router
@@ -52,20 +52,9 @@ struct PlanoRootView: View {
 
             if !session.isAnonymous && session.currentRole == .host {
                 Tab("Planning", systemImage: "checklist", value: .events) {
-                    NavigationStack(path: $router.eventsPath) {
-                        EventListView()
-                            .navigationDestination(for: EventsRoute.self) { route in
-                                switch route {
-                                case .eventDetail(let eventID):
-                                    EventDetailView(eventID: eventID)
-                                case .eventPlanning(let eventID):
-                                    EventDetailView(eventID: eventID)
-                                case .hostWorkspace(let eventID):
-                                    EventDetailView(eventID: eventID)
-                                case .vendorWorkspace(let workspaceID):
-                                    VendorEventWorkspaceView(workspaceID: workspaceID)
-                                }
-                            }
+                    NavigationStack(path: $router.planningPath) {
+                        PlanningView()
+                            .withDiscoveryDestinations()
                     }
                 }
             }
@@ -90,6 +79,16 @@ struct PlanoRootView: View {
         }
         .sheet(isPresented: $session.requiresVendorOnboarding) {
             VendorOnboardingView(store: vendorOnboardingStore)
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { session.isAuthenticated && session.currentRole == .host && !hasSeenTour },
+                set: { if !$0 { hasSeenTour = true } }
+            )
+        ) {
+            hasSeenTour = true
+        } content: {
+            HostOnboardingView()
         }
         .overlay(alignment: .top) {
             if session.identityState == .initializing {
@@ -148,33 +147,26 @@ private struct DiscoveryDestinationView: View {
     @Environment(SessionStore.self) private var session
     @Environment(VendorDashboardStore.self) private var vendorDashboardStore
     @Environment(VendorProfileEditStore.self) private var vendorProfileEditStore
-    @Environment(EventWorkspaceStore.self) private var workspaceStore
 
     var body: some View {
         switch route {
         case .vendorProfile(let vendorID):
             VendorProfileView(
-                store: VendorProfileStore(
-                    vendorID: vendorID,
-                    vendorProfileService: environment.services.vendorProfileService,
-                    analyticsService: environment.services.analyticsService,
-                    availabilityService: environment.services.availabilityService,
-                    sessionStore: session
-                )
+                vendorID: vendorID,
+                vendorProfileService: environment.services.vendorProfileService,
+                analyticsService: environment.services.analyticsService,
+                availabilityService: environment.services.availabilityService,
+                sessionStore: session
             )
         case .vendorLeads:
             VendorRequestsView(store: vendorDashboardStore, showsNavigationBar: true)
         case .vendorLead(let request):
             VendorLeadDetailView(summary: request)
-        case .eventWorkspace(let eventID):
-            EventDetailView(eventID: eventID)
         case .categoryBrowse(let category):
             CategoryBrowseView(
-                store: CategoryBrowseStore(
-                    category: category,
-                    planner: hostPlanningStore,
-                    availabilityService: environment.services.availabilityService
-                )
+                category: category,
+                planner: hostPlanningStore,
+                availabilityService: environment.services.availabilityService
             )
         case .vendorInsights:
             VendorInsightsView(analyticsService: environment.services.analyticsService)
@@ -186,6 +178,8 @@ private struct DiscoveryDestinationView: View {
             VendorBlockDatesView()
         case .vendorAllWork:
             VendorAllWorkView()
+        case .bookingDetail(let conversationID):
+            BookingDetailView(conversationID: conversationID)
         }
     }
 }

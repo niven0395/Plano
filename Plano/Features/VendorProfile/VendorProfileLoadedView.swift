@@ -18,19 +18,8 @@ struct VendorProfileLoadedView: View {
         store.isSaved(planner: planner)
     }
 
-    private var resolvedEventForBookingCheck: PartyEvent? {
-        if let bookingStore, bookingStore.selectedBookingDate != nil {
-            return bookingStore.linkedEvent
-        }
-        return planner.events.isEmpty ? nil : planner.selectedEvent
-    }
-
     private var existingConversationID: UUID? {
-        guard let event = resolvedEventForBookingCheck else { return nil }
-        return inboxStore.existingConversationID(
-            vendorID: vendor.id,
-            eventID: event.id
-        )
+        inboxStore.existingConversationID(vendorID: vendor.id)
     }
 
     private var existingConversationStage: BookingStage? {
@@ -44,10 +33,6 @@ struct VendorProfileLoadedView: View {
         return blockingStages.contains(stage)
     }
 
-    private var hasSelectedEvent: Bool {
-        !planner.events.isEmpty
-    }
-
     private var primaryActionTitle: String {
         if store.isOwnVendorProfile {
             return "Your listing"
@@ -57,9 +42,6 @@ struct VendorProfileLoadedView: View {
         }
         if existingConversationID != nil {
             return "Open chat"
-        }
-        if !hasSelectedEvent {
-            return "Start inquiry"
         }
         return vendor.primaryCTA ?? "Message vendor"
     }
@@ -110,31 +92,32 @@ struct VendorProfileLoadedView: View {
                     .staggeredAppear(index: 5)
                 }
 
-                if store.canInitiateConversation {
-                    if store.sessionStore.isAnonymous {
-                        VendorProfileAuthPrompt(authStore: authStore)
-                    } else if hasBlockingBooking, let stage = existingConversationStage {
-                        AppSurface {
-                            HStack(spacing: 12) {
-                                Image(systemName: "calendar.badge.clock")
-                                    .font(.title3)
-                                    .foregroundStyle(AppTheme.toneColor(stage.tone))
+                if store.canInitiateConversation, !store.sessionStore.isAnonymous {
+                    if hasBlockingBooking, let stage = existingConversationStage, let conversationID = existingConversationID {
+                        NavigationLink(value: DiscoveryRoute.bookingDetail(conversationID)) {
+                            AppSurface {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .font(.title3)
+                                        .foregroundStyle(AppTheme.toneColor(stage.tone))
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Booking \(stage.title.lowercased())")
-                                        .font(.headline)
-                                        .foregroundStyle(AppTheme.Palette.textPrimary)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Booking \(stage.title.lowercased())")
+                                            .font(.headline)
+                                            .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                                    Text("Open the conversation to manage it.")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                                        Text("View booking details and manage it.")
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.Palette.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    StatusBadge(title: stage.title, tone: stage.tone)
                                 }
-
-                                Spacer()
-
-                                StatusBadge(title: stage.title, tone: stage.tone)
                             }
                         }
+                        .buttonStyle(.plain)
                     } else if vendor.isInquiryOnly {
                         VendorProfileInquiryCard(
                             vendorName: vendor.businessName,
@@ -183,7 +166,6 @@ struct VendorProfileLoadedView: View {
                                             if date != nil {
                                                 initBookingStore()
                                                 bookingStore?.selectedBookingDate = date
-                                                bookingStore?.resolveLinkedEvent(for: date)
                                             }
                                         }
                                     )
@@ -230,23 +212,20 @@ struct VendorProfileLoadedView: View {
                     VendorProfilePoliciesCard(policies: vendor.policies)
                 }
 
-                if !store.isOwnVendorProfile, !vendor.isInquiryOnly, store.canInitiateConversation || vendor.businessEmail != nil {
+                if !store.isOwnVendorProfile, !vendor.isInquiryOnly, !store.sessionStore.isAnonymous, store.canInitiateConversation || vendor.businessEmail != nil {
                     SectionHeader(title: "Contact")
                     VendorProfileContactCard(
                         vendor: vendor,
-                        primaryActionTitle: store.sessionStore.isAnonymous ? "Create an account" : primaryActionTitle,
+                        primaryActionTitle: primaryActionTitle,
                         canInitiateConversation: store.canInitiateConversation,
+                        bookingDetailRoute: hasBlockingBooking ? existingConversationID.map { DiscoveryRoute.bookingDetail($0) } : nil,
                         onMessageAction: {
-                            if store.sessionStore.isAnonymous {
-                                authStore.presentCreateAccount()
-                            } else {
-                                store.openConversation(
-                                    planner: planner,
-                                    inboxStore: inboxStore,
-                                    router: router,
-                                    hostIdentityPromptStore: hostIdentityPromptStore
-                                )
-                            }
+                            store.openConversation(
+                                planner: planner,
+                                inboxStore: inboxStore,
+                                router: router,
+                                hostIdentityPromptStore: hostIdentityPromptStore
+                            )
                         }
                     )
                 }
@@ -254,6 +233,10 @@ struct VendorProfileLoadedView: View {
                 if store.shouldShowSocial {
                     SectionHeader(title: "Social")
                     VendorProfileSocialCard(socialLinks: vendor.socialLinks)
+                }
+
+                if store.sessionStore.isAnonymous {
+                    VendorProfileAuthPrompt(authStore: authStore)
                 }
             }
             .padding(AppTheme.screenPadding)
@@ -276,10 +259,9 @@ struct VendorProfileLoadedView: View {
                     selectedTimeslot: bookingStore.selectedTimeslot,
                     requestedStartTime: bookingStore.requestedStartTime,
                     requestedEndTime: bookingStore.requestedEndTime,
-                    linkedEvent: bookingStore.linkedEvent,
-                    availableEvents: planner.events,
-                    onEventChanged: { bookingStore.setLinkedEvent($0) },
                     note: Bindable(bookingStore).bookingNote,
+                    intakeQuestions: vendor.enabledLeadIntakeQuestions,
+                    intakeAnswers: Bindable(bookingStore).intakeAnswers,
                     isSubmitting: bookingStore.isSubmittingBooking,
                     onSubmit: {
                         Task {
@@ -329,7 +311,6 @@ struct VendorProfileLoadedView: View {
             bookingService: environment.services.bookingService,
             availabilityService: environment.services.availabilityService,
             inboxStore: inboxStore,
-            planner: planner,
             router: router
         )
         Task {
@@ -345,7 +326,6 @@ struct VendorProfileLoadedView: View {
             bookingService: environment.services.bookingService,
             availabilityService: environment.services.availabilityService,
             inboxStore: inboxStore,
-            planner: planner,
             router: router
         )
         newStore.schedulingMode = vendor.schedulingMode
@@ -385,10 +365,9 @@ private struct VendorProfileBookingSection: View {
                 .disabled(!store.canSubmitBooking)
             }
         }
-        .onChange(of: store.selectedBookingDate) { _, newDate in
+        .onChange(of: store.selectedBookingDate) { _, _ in
             store.selectedTimeslot = nil
             store.updateTimeslotsForSelectedDate(vendor: vendor)
-            store.resolveLinkedEvent(for: newDate)
         }
     }
 }
@@ -427,6 +406,7 @@ private struct VendorProfileContactCard: View {
     let vendor: VendorProfile
     let primaryActionTitle: String
     let canInitiateConversation: Bool
+    var bookingDetailRoute: DiscoveryRoute? = nil
     let onMessageAction: () -> Void
 
     @Environment(\.openURL) private var openURL
@@ -440,10 +420,17 @@ private struct VendorProfileContactCard: View {
         AppSurface {
             VStack(spacing: 12) {
                 if canInitiateConversation {
-                    Button(action: onMessageAction) {
-                        Label(primaryActionTitle, systemImage: "bubble.left.fill")
+                    if let bookingDetailRoute {
+                        NavigationLink(value: bookingDetailRoute) {
+                            Label(primaryActionTitle, systemImage: "calendar.badge.clock")
+                        }
+                        .buttonStyle(PrimaryActionButtonStyle())
+                    } else {
+                        Button(action: onMessageAction) {
+                            Label(primaryActionTitle, systemImage: "bubble.left.fill")
+                        }
+                        .buttonStyle(PrimaryActionButtonStyle())
                     }
-                    .buttonStyle(PrimaryActionButtonStyle())
                 }
 
                 if hasEmail, let email = vendor.businessEmail,

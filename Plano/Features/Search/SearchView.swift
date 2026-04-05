@@ -38,10 +38,6 @@ struct SearchView: View {
             await planner.loadIfNeeded()
             await store.loadIfNeeded()
         }
-        .onChange(of: planner.selectedEventID) { _, _ in
-            store.syncToSelectedEvent()
-            showsFilters = false
-        }
     }
 
     private func toggleFilters() {
@@ -60,9 +56,7 @@ struct SearchDiscoveryState: View {
         case .live:
             SectionHeader(
                 title: "Suggested searches",
-                subtitle: store.hasEventContext
-                    ? "Contextual shortcuts for when you know the need, not the business name."
-                    : "Quick ways to jump into discovery when you know the kind of vendor you need."
+                subtitle: "Quick ways to jump into discovery when you know the kind of vendor you need."
             )
 
             AppSurface {
@@ -137,18 +131,14 @@ struct SearchResultState: View {
         SectionHeader(
             title: "\(store.visibleResults.count) vendors",
             subtitle: store.activeFilterSummary.isEmpty
-                ? (store.hasEventContext
-                    ? "Ranked for event fit, availability, reviews, response speed, and shortlist context."
-                    : "Ranked for reviews, response speed, pricing clarity, and shortlist context.")
+                ? "Ranked for reviews, response speed, pricing clarity, and shortlist context."
                 : store.activeFilterSummary
         )
 
         if !planner.savedVendorIDs.isEmpty {
             AppSurface {
                 Label(
-                    store.hasEventContext
-                        ? "\(planner.savedVendorIDs.count) shortlisted vendors are boosted for this event."
-                        : "\(planner.savedVendorIDs.count) shortlisted vendors are boosted in search.",
+                    "\(planner.savedVendorIDs.count) shortlisted vendors are boosted in search.",
                     systemImage: "heart.fill"
                 )
                 .font(.subheadline.weight(.semibold))

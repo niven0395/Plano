@@ -10,6 +10,7 @@ final class CategoryBrowseStore {
     @ObservationIgnored private let availabilityService: any VendorAvailabilityServiceProtocol
     @ObservationIgnored private var candidateVendors: [VendorProfile] = []
     @ObservationIgnored private var availableVendorIDs: Set<UUID> = []
+    @ObservationIgnored private var hasLoaded = false
 
     var filterState = CategoryBrowseFilterState()
     var photoVideoTab: PhotoVideoTab = .photos
@@ -47,16 +48,21 @@ final class CategoryBrowseStore {
 
     var vendorCount: Int { visibleResults.count }
 
-    var hasEventContext: Bool { !planner.events.isEmpty }
-
-    var selectedEvent: PartyEvent { planner.selectedEvent }
+    func loadIfNeeded() async {
+        guard !hasLoaded else { return }
+        await load()
+    }
 
     func load() async {
+        if candidateVendors.isEmpty {
+            presentationState = .loading
+        }
+
         let request = VendorSearchRequest(
             text: "",
             category: category,
             city: nil,
-            eventDate: hasEventContext ? selectedEvent.date : nil,
+            eventDate: nil,
             limit: 80
         )
 
@@ -80,6 +86,7 @@ final class CategoryBrowseStore {
             availableCities = deriveCities(from: vendors)
             recomputeVisibleResults()
             presentationState = .live
+            hasLoaded = true
         } catch is CancellationError {
             // Normal lifecycle
         } catch {
@@ -200,7 +207,6 @@ final class CategoryBrowseStore {
         var score = 0
 
         if planner.isSavedVendor(vendor.id) { score += 110 }
-        if hasEventContext && availableVendorIDs.contains(vendor.id) { score += 35 }
         if vendor.pricingVisibility == .public, vendor.priceValue > 0 { score += 8 }
 
         switch vendor.availability {
@@ -223,9 +229,6 @@ final class CategoryBrowseStore {
 
         if planner.isSavedVendor(vendor.id) {
             reasons.append(SearchRankingReason(title: "Saved shortlist", tone: .coral))
-        }
-        if hasEventContext && availableVendorIDs.contains(vendor.id) {
-            reasons.append(SearchRankingReason(title: "Fits event date", tone: .sage))
         }
         if vendor.responseMinutes <= 20 {
             reasons.append(SearchRankingReason(title: "Fast reply", tone: .gold))

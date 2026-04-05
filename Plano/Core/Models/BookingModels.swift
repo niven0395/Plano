@@ -93,11 +93,10 @@ struct BookingRequestSummary: Identifiable, Hashable, Sendable {
     let id: UUID
     let conversationID: UUID?
     let vendorID: UUID?
-    let eventID: UUID?
     let counterpartName: String
-    let eventTitle: String
-    let eventDateLabel: String
-    let eventTimeLabel: String?
+    let title: String
+    let dateLabel: String
+    let timeLabel: String?
     let detail: String
     let amountLabel: String
     let stage: BookingStage
@@ -106,11 +105,10 @@ struct BookingRequestSummary: Identifiable, Hashable, Sendable {
         id: UUID = UUID(),
         conversationID: UUID? = nil,
         vendorID: UUID? = nil,
-        eventID: UUID? = nil,
         counterpartName: String,
-        eventTitle: String,
-        eventDateLabel: String,
-        eventTimeLabel: String? = nil,
+        title: String,
+        dateLabel: String,
+        timeLabel: String? = nil,
         detail: String,
         amountLabel: String,
         stage: BookingStage
@@ -118,11 +116,10 @@ struct BookingRequestSummary: Identifiable, Hashable, Sendable {
         self.id = id
         self.conversationID = conversationID
         self.vendorID = vendorID
-        self.eventID = eventID
         self.counterpartName = counterpartName
-        self.eventTitle = eventTitle
-        self.eventDateLabel = eventDateLabel
-        self.eventTimeLabel = eventTimeLabel
+        self.title = title
+        self.dateLabel = dateLabel
+        self.timeLabel = timeLabel
         self.detail = detail
         self.amountLabel = amountLabel
         self.stage = stage
@@ -133,11 +130,10 @@ struct BookingRequestSummary: Identifiable, Hashable, Sendable {
             id: id,
             conversationID: conversationID,
             vendorID: vendorID,
-            eventID: eventID,
             counterpartName: counterpartName,
-            eventTitle: eventTitle,
-            eventDateLabel: eventDateLabel,
-            eventTimeLabel: eventTimeLabel,
+            title: title,
+            dateLabel: dateLabel,
+            timeLabel: timeLabel,
             detail: detail ?? self.detail,
             amountLabel: amountLabel ?? self.amountLabel,
             stage: stage

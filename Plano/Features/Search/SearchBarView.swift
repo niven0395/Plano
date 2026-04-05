@@ -4,7 +4,6 @@ struct SearchBarView: View {
     @Bindable var store: SearchStore
     var showsFilters: Bool
     var toggleFilters: () -> Void
-
     var body: some View {
         VStack(alignment: .leading, spacing: showsFilters ? 18 : 10) {
             HStack(spacing: 12) {
@@ -43,8 +42,7 @@ struct SearchBarView: View {
 
                 if !store.query.isEmpty ||
                     store.selectedCategory != nil ||
-                    store.availabilityDate != nil ||
-                    store.ratingFilter != .all {
+                    store.availabilityDate != nil {
                     Button("Clear", action: store.clearFilters)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.accent)
@@ -77,31 +75,12 @@ private struct SearchControlsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(AppTheme.Palette.textSecondary)
 
-            HStack(spacing: 12) {
-                AvailabilityDateChip(
-                    date: Binding(
-                        get: { store.availabilityDate },
-                        set: { store.availabilityDate = $0 }
-                    )
+            AvailabilityDateChip(
+                date: Binding(
+                    get: { store.availabilityDate },
+                    set: { store.availabilityDate = $0 }
                 )
-
-
-                Picker("Rating", selection: $store.ratingFilter) {
-                    ForEach(SearchRatingFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                Picker("Sort", selection: $store.sortMode) {
-                    ForEach(SearchSortMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(AppTheme.Palette.textPrimary)
+            )
         }
     }
 }

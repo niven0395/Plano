@@ -31,9 +31,9 @@ actor LiveBookingService: BookingServiceProtocol {
             .value
     }
 
-    func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversation(vendorID: UUID, hostID: UUID) async throws -> ConversationRecord {
         _ = try await sessionUserID(expected: hostID, action: "createConversation")
-        return try await createConversationServer(vendorID: vendorID, eventID: eventID)
+        return try await createConversationServer(vendorID: vendorID)
     }
 
     func fetchMessages(conversationID: UUID) async throws -> [MessageRecord] {
@@ -114,7 +114,7 @@ actor LiveBookingService: BookingServiceProtocol {
             .value
     }
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?) async throws -> BookingTransitionResult {
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "submit-booking-v2",
             body: SubmitBookingRequestV2Payload(
@@ -127,7 +127,8 @@ actor LiveBookingService: BookingServiceProtocol {
                 title: title,
                 budgetLabel: budgetLabel,
                 guestCountLabel: guestCountLabel,
-                requestedServices: requestedServices
+                requestedServices: requestedServices,
+                intakeAnswers: intakeAnswers
             )
         )
     }
@@ -212,22 +213,10 @@ actor LiveBookingService: BookingServiceProtocol {
         return response.conflicts
     }
 
-    func fetchEventConfirmedVendors(eventID: UUID, requestingVendorID: UUID) async throws -> [CoBookedVendorRecord] {
-        try await client.rpc(
-            "event_confirmed_vendors",
-            params: [
-                "p_event_id": eventID.uuidString,
-                "p_requesting_vendor_id": requestingVendorID.uuidString,
-            ]
-        )
-        .execute()
-        .value
-    }
-
-    func createConversationServer(vendorID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversationServer(vendorID: UUID) async throws -> ConversationRecord {
         try await invokeFunction(
             "create-conversation-server",
-            body: CreateConversationServerPayload(vendorID: vendorID, eventID: eventID)
+            body: CreateConversationServerPayload(vendorID: vendorID)
         )
     }
 
@@ -236,18 +225,6 @@ actor LiveBookingService: BookingServiceProtocol {
             "fetch-booking-summary",
             body: FetchBookingSummaryPayload(role: role)
         )
-    }
-
-    func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
-        try await ensureFreshToken()
-        try await client.from("conversations")
-            .update(["event_id": eventID.uuidString])
-            .eq("id", value: conversationID)
-            .execute()
-        try await client.from("bookings")
-            .update(["event_id": eventID.uuidString])
-            .eq("conversation_id", value: conversationID)
-            .execute()
     }
 
     func fetchVendorNote(conversationID: UUID) async throws -> String? {
@@ -393,9 +370,6 @@ actor LiveBookingService: BookingServiceProtocol {
         case .httpError(let code, let data):
             let bodyPreview = String(data: data.prefix(500), encoding: .utf8) ?? "<non-utf8>"
             AppLogger.booking.error("Edge function HTTP \(code): \(bodyPreview, privacy: .public)")
-            if code == 401 {
-                return APIError.notSupported("Your session expired. Please sign in again, then retry the cancellation.")
-            }
             if let message = EdgeFunctionErrorParser.userFacingMessage(from: data) {
                 return APIError.notSupported(message)
             }
@@ -426,11 +400,9 @@ actor LiveBookingService: BookingServiceProtocol {
 
 private struct CreateConversationServerPayload: Encodable {
     let vendorID: UUID
-    let eventID: UUID?
 
     enum CodingKeys: String, CodingKey {
         case vendorID = "vendor_id"
-        case eventID = "event_id"
     }
 }
 
@@ -449,7 +421,7 @@ actor LiveBookingService: BookingServiceProtocol {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversation(vendorID: UUID, hostID: UUID) async throws -> ConversationRecord {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
@@ -517,11 +489,7 @@ actor LiveBookingService: BookingServiceProtocol {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func fetchEventConfirmedVendors(eventID: UUID, requestingVendorID: UUID) async throws -> [CoBookedVendorRecord] {
-        throw APIError.notSupported("The Supabase SDK is not available in this build.")
-    }
-
-    func createConversationServer(vendorID: UUID, eventID: UUID?) async throws -> ConversationRecord {
+    func createConversationServer(vendorID: UUID) async throws -> ConversationRecord {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
@@ -529,8 +497,5 @@ actor LiveBookingService: BookingServiceProtocol {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
-        throw APIError.notSupported("The Supabase SDK is not available in this build.")
-    }
 }
 #endif

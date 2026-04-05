@@ -75,8 +75,7 @@ struct EventTimeRangeBookingSection: View {
                 .disabled(!store.canSubmitBooking)
             }
         }
-        .onChange(of: store.selectedBookingDate) { _, newDate in
-            store.resolveLinkedEvent(for: newDate)
+        .onChange(of: store.selectedBookingDate) { _, _ in
         }
     }
 }

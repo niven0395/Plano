@@ -148,7 +148,7 @@ struct VendorLeadDetailView: View {
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                        Text(conversation?.eventTitle ?? summary.eventTitle)
+                        Text(conversation?.eventTitle ?? summary.title)
                             .font(.headline)
                             .foregroundStyle(AppTheme.Palette.textSecondary)
                     }
@@ -160,7 +160,7 @@ struct VendorLeadDetailView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     LeadOverviewRow(
-                        label: conversation?.eventDateLabel ?? summary.eventDateLabel,
+                        label: conversation?.eventDateLabel ?? summary.dateLabel,
                         systemImage: "calendar"
                     )
 
@@ -458,15 +458,15 @@ struct VendorLeadDetailView: View {
         if let bookingRequest {
             var rows: [DetailRow] = []
 
-            let partyType = (conversation?.eventTitle ?? summary.eventTitle).trimmingCharacters(in: .whitespacesAndNewlines)
+            let partyType = (conversation?.eventTitle ?? summary.title).trimmingCharacters(in: .whitespacesAndNewlines)
             if !partyType.isEmpty, partyType != "Direct inquiry" {
                 rows.append(DetailRow("Party type", partyType))
             }
 
             if let eventDate = bookingRequest.eventDate {
                 rows.append(DetailRow("Event date", eventDate.formatted(.dateTime.month().day().year())))
-            } else if !summary.eventDateLabel.isEmpty, summary.eventDateLabel != "Date pending" {
-                rows.append(DetailRow("Event date", summary.eventDateLabel))
+            } else if !summary.dateLabel.isEmpty, summary.dateLabel != "Date pending" {
+                rows.append(DetailRow("Event date", summary.dateLabel))
             }
 
             if let guestCountLabel = bookingRequest.guestCountLabel,
@@ -493,8 +493,8 @@ struct VendorLeadDetailView: View {
         }
 
         return [
-            DetailRow("Party type", summary.eventTitle),
-            DetailRow("Event date", summary.eventDateLabel),
+            DetailRow("Party type", summary.title),
+            DetailRow("Event date", summary.dateLabel),
         ]
         .filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }

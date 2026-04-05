@@ -5,40 +5,21 @@ struct PhotographyCategorySection: View {
 
     var body: some View {
         AppSurface {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 if !details.deliverables.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Deliverables")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.subdued)
-
-                        LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: 110), spacing: 10)],
-                            spacing: 10
-                        ) {
-                            ForEach(details.deliverables, id: \.self) { deliverable in
-                                FilterChip(title: deliverable, isSelected: false)
-                            }
-                        }
-                    }
+                    CategoryChipsGroup(title: "Deliverables", items: details.deliverables)
                 }
 
                 if !details.turnaroundNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Label(details.turnaroundNote, systemImage: "clock")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                    CategoryTextLabel(text: details.turnaroundNote, systemImage: "clock")
                 }
 
                 if details.secondShooterAvailable {
-                    Label("Second shooter available", systemImage: "person.2.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.toneColor(.blue))
+                    CategoryBooleanLabel(title: "Second shooter available", systemImage: "person.2.fill")
                 }
 
                 if details.droneAvailable {
-                    Label("Drone available", systemImage: "airplane")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.toneColor(.blue))
+                    CategoryBooleanLabel(title: "Drone available", systemImage: "airplane")
                 }
             }
         }

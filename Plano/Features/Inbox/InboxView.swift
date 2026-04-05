@@ -53,11 +53,21 @@ struct InboxView: View {
                 .scrollIndicators(.hidden)
             } else if visibleConversations.isEmpty {
                 ScrollView {
-                    EmptyStateCard(
-                        symbolName: "bubble.left.and.bubble.right",
-                        title: "Nothing in this inbox view",
-                        message: "Switch the filter to inspect unread or archived threads."
-                    )
+                    Group {
+                        if store.conversations.isEmpty {
+                            EmptyStateCard(
+                                symbolName: "bubble.left.and.bubble.right",
+                                title: "Start a conversation",
+                                message: "Browse vendors and tap Message to begin."
+                            )
+                        } else {
+                            EmptyStateCard(
+                                symbolName: "bubble.left.and.bubble.right",
+                                title: "Nothing in this inbox view",
+                                message: "Switch the filter to inspect unread or archived threads."
+                            )
+                        }
+                    }
                     .padding(AppTheme.screenPadding)
                     .padding(.bottom, 32)
                 }

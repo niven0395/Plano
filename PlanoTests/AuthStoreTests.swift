@@ -277,7 +277,11 @@ actor FailingAuthService: AuthServiceProtocol {
         email: String,
         password: String,
         displayName: String?
-    ) async throws -> AuthenticatedUserProfile {
+    ) async throws -> EmailSignUpResult {
+        throw TestAuthError.signInFailed
+    }
+
+    func resendEmailConfirmation(email: String) async throws {
         throw TestAuthError.signInFailed
     }
 

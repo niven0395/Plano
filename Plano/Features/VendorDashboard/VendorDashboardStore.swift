@@ -27,8 +27,7 @@ struct RevenueLineItem: Identifiable, Hashable {
     let id: UUID
     let conversationID: UUID
     let hostName: String
-    let eventTitle: String
-    let eventDateLabel: String
+    let bookingDateLabel: String
     let amountCents: Int
     let amountLabel: String
     let paymentType: PaymentType?
@@ -99,7 +98,6 @@ final class VendorDashboardStore {
     @ObservationIgnored private var hasLoaded = false
     @ObservationIgnored private var allBookings: [BookingRecord] = []
 
-    var nextEvent: EventSummary? { upcomingEvents.first }
     var metrics: [MetricSummary] = []
     var revenueSnapshot: RevenueSnapshot = .empty
     var responseTimeLabel: String = "—"
@@ -134,7 +132,11 @@ final class VendorDashboardStore {
         inboxStore.vendorScopedConversations()
             .filter { $0.stage == .paid }
             .map { makeSummary(from: $0) }
-            .sorted { $0.eventDateLabel < $1.eventDateLabel }
+            .sorted { $0.dateLabel < $1.dateLabel }
+    }
+
+    var confirmedBookings: [BookingRequestSummary] {
+        confirmedLeads
     }
 
     var leadQueue: [BookingRequestSummary] {
@@ -148,26 +150,7 @@ final class VendorDashboardStore {
         inboxStore.vendorScopedConversations()
             .filter { $0.stage == .completed || $0.stage.isTerminal }
             .map { makeSummary(from: $0) }
-            .sorted { $0.eventDateLabel > $1.eventDateLabel }
-    }
-
-    var upcomingEvents: [EventSummary] {
-        inboxStore.vendorScopedConversations()
-            .filter { $0.stage.isConfirmed }
-            .map { thread in
-                EventSummary(
-                    id: thread.eventID ?? thread.id,
-                    title: thread.eventTitle,
-                    kind: thread.vendorCategory.title,
-                    dateLabel: thread.eventDateLabel,
-                    venue: thread.eventContextLine,
-                    guestCountLabel: thread.eventContextLine,
-                    completionText: "Confirmed in the shared conversation thread.",
-                    progress: 1,
-                    stage: thread.stage
-                )
-            }
-            .sorted { $0.dateLabel < $1.dateLabel }
+            .sorted { $0.dateLabel > $1.dateLabel }
     }
 
     init(
@@ -276,10 +259,9 @@ final class VendorDashboardStore {
         return BookingRequestSummary(
             conversationID: thread.id,
             vendorID: thread.vendorID,
-            eventID: thread.eventID,
             counterpartName: thread.hostName,
-            eventTitle: thread.eventTitle,
-            eventDateLabel: thread.eventDateLabel,
+            title: thread.eventTitle,
+            dateLabel: thread.eventDateLabel,
             detail: detail,
             amountLabel: amountLabel,
             stage: thread.stage
@@ -409,8 +391,7 @@ final class VendorDashboardStore {
                 id: thread.id,
                 conversationID: thread.id,
                 hostName: thread.hostName,
-                eventTitle: thread.eventTitle,
-                eventDateLabel: thread.eventDateLabel,
+                bookingDateLabel: thread.eventDateLabel,
                 amountCents: cents,
                 amountLabel: CurrencyValueFormatter.label(forCents: cents),
                 paymentType: booking.paymentType.flatMap { PaymentType(rawValue: $0) },
@@ -478,8 +459,8 @@ final class VendorDashboardStore {
                 return lhs.stage.requiresVendorAction
             }
 
-            let lhsDate = sortDate(for: lhs.eventDateLabel) ?? .distantFuture
-            let rhsDate = sortDate(for: rhs.eventDateLabel) ?? .distantFuture
+            let lhsDate = sortDate(for: lhs.dateLabel) ?? .distantFuture
+            let rhsDate = sortDate(for: rhs.dateLabel) ?? .distantFuture
             if lhsDate != rhsDate {
                 return lhsDate < rhsDate
             }

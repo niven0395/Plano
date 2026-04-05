@@ -1,2 +1,7 @@
 Config/LocalSecrets.xcconfig
+.agent/
+.agents/
+.claude/
+.factory/
+.windsurf/
 

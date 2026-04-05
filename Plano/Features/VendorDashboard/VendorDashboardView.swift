@@ -5,20 +5,18 @@ struct VendorDashboardView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AppEnvironment.self) private var environment
     @Environment(InboxStore.self) private var inboxStore
-    @Environment(EventWorkspaceStore.self) private var workspaceStore
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VendorCalendarSection(
-                    inboxStore: inboxStore,
-                    workspaceStore: workspaceStore
+                    inboxStore: inboxStore
                 )
 
-                if !workspaceStore.vendorWorkspaces.isEmpty {
+                if !store.confirmedLeads.isEmpty {
                     HStack(alignment: .firstTextBaseline) {
                         SectionHeader(
-                            title: "Upcoming work",
-                            subtitle: "Your confirmed events and their details, all in one place."
+                            title: "Confirmed bookings",
+                            subtitle: "Your confirmed work at a glance."
                         )
 
                         Spacer(minLength: 12)
@@ -35,15 +33,11 @@ struct VendorDashboardView: View {
                     }
 
                     LazyVStack(spacing: 16) {
-                        ForEach(workspaceStore.vendorWorkspaces.prefix(2)) { workspace in
-                            if let summary = store.confirmedLead(forConversationID: workspace.conversationID ?? workspace.id) {
-                                NavigationLink(value: DiscoveryRoute.vendorLead(summary)) {
-                                    VendorUpcomingWorkspaceCard(workspace: workspace)
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                VendorUpcomingWorkspaceCard(workspace: workspace)
+                        ForEach(store.confirmedLeads.prefix(2)) { lead in
+                            NavigationLink(value: DiscoveryRoute.vendorLead(lead)) {
+                                VendorConfirmedBookingCard(lead: lead)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -245,7 +239,7 @@ private struct VendorLeadRow: View {
                     }
                 }
 
-                Text("\(request.eventTitle) · \(request.eventDateLabel)")
+                Text("\(request.title) · \(request.dateLabel)")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -272,7 +266,7 @@ private struct VendorLeadRow: View {
         .padding(.vertical, 14)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(request.counterpartName), \(request.eventTitle), \(request.eventDateLabel), \(request.stage.vendorActionLabel)")
+        .accessibilityLabel("\(request.counterpartName), \(request.title), \(request.dateLabel), \(request.stage.vendorActionLabel)")
     }
 
     private var counterpartLabel: some View {
@@ -297,5 +291,33 @@ private struct VendorLeadActionBadge: View {
                 Capsule()
                     .stroke(AppTheme.toneColor(stage.tone).opacity(0.18), lineWidth: 1)
             }
+    }
+}
+
+private struct VendorConfirmedBookingCard: View {
+    let lead: BookingRequestSummary
+
+    var body: some View {
+        AppSurface {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(AppTheme.toneColor(.sage))
+                    .frame(width: 8, height: 8)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(lead.counterpartName)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                    Text(lead.dateLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                }
+
+                Spacer()
+
+                StatusBadge(title: lead.stage.title, tone: lead.stage.tone)
+            }
+        }
     }
 }

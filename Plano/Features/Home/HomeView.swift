@@ -11,10 +11,15 @@ struct HomeView: View {
     @Environment(SearchStore.self) private var searchStore
     @Environment(HostPlanningStore.self) private var planner
 
+    @AppStorage("plano.home.welcomeDismissed") private var welcomeDismissed = false
     @State private var showsFilters = false
 
     private var popularCategories: [CategoryShortcut] {
         VendorCategory.homeDisplayOrder.map { CategoryShortcut(category: $0) }
+    }
+
+    private var showsWelcomeHero: Bool {
+        !planner.hasCompletedOnboarding && !welcomeDismissed
     }
 
     private var isSearchActive: Bool {
@@ -24,6 +29,14 @@ struct HomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                if showsWelcomeHero {
+                    WelcomeHeroCard {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            welcomeDismissed = true
+                        }
+                    }
+                }
+
                 SectionHeader(title: "Discover")
 
                 SearchBarView(
@@ -54,10 +67,6 @@ struct HomeView: View {
         .task {
             await planner.loadIfNeeded()
             await searchStore.loadIfNeeded()
-        }
-        .onChange(of: planner.selectedEventID) { _, _ in
-            searchStore.syncToSelectedEvent()
-            showsFilters = false
         }
     }
 
@@ -92,6 +101,36 @@ private struct HomePopularCategoriesSection: View {
                 }
             }
         }
+    }
+}
+
+private struct WelcomeHeroCard: View {
+    var onDismiss: () -> Void
+
+    var body: some View {
+        AppSurface(style: .highlighted) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    Text("Find your perfect vendors")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                    Spacer()
+
+                    Button("Dismiss", systemImage: "xmark") {
+                        onDismiss()
+                    }
+                    .labelStyle(.iconOnly)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.Palette.subdued)
+                }
+
+                Text("Browse by category to discover vendors for your next event.")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }
 

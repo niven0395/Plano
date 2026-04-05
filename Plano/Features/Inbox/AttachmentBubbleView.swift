@@ -1,5 +1,7 @@
+import ImageIO
 import SwiftUI
 import OSLog
+import UniformTypeIdentifiers
 
 struct AttachmentBubbleView: View {
     let attachment: MessageAttachment
@@ -185,6 +187,17 @@ struct PendingAttachmentPreviewRow: View {
     let attachments: [PendingAttachment]
     let onRemove: (PendingAttachment) -> Void
 
+    static func downsampledImage(from data: Data, maxPixels: Int) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: cgImage)
+    }
+
     var body: some View {
         if !attachments.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -192,7 +205,7 @@ struct PendingAttachmentPreviewRow: View {
                     ForEach(attachments) { attachment in
                         ZStack(alignment: .topTrailing) {
                             if attachment.isImage {
-                                if let uiImage = UIImage(data: attachment.data) {
+                                if let uiImage = Self.downsampledImage(from: attachment.data, maxPixels: 180) {
                                     Image(uiImage: uiImage)
                                         .resizable()
                                         .scaledToFill()

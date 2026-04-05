@@ -18,7 +18,7 @@ struct CategoryBrowseResultCard: View {
                 if let path = imagePath, !path.isEmpty {
                     PlanoImage(
                         storagePath: path,
-                        size: .standard,
+                        size: .thumbnail,
                         cornerRadius: 0,
                         contentMode: .fill
                     )

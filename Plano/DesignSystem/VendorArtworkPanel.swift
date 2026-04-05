@@ -18,7 +18,7 @@ struct VendorArtworkPanel: View {
         if let path = effectiveImagePath, !path.isEmpty {
             PlanoImage(
                 storagePath: path,
-                size: .standard,
+                size: .thumbnail,
                 cornerRadius: AppTheme.compactCornerRadius,
                 contentMode: .fill
             )

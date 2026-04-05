@@ -10,6 +10,13 @@ struct GalleryImageViewer: View {
         self._currentIndex = State(initialValue: startIndex)
     }
 
+    init(storagePaths: [String], startIndex: Int) {
+        self.images = storagePaths.enumerated().map { index, path in
+            VendorGalleryImage(storagePath: path, displayOrder: index)
+        }
+        self._currentIndex = State(initialValue: startIndex)
+    }
+
     var body: some View {
         NavigationStack {
             TabView(selection: $currentIndex) {

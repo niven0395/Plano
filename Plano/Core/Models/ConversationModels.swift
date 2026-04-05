@@ -198,25 +198,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
     }
 
     var lastMessagePreview: String {
-        messages.last?.previewText ?? "Conversation ready for event coordination."
-    }
-
-    var contextTitle: String {
-        eventTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "Direct inquiry"
-            : eventTitle
-    }
-
-    var guestCountLabel: String {
-        let trimmedContext = eventContextLine.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedContext.isEmpty else {
-            return "Guest count pending"
-        }
-
-        return trimmedContext
-            .split(separator: "•")
-            .last
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? trimmedContext
+        messages.last?.previewText ?? "No messages yet."
     }
 
     var resolvedEventDate: Date? {
@@ -259,7 +241,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         ConversationSummary(
             id: id,
             counterpartName: counterpartName(for: role),
-            contextTitle: contextTitle,
+            contextTitle: vendorCategory.singularTitle,
             preview: lastMessagePreview,
             timeLabel: formatter.localizedString(for: lastActivityAt, relativeTo: .now),
             unreadCount: unreadCount(for: role),

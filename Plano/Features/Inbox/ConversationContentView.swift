@@ -10,7 +10,6 @@ struct ConversationContentView: View {
     @Environment(AppRouter.self) private var router
     @Environment(RealtimeManager.self) private var realtimeManager
     @Environment(NetworkMonitor.self) private var networkMonitor
-    @Environment(EventWorkspaceStore.self) private var workspaceStore
     @FocusState private var isComposerFocused: Bool
     @State private var declineReason = ""
     @State private var cancellationReason = ""
@@ -36,49 +35,6 @@ struct ConversationContentView: View {
                         isNetworkConnected: networkMonitor.isConnected,
                         hasEverConnected: realtimeManager.hasEverConnected
                     )
-
-                    if conversation.eventID != nil {
-                        ConversationContextCard(
-                            eventTitle: conversation.eventTitle,
-                            eventContextLine: conversation.eventContextLine,
-                            stage: conversation.stage,
-                            eventDateLabel: conversation.eventDateLabel,
-                            vendorName: conversation.vendorName,
-                            vendorCategory: conversation.vendorCategory
-                        )
-                    }
-
-                    if session.currentRole == .vendor,
-                       conversation.stage.isConfirmed,
-                       conversation.eventID != nil {
-                        let count = workspaceStore.coVendorCount(for: conversation.eventID)
-                        if count > 0 {
-                            Button {
-                                if let eventID = conversation.eventID {
-                                    router.openVendorEventWorkspace(eventID)
-                                }
-                            } label: {
-                                AppSurface {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "person.2.fill")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(AppTheme.toneColor(.blue))
-
-                                        Text("\(count) other vendor\(count == 1 ? "" : "s") confirmed")
-                                            .font(.subheadline.weight(.medium))
-                                            .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                                        Spacer()
-
-                                        Image(systemName: "chevron.right")
-                                            .font(.footnote.weight(.semibold))
-                                            .foregroundStyle(AppTheme.Palette.subdued)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
 
                     ConversationBookingStatusBanner(
                         thread: conversation,

@@ -202,25 +202,17 @@ enum DiscoveryRoute: Hashable {
     case vendorProfile(UUID)
     case vendorLeads
     case vendorLead(BookingRequestSummary)
-    case eventWorkspace(UUID)
     case categoryBrowse(VendorCategory)
     case vendorInsights
     case vendorRevenue
     case vendorAvailability
     case vendorBlockDates
     case vendorAllWork
-}
-
-enum EventsRoute: Hashable {
-    case eventDetail(UUID)
-    case eventPlanning(UUID)
-    case hostWorkspace(UUID)
-    case vendorWorkspace(UUID)
+    case bookingDetail(UUID)
 }
 
 enum ShortcutLaunchAction: String {
     case pendingRequests
-    case todayEvents
     case continueLatestConversation
     case searchPhotographers
 }
@@ -250,7 +242,7 @@ final class AppRouter {
     var homePath: [DiscoveryRoute] = []
     var searchPath: [DiscoveryRoute] = []
     var inboxPath: [InboxRoute] = []
-    var eventsPath: [EventsRoute] = []
+    var planningPath: [DiscoveryRoute] = []
 
     @ObservationIgnored weak var inboxStore: InboxStore?
 
@@ -262,7 +254,7 @@ final class AppRouter {
     func resetAllPaths() {
         resetDiscoveryPaths()
         inboxPath = []
-        eventsPath = []
+        planningPath = []
     }
 
     func openConversation(_ conversationID: UUID) {
@@ -277,26 +269,4 @@ final class AppRouter {
         homePath = [.vendorProfile(vendorID)]
     }
 
-    func showEventTabRoot() {
-        selectedTab = .events
-        eventsPath = []
-    }
-
-    func openEventDetail(_ eventID: UUID) {
-        selectedTab = .events
-        eventsPath = [.eventDetail(eventID)]
-    }
-
-    func openHostEventWorkspace(_ eventID: UUID) {
-        openEventDetail(eventID)
-    }
-
-    func openEventPlanning(_ eventID: UUID) {
-        openEventDetail(eventID)
-    }
-
-    func openVendorEventWorkspace(_ workspaceID: UUID) {
-        selectedTab = .events
-        eventsPath = [.vendorWorkspace(workspaceID)]
-    }
 }

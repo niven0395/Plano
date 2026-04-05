@@ -17,14 +17,11 @@ struct PlanoApp: App {
     @State private var hostPlanningStore: HostPlanningStore
     @State private var searchStore: SearchStore
     @State private var inboxStore: InboxStore
-    @State private var requestsStore: RequestsStore
-    @State private var eventsStore: EventsStore
     @State private var shortcutsEnabled = true
     @State private var profilePreferences = ProfilePreferences()
     @State private var vendorOnboardingStore: VendorOnboardingStore
     @State private var vendorProfileEditStore: VendorProfileEditStore
     @State private var vendorDashboardStore: VendorDashboardStore
-    @State private var eventWorkspaceStore: EventWorkspaceStore
     @State private var networkMonitor: NetworkMonitor
     @State private var realtimeManager: RealtimeManager
     @State private var pushNotificationManager: PushNotificationManager
@@ -51,9 +48,7 @@ struct PlanoApp: App {
         )
         let hostIdentityPromptStore = HostIdentityPromptStore(authStore: authStore)
         let hostPlanningStore = HostPlanningStore(
-            eventService: services.eventService,
-            vendorSearchService: services.vendorSearchService,
-            plannedVendorService: services.plannedVendorService
+            vendorSearchService: services.vendorSearchService
         )
         let realtimeManager = RealtimeManager()
         let networkMonitor = NetworkMonitor()
@@ -112,25 +107,10 @@ struct PlanoApp: App {
             availabilityService: services.availabilityService,
             analyticsService: services.analyticsService
         ))
-        let eventsStore = EventsStore(bookingService: services.bookingService, sessionStore: sessionStore)
-        let eventWorkspaceStore = EventWorkspaceStore(
-            planner: hostPlanningStore,
-            inboxStore: inboxStore,
-            vendorDashboardStore: vendorDashboardStore,
-            bookingService: services.bookingService
-        )
-        inboxStore.onStageChanged = { [weak eventsStore, weak eventWorkspaceStore] in
-            eventsStore?.invalidate()
-            eventWorkspaceStore?.invalidateAllCoVendorCaches()
-        }
-
         _inboxStore = State(initialValue: inboxStore)
-        _requestsStore = State(initialValue: RequestsStore(planner: hostPlanningStore, inboxStore: inboxStore))
-        _eventsStore = State(initialValue: eventsStore)
         _vendorOnboardingStore = State(initialValue: vendorOnboardingStore)
         _vendorProfileEditStore = State(initialValue: vendorProfileEditStore)
         _vendorDashboardStore = State(initialValue: vendorDashboardStore)
-        _eventWorkspaceStore = State(initialValue: eventWorkspaceStore)
         _networkMonitor = State(initialValue: networkMonitor)
         _realtimeManager = State(initialValue: realtimeManager)
         _pushNotificationManager = State(initialValue: pushNotificationManager)
@@ -148,12 +128,9 @@ struct PlanoApp: App {
                 hostPlanningStore: hostPlanningStore,
                 searchStore: searchStore,
                 inboxStore: inboxStore,
-                requestsStore: requestsStore,
-                eventsStore: eventsStore,
                 vendorOnboardingStore: vendorOnboardingStore,
                 vendorProfileEditStore: vendorProfileEditStore,
                 vendorDashboardStore: vendorDashboardStore,
-                eventWorkspaceStore: eventWorkspaceStore,
                 networkMonitor: networkMonitor,
                 realtimeManager: realtimeManager,
                 profilePreferences: profilePreferences,
@@ -217,18 +194,7 @@ struct PlanoApp: App {
             if sessionStore.currentRole == .vendor {
                 router.selectedTab = .search
             } else {
-                router.showEventTabRoot()
-            }
-
-        case .todayEvents:
-            if sessionStore.currentRole == .vendor,
-               let workspace = eventWorkspaceStore.vendorWorkspaces.first {
-                router.openVendorEventWorkspace(workspace.id)
-            } else if let nextEvent = hostPlanningStore.events.sorted(by: { $0.date < $1.date }).first {
-                hostPlanningStore.selectEvent(nextEvent.id)
-                router.openHostEventWorkspace(nextEvent.id)
-            } else {
-                router.showEventTabRoot()
+                router.selectedTab = .events
             }
 
         case .continueLatestConversation:
@@ -264,12 +230,10 @@ struct PlanoApp: App {
             Task {
                 await hostPlanningStore.loadIfNeeded()
                 await inboxStore.loadConversations(for: .host)
-                searchStore.syncToSelectedEvent()
                 await searchStore.loadIfNeeded()
             }
             inboxStore.syncHostIdentityFromSession()
             vendorDashboardStore.reset()
-            eventsStore.reset()
 
         case .authenticated:
             router.resetAllPaths()
@@ -329,7 +293,6 @@ struct PlanoApp: App {
                 async let inboxLoad: Void = inboxStore.loadConversations(for: .host)
 
                 await plannerLoad
-                searchStore.syncToSelectedEvent()
                 await searchStore.load()
                 _ = await inboxLoad
             }
@@ -342,11 +305,10 @@ struct PlanoApp: App {
             inboxStore.syncVendorIdentityFromSession()
 
             Task {
-                async let e: Void = eventsStore.loadIfNeeded()
                 async let d: Void = vendorDashboardStore.loadIfNeeded()
                 async let i: Void = inboxStore.loadConversations(for: .vendor)
                 async let p: Void = vendorProfileEditStore.loadIfNeeded()
-                _ = await (e, d, i, p)
+                _ = await (d, i, p)
             }
         }
 
@@ -365,16 +327,14 @@ struct PlanoApp: App {
                 async let p: Void = hostPlanningStore.load()
                 async let i: Void = inboxStore.loadConversations(for: .host)
                 await p; _ = await i
-                searchStore.syncToSelectedEvent()
                 await searchStore.load()
             }
         case .vendor:
             Task {
-                async let e: Void = eventsStore.loadVendorEvents()
                 async let d: Void = vendorDashboardStore.load()
                 async let i: Void = inboxStore.loadConversations(for: .vendor)
                 async let p: Void = vendorProfileEditStore.load()
-                _ = await (e, d, i, p)
+                _ = await (d, i, p)
             }
         }
     }
@@ -392,12 +352,9 @@ private extension View {
         hostPlanningStore: HostPlanningStore,
         searchStore: SearchStore,
         inboxStore: InboxStore,
-        requestsStore: RequestsStore,
-        eventsStore: EventsStore,
         vendorOnboardingStore: VendorOnboardingStore,
         vendorProfileEditStore: VendorProfileEditStore,
         vendorDashboardStore: VendorDashboardStore,
-        eventWorkspaceStore: EventWorkspaceStore,
         networkMonitor: NetworkMonitor,
         realtimeManager: RealtimeManager,
         profilePreferences: ProfilePreferences,
@@ -412,12 +369,9 @@ private extension View {
             .environment(hostPlanningStore)
             .environment(searchStore)
             .environment(inboxStore)
-            .environment(requestsStore)
-            .environment(eventsStore)
             .environment(vendorOnboardingStore)
             .environment(vendorProfileEditStore)
             .environment(vendorDashboardStore)
-            .environment(eventWorkspaceStore)
             .environment(networkMonitor)
             .environment(realtimeManager)
             .environment(profilePreferences)

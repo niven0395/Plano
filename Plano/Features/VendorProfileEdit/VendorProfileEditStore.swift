@@ -299,6 +299,7 @@ final class VendorProfileEditStore {
             }
 
             await save()
+            await imageCache.removeStagedImage(for: storagePath)
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {
@@ -343,6 +344,7 @@ final class VendorProfileEditStore {
             }
 
             await save()
+            await imageCache.removeStagedImage(for: storagePath)
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {
@@ -403,6 +405,7 @@ final class VendorProfileEditStore {
             progress.storagePath = storagePath
             progress.state = .complete
             pendingUploads.removeAll { $0.id == progress.id }
+            await imageCache.removeStagedImage(for: storagePath)
             lastSaveOutcome = .saved
         } catch is CancellationError {
             pendingUploads.removeAll { $0.id == progress.id }
@@ -452,6 +455,7 @@ final class VendorProfileEditStore {
 
             draft.pricingImagePaths.append(storagePath)
             await save()
+            await imageCache.removeStagedImage(for: storagePath)
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {

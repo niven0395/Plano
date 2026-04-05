@@ -77,6 +77,7 @@ nonisolated struct SubmitBookingRequestV2Payload: Encodable, Sendable {
     let budgetLabel: String?
     let guestCountLabel: String?
     let requestedServices: [String]?
+    let intakeAnswers: [LeadIntakeAnswer]?
 
     enum CodingKeys: String, CodingKey {
         case conversationID = "conversation_id"
@@ -89,6 +90,7 @@ nonisolated struct SubmitBookingRequestV2Payload: Encodable, Sendable {
         case budgetLabel = "budget_label"
         case guestCountLabel = "guest_count_label"
         case requestedServices = "requested_services"
+        case intakeAnswers = "intake_answers"
     }
 }
 

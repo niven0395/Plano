@@ -352,7 +352,7 @@ actor TestAuthService: AuthServiceProtocol {
         email: String,
         password: String,
         displayName: String?
-    ) async throws -> AuthenticatedUserProfile {
+    ) async throws -> EmailSignUpResult {
         let profile = AuthenticatedUserProfile(
             userID: FixtureData.hostID,
             emailAddress: email,
@@ -360,8 +360,10 @@ actor TestAuthService: AuthServiceProtocol {
             vendorDisplayName: nil
         )
         restoredSession = .authenticated(profile)
-        return profile
+        return .authenticated(profile)
     }
+
+    func resendEmailConfirmation(email: String) async throws {}
 
     func signInWithEmail(
         email: String,
@@ -781,7 +783,8 @@ actor TestBookingService: BookingServiceProtocol {
         title: String?,
         budgetLabel: String?,
         guestCountLabel: String?,
-        requestedServices: [String]?
+        requestedServices: [String]?,
+        intakeAnswers: [LeadIntakeAnswer]?
     ) async throws -> BookingTransitionResult {
         let conversation = try conversationRecord(for: conversationID)
         let request = BookingRequestRecord(
@@ -793,6 +796,7 @@ actor TestBookingService: BookingServiceProtocol {
             note: note,
             guestCountLabel: guestCountLabel,
             eventDate: eventDate,
+            intakeAnswers: intakeAnswers,
             createdAt: .now
         )
         bookingRequests.append(request)

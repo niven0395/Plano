@@ -353,6 +353,20 @@ struct AvailabilityDateChip: View {
             Label(chipLabel, systemImage: "calendar")
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
+                .overlay {
+                    DatePicker(
+                        "Availability date",
+                        selection: Binding(
+                            get: { date ?? .now },
+                            set: { date = $0 }
+                        ),
+                        in: Date.now...,
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                    .blendMode(.destinationOver)
+                }
+                .clipShape(.rect)
 
             if isActive {
                 Button("Clear date filter", systemImage: "xmark.circle.fill") {
@@ -370,19 +384,6 @@ struct AvailabilityDateChip: View {
         .overlay {
             Capsule()
                 .stroke(isActive ? AppTheme.Palette.accent : AppTheme.Palette.border, lineWidth: 1)
-        }
-        .overlay {
-            DatePicker(
-                "Availability date",
-                selection: Binding(
-                    get: { date ?? .now },
-                    set: { date = $0 }
-                ),
-                in: Date.now...,
-                displayedComponents: .date
-            )
-            .labelsHidden()
-            .blendMode(.destinationOver)
         }
         .animation(AppAnimation.feedback, value: isActive)
     }
@@ -428,6 +429,8 @@ struct EmptyStateCard: View {
 }
 
 struct PrimaryActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -439,6 +442,7 @@ struct PrimaryActionButtonStyle: ButtonStyle {
                 AppTheme.Palette.accent.opacity(configuration.isPressed ? 0.88 : 1),
                 in: .rect(cornerRadius: AppTheme.smallCornerRadius)
             )
+            .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(AppAnimation.press, value: configuration.isPressed)
             .hapticFeedback(.impact(weight: .medium), trigger: configuration.isPressed) { old, new in
@@ -448,6 +452,8 @@ struct PrimaryActionButtonStyle: ButtonStyle {
 }
 
 struct SecondaryActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -463,6 +469,7 @@ struct SecondaryActionButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius)
                     .stroke(AppTheme.Palette.border, lineWidth: 1)
             }
+            .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(AppAnimation.press, value: configuration.isPressed)
             .hapticFeedback(.impact(weight: .light), trigger: configuration.isPressed) { old, new in

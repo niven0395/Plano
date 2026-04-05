@@ -7,14 +7,14 @@ enum ImageSize: String, CaseIterable, Sendable {
     var maxDimension: CGFloat {
         switch self {
         case .standard: 1200
-        case .thumbnail: 600
+        case .thumbnail: 800
         }
     }
 
     var jpegQuality: CGFloat {
         switch self {
         case .standard: 0.82
-        case .thumbnail: 0.72
+        case .thumbnail: 0.75
         }
     }
 

@@ -9,6 +9,13 @@ struct AuthView: View {
         NavigationStack {
             if let verificationEmail = store.pendingVerificationEmail {
                 EmailVerificationView(email: verificationEmail, store: store)
+            } else if store.showEmailSignInAfterVerification {
+                EmailAuthScreen(store: store, initialSignUp: false)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close", action: store.dismissPresentedSheet)
+                        }
+                    }
             } else {
                 AuthMainContent(mode: mode, store: store)
             }
@@ -190,6 +197,8 @@ private struct EmailAuthScreen: View {
     let store: AuthStore
     let initialSignUp: Bool
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         ScrollView {
             EmailAuthForm(store: store, initialSignUp: initialSignUp)
@@ -201,6 +210,11 @@ private struct EmailAuthScreen: View {
         .background(AppBackdrop())
         .navigationTitle(initialSignUp ? "Create account" : "Sign in")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: store.pendingVerificationEmail) { _, newValue in
+            if newValue != nil {
+                dismiss()
+            }
+        }
     }
 }
 
@@ -337,6 +351,13 @@ private struct EmailAuthForm: View {
                     }
             }
 
+            if let message = store.loadingState.errorMessage {
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             Button {
                 focusedField = nil
                 Task {
@@ -363,6 +384,17 @@ private struct EmailAuthForm: View {
             }
             .buttonStyle(PrimaryActionButtonStyle())
             .disabled(!isValid || store.loadingState.isLoading)
+
+            if store.loadingState.isLoading {
+                HStack(spacing: 12) {
+                    ProgressView()
+                        .tint(AppTheme.Palette.accent)
+
+                    Text(isSignUp ? "Creating your account" : "Signing in")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                }
+            }
 
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {

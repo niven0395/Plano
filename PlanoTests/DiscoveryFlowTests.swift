@@ -5,42 +5,10 @@ import Testing
 struct DiscoveryFlowTests {
     @Test
     @MainActor
-    func searchStaysInBlankDiscoveryStateWhenTheSelectedEventChanges() async throws {
-        try await withIsolatedDefaults { defaults in
-            let planner = HostPlanningStore(
-                eventService: TestEventService(),
-                vendorSearchService: TestVendorSearchService(),
-                plannedVendorService: TestPlannedVendorService(),
-                defaults: defaults
-            )
-            let store = SearchStore(
-                planner: planner,
-                availabilityService: TestAvailabilityService(),
-                defaults: defaults
-            )
-
-            await planner.load()
-
-            #expect(store.selectedCategory == nil)
-            #expect(store.isShowingDiscoveryState)
-
-            let cocktailEventID = try #require(planner.events.first(where: { $0.type == .cocktailNight })?.id)
-            planner.selectEvent(cocktailEventID)
-            store.syncToSelectedEvent()
-
-            #expect(store.selectedCategory == nil)
-            #expect(store.isShowingDiscoveryState)
-        }
-    }
-
-    @Test
-    @MainActor
     func tagSearchFindsVendorsEvenWhenTheTagIsNotInTheName() async {
         await withIsolatedDefaults { defaults in
             let planner = HostPlanningStore(
-                eventService: TestEventService(),
                 vendorSearchService: TestVendorSearchService(),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let store = SearchStore(
@@ -62,9 +30,7 @@ struct DiscoveryFlowTests {
     func suggestedPromptQueriesStillReturnVendors() async {
         await withIsolatedDefaults { defaults in
             let planner = HostPlanningStore(
-                eventService: TestEventService(),
                 vendorSearchService: TestVendorSearchService(),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let store = SearchStore(
@@ -99,9 +65,7 @@ struct DiscoveryFlowTests {
             )
 
             let planner = HostPlanningStore(
-                eventService: TestEventService(events: [FixtureData.events[0]]),
                 vendorSearchService: TestVendorSearchService(vendorProfiles: FixtureData.vendorProfiles + [outOfCityVendor]),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let store = SearchStore(
@@ -137,9 +101,7 @@ struct DiscoveryFlowTests {
             ]
 
             let planner = HostPlanningStore(
-                eventService: TestEventService(events: []),
                 vendorSearchService: TestVendorSearchService(vendorProfiles: vendorProfiles),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let store = SearchStore(
@@ -151,7 +113,6 @@ struct DiscoveryFlowTests {
             await planner.load()
             await store.load()
 
-            #expect(store.hasEventContext == false)
             #expect(store.discoveryCategories == [.eventSpace, .decorator, .caterer, .photographer, .dj, .entertainer])
             #expect(store.suggestedSearchText(for: .photographer) == VendorCategory.photographer.title)
 
@@ -168,9 +129,7 @@ struct DiscoveryFlowTests {
     func priceSortingPromotesBudgetFriendlyOptions() async {
         await withIsolatedDefaults { defaults in
             let planner = HostPlanningStore(
-                eventService: TestEventService(),
                 vendorSearchService: TestVendorSearchService(),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let store = SearchStore(
@@ -207,9 +166,7 @@ struct DiscoveryFlowTests {
                 ]
             )
             let planner = HostPlanningStore(
-                eventService: TestEventService(),
                 vendorSearchService: TestVendorSearchService(),
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
             let sessionStore = SessionStore(defaults: defaults)
@@ -271,7 +228,7 @@ struct DiscoveryFlowTests {
             hostIdentityPromptStore.dismiss()
 
             let existingConversationID = try #require(
-                inboxStore.existingConversationID(vendorID: vendorID, eventID: planner.selectedEventID)
+                inboxStore.existingConversationID(vendorID: vendorID)
             )
 
             store.openConversation()
@@ -287,51 +244,6 @@ struct DiscoveryFlowTests {
     func homeViewExposesAllCategoriesWithoutAnEvent() async {
         let categories = VendorCategory.homeDisplayOrder.map { CategoryShortcut(category: $0) }
         #expect(categories.map(\.category) == VendorCategory.homeDisplayOrder)
-    }
-
-    @Test
-    @MainActor
-    func requestsStoreTeamSlotsReflectPlannedVendors() async throws {
-        try await withIsolatedDefaults { defaults in
-            let directVendor = try #require(FixtureData.vendorProfiles.first(where: { $0.category == .decorator }))
-            let platformVendor = makeVendor(
-                id: UUID(uuidString: "00000000-0000-0000-0000-00000000B101") ?? UUID(),
-                name: "Harbour Catering Co.",
-                category: .caterer,
-                basePriceCents: 350_000,
-                pricingVisibility: .public,
-                bookingMode: .acceptOnline,
-                paymentMode: .platform
-            )
-
-            let planner = HostPlanningStore(
-                eventService: TestEventService(events: FixtureData.events),
-                vendorSearchService: TestVendorSearchService(vendorProfiles: [directVendor, platformVendor]),
-                plannedVendorService: TestPlannedVendorService(),
-                defaults: defaults
-            )
-            let sessionStore = SessionStore(defaults: defaults)
-            sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
-            let inboxStore = InboxStore(
-                bookingService: TestBookingService(),
-                messagingService: TestMessagingService(),
-                vendorProfileService: TestVendorProfileService(vendorProfiles: [directVendor, platformVendor]),
-                sessionStore: sessionStore,
-                defaults: defaults
-            )
-
-            await planner.load()
-            planner.cacheDiscoveryVendors([directVendor, platformVendor])
-            planner.planVendor(platformVendor.id, for: .caterer, eventID: FixtureData.engagementEventID)
-
-            let store = RequestsStore(planner: planner, inboxStore: inboxStore)
-
-            #expect(store.hasEvents)
-            #expect(!store.teamSlots.isEmpty)
-
-            let catererSlot = try #require(store.teamSlots.first(where: { $0.category == .caterer }))
-            #expect(catererSlot.vendor?.id == platformVendor.id)
-        }
     }
 
     @MainActor

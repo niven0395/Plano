@@ -4,14 +4,12 @@ import OSLog
 struct ServiceContainer {
     let apiClient: APIClient
     let authService: any AuthServiceProtocol
-    let eventService: any EventServiceProtocol
     let vendorSearchService: any VendorSearchServiceProtocol
     let vendorProfileService: any VendorProfileServiceProtocol
     let mediaService: any MediaServiceProtocol
     let bookingService: any BookingServiceProtocol
     let messagingService: any MessagingServiceProtocol
     let availabilityService: any VendorAvailabilityServiceProtocol
-    let plannedVendorService: any PlannedVendorServiceProtocol
     let analyticsService: any AnalyticsServiceProtocol
     let signedURLCache: SignedURLCache
     let isConfigured: Bool
@@ -38,14 +36,12 @@ struct ServiceContainer {
             return ServiceContainer(
                 apiClient: apiClient,
                 authService: LiveAuthService(client: client),
-                eventService: LiveEventService(client: client),
                 vendorSearchService: LiveVendorSearchService(client: client),
                 vendorProfileService: LiveVendorProfileService(client: client),
                 mediaService: LiveMediaService(client: client, signedURLCache: signedURLCache),
                 bookingService: LiveBookingService(client: client),
                 messagingService: LiveMessagingService(client: client),
                 availabilityService: LiveVendorAvailabilityService(client: client),
-                plannedVendorService: LivePlannedVendorService(client: client),
                 analyticsService: LiveAnalyticsService(client: client),
                 signedURLCache: signedURLCache,
                 isConfigured: true,
@@ -61,14 +57,12 @@ struct ServiceContainer {
         return ServiceContainer(
             apiClient: apiClient,
             authService: UnavailableAuthService(message: unavailableMessage),
-            eventService: UnavailableEventService(message: unavailableMessage),
             vendorSearchService: UnavailableVendorSearchService(message: unavailableMessage),
             vendorProfileService: UnavailableVendorProfileService(message: unavailableMessage),
             mediaService: UnavailableMediaService(message: unavailableMessage),
             bookingService: UnavailableBookingService(message: unavailableMessage),
             messagingService: UnavailableMessagingService(message: unavailableMessage),
             availabilityService: UnavailableVendorAvailabilityService(message: unavailableMessage),
-            plannedVendorService: UnavailablePlannedVendorService(message: unavailableMessage),
             analyticsService: UnavailableAnalyticsService(message: unavailableMessage),
             signedURLCache: signedURLCache,
             isConfigured: false,

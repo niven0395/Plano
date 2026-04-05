@@ -13,19 +13,6 @@ struct OpenPendingRequestsIntent: AppIntent {
     }
 }
 
-struct ViewTodayEventsIntent: AppIntent {
-    static let title: LocalizedStringResource = "View Today’s Events"
-    static let description = IntentDescription("Open the next relevant event workspace.")
-    static let openAppWhenRun = true
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        await MainActor.run {
-            ShortcutLaunchCenter.queue(.todayEvents)
-        }
-        return .result(dialog: "Opening your events.")
-    }
-}
-
 struct ContinueLatestConversationIntent: AppIntent {
     static let title: LocalizedStringResource = "Continue Latest Conversation"
     static let description = IntentDescription("Jump back into the most recent host conversation.")
@@ -62,16 +49,6 @@ struct PlanoShortcutsProvider: AppShortcutsProvider {
             ],
             shortTitle: "Pending Requests",
             systemImageName: "tray.full.fill"
-        )
-
-        AppShortcut(
-            intent: ViewTodayEventsIntent(),
-            phrases: [
-                "Show today events in \(.applicationName)",
-                "Open my events in \(.applicationName)",
-            ],
-            shortTitle: "Today’s Events",
-            systemImageName: "calendar"
         )
 
         AppShortcut(

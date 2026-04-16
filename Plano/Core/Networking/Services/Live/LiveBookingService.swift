@@ -114,7 +114,7 @@ actor LiveBookingService: BookingServiceProtocol {
             .value
     }
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?) async throws -> BookingTransitionResult {
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "submit-booking-v2",
             body: SubmitBookingRequestV2Payload(
@@ -123,7 +123,7 @@ actor LiveBookingService: BookingServiceProtocol {
                 note: note,
                 requestedTimeStart: requestedTimeStart,
                 requestedTimeEnd: requestedTimeEnd,
-                idempotencyKey: UUID(),
+                idempotencyKey: idempotencyKey,
                 title: title,
                 budgetLabel: budgetLabel,
                 guestCountLabel: guestCountLabel,
@@ -133,71 +133,71 @@ actor LiveBookingService: BookingServiceProtocol {
         )
     }
 
-    func acceptBooking(conversationID: UUID) async throws -> BookingTransitionResult {
+    func acceptBooking(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "accept-booking",
-            body: AcceptBookingPayload(conversationID: conversationID, idempotencyKey: UUID())
+            body: AcceptBookingPayload(conversationID: conversationID, idempotencyKey: idempotencyKey)
         )
     }
 
-    func declineBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func declineBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "decline-booking",
-            body: DeclineBookingPayload(conversationID: conversationID, reason: reason, idempotencyKey: UUID())
+            body: DeclineBookingPayload(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
         )
     }
 
-    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?) async throws -> BookingTransitionResult {
+    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "request-payment",
-            body: RequestPaymentPayload(conversationID: conversationID, amountCents: amountCents, note: note, paymentType: paymentType, idempotencyKey: UUID())
+            body: RequestPaymentPayload(conversationID: conversationID, amountCents: amountCents, note: note, paymentType: paymentType, idempotencyKey: idempotencyKey)
         )
     }
 
-    func confirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func confirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "confirm-payment",
-            body: ConfirmPaymentPayload(conversationID: conversationID, idempotencyKey: UUID())
+            body: ConfirmPaymentPayload(conversationID: conversationID, idempotencyKey: idempotencyKey)
         )
     }
 
-    func vendorConfirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func vendorConfirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "vendor-confirm-payment",
-            body: VendorConfirmPaymentPayload(conversationID: conversationID, idempotencyKey: UUID())
+            body: VendorConfirmPaymentPayload(conversationID: conversationID, idempotencyKey: idempotencyKey)
         )
     }
 
-    func cancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func cancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "cancel-booking",
             body: CancelBookingPayload(
                 conversationID: conversationID,
                 reason: reason,
-                idempotencyKey: UUID()
+                idempotencyKey: idempotencyKey
             )
         )
     }
 
-    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?) async throws -> BookingTransitionResult {
+    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "respond-to-cancellation-request",
             body: RespondToCancellationPayload(
                 conversationID: conversationID,
                 approved: approved,
                 reason: reason,
-                idempotencyKey: UUID()
+                idempotencyKey: idempotencyKey
             )
         )
     }
 
-    func forceCancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func forceCancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         try await invokeFunction(
             "force-cancel-booking",
             body: CancelBookingPayload(
                 conversationID: conversationID,
                 reason: reason,
-                idempotencyKey: UUID()
+                idempotencyKey: idempotencyKey
             )
         )
     }
@@ -449,39 +449,39 @@ actor LiveBookingService: BookingServiceProtocol {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?) async throws -> BookingTransitionResult {
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func acceptBooking(conversationID: UUID) async throws -> BookingTransitionResult {
+    func acceptBooking(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func declineBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func declineBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?) async throws -> BookingTransitionResult {
+    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func confirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func confirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func vendorConfirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func vendorConfirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func cancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func cancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?) async throws -> BookingTransitionResult {
+    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func forceCancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func forceCancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 

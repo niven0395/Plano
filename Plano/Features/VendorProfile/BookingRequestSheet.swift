@@ -7,11 +7,19 @@ struct BookingRequestSheet: View {
     let requestedStartTime: Date?
     let requestedEndTime: Date?
     @Binding var note: String
+    let showsGuestCount: Bool
+    @Binding var guestCountLabel: String
     let intakeQuestions: [LeadIntakeQuestion]
     @Binding var intakeAnswers: [LeadIntakeAnswer]
     let isSubmitting: Bool
+    let bookingSubmittedSuccessfully: Bool
+    let hasValidTimeRange: Bool
     let onSubmit: () -> Void
     let onCancel: () -> Void
+
+    private static let guestCountOptions = [
+        "Under 20", "20–50", "50–100", "100–150", "150–200", "200+"
+    ]
 
     private var hasIntakeQuestions: Bool {
         !intakeQuestions.isEmpty
@@ -45,6 +53,29 @@ struct BookingRequestSheet: View {
                     }
                 }
 
+                if showsGuestCount {
+                    Section("Guest count") {
+                        FlowLayout(spacing: 8) {
+                            ForEach(Self.guestCountOptions, id: \.self) { option in
+                                Button {
+                                    guestCountLabel = guestCountLabel == option ? "" : option
+                                } label: {
+                                    Text(option)
+                                        .font(.subheadline.weight(.medium))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .foregroundStyle(guestCountLabel == option ? .white : AppTheme.Palette.textPrimary)
+                                        .background(
+                                            guestCountLabel == option ? AppTheme.Palette.accent : AppTheme.Palette.elevatedSurface,
+                                            in: Capsule()
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
                 if hasIntakeQuestions {
                     Section("A few questions from the vendor") {
                         LeadIntakeFormView(
@@ -55,8 +86,16 @@ struct BookingRequestSheet: View {
                 }
 
                 Section("Note (optional)") {
-                    TextField("Any details for the vendor...", text: $note, axis: .vertical)
+                    TextField("Anything else the vendor should know...", text: $note, axis: .vertical)
                         .lineLimit(3...6)
+                }
+
+                if requestedStartTime != nil || requestedEndTime != nil, !hasValidTimeRange {
+                    Section {
+                        Text("End time must be later than the start time.")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .navigationTitle("Request Booking")
@@ -71,13 +110,13 @@ struct BookingRequestSheet: View {
                         ProgressView()
                     } else {
                         Button("Request", action: onSubmit)
-                            .disabled(!requiredQuestionsAnswered)
+                            .disabled(!requiredQuestionsAnswered || !hasValidTimeRange)
                     }
                 }
             }
             .interactiveDismissDisabled(isSubmitting)
-            .hapticFeedback(.success, trigger: isSubmitting) { old, new in
-                old && !new
+            .hapticFeedback(.success, trigger: bookingSubmittedSuccessfully) { old, new in
+                !old && new
             }
         }
         .presentationDetents(hasIntakeQuestions ? [.medium, .large] : [.medium])

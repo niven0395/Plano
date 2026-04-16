@@ -211,39 +211,39 @@ struct UnavailableBookingService: BookingServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?) async throws -> BookingTransitionResult {
+    func submitBookingRequest(conversationID: UUID, eventDate: Date, note: String, requestedTimeStart: String?, requestedTimeEnd: String?, title: String?, budgetLabel: String?, guestCountLabel: String?, requestedServices: [String]?, intakeAnswers: [LeadIntakeAnswer]?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func acceptBooking(conversationID: UUID) async throws -> BookingTransitionResult {
+    func acceptBooking(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func declineBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func declineBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?) async throws -> BookingTransitionResult {
+    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func confirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func confirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func vendorConfirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func vendorConfirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func cancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func cancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?) async throws -> BookingTransitionResult {
+    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
-    func forceCancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func forceCancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         throw APIError.notConfigured(message)
     }
 
@@ -319,7 +319,7 @@ struct UnavailableAnalyticsService: AnalyticsServiceProtocol {
 struct UnavailableMessagingService: MessagingServiceProtocol {
     let message: String
 
-    func fetchMessages(conversationID: UUID, before cursor: Date?, limit: Int) async throws -> [MessageRecord] {
+    func fetchMessages(conversationID: UUID, beforeSequence: Int?, limit: Int) async throws -> [MessageRecord] {
         throw APIError.notConfigured(message)
     }
 
@@ -367,7 +367,7 @@ struct UnavailableMessagingService: MessagingServiceProtocol {
         throw APIError.notConfigured(message)
     }
 
-    func sendMessageWithAttachment(conversationID: UUID, body: String, kind: String, clientID: UUID, storagePath: String, fileName: String, mimeType: String, fileSizeBytes: Int64, width: Int?, height: Int?) async throws -> MessageRecord {
+    func sendMessageWithAttachments(conversationID: UUID, body: String, kind: String, clientID: UUID, attachments: [MessageAttachmentUpload]) async throws -> MessageSendResult {
         throw APIError.notConfigured(message)
     }
 }

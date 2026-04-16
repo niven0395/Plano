@@ -8,7 +8,7 @@ enum AppAnimation {
     static let transition: Animation = .easeOut(duration: 0.3)
 
     /// Content appearing on screen (cards, sections revealing)
-    static let reveal: Animation = .smooth(duration: 0.35)
+    static let reveal: Animation = .smooth(duration: 0.2)
 
     /// Numeric text counting transitions
     static let counting: Animation = .snappy
@@ -17,5 +17,5 @@ enum AppAnimation {
     static let press: Animation = .spring(duration: 0.25, bounce: 0.3)
 
     /// Delay between staggered list items (seconds)
-    static let staggerInterval: Double = 0.04
+    static let staggerInterval: Double = 0.025
 }

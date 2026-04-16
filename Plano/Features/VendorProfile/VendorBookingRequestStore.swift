@@ -15,12 +15,14 @@ final class VendorBookingRequestStore {
     var isSubmittingBooking = false
     var isPresentingBookingSheet = false
     var bookingError: String?
+    var bookingSubmittedSuccessfully = false
     var selectedTimeslot: TimeslotOption?
     var timeslotBookings: [VendorTimeslotBookingRecord] = []
     var availableTimeslots: [TimeslotOption] = []
     var schedulingMode: SchedulingMode = .calendar
     var requestedStartTime: Date?
     var requestedEndTime: Date?
+    var guestCountLabel = ""
     var intakeAnswers: [LeadIntakeAnswer] = []
 
     init(
@@ -47,7 +49,13 @@ final class VendorBookingRequestStore {
             selectedBookingDate != nil
                 && requestedStartTime != nil
                 && requestedEndTime != nil
+                && hasValidRequestedTimeRange
         }
+    }
+
+    var hasValidRequestedTimeRange: Bool {
+        guard let requestedStartTime, let requestedEndTime else { return false }
+        return requestedEndTime > requestedStartTime
     }
 
     var vendorHasTimeslots: Bool {
@@ -101,6 +109,7 @@ final class VendorBookingRequestStore {
         vendor: VendorProfile
     ) async -> [VendorAvailabilityRecord]? {
         guard !isSubmittingBooking else { return nil }
+        bookingSubmittedSuccessfully = false
 
         let existingConversationID = inboxStore.existingConversationID(vendorID: vendor.id)
 
@@ -143,6 +152,11 @@ final class VendorBookingRequestStore {
             resolvedTimeStart = selectedTimeslot?.startTimeString
             resolvedTimeEnd = selectedTimeslot?.endTimeString
         case .eventTimeRange:
+            guard hasValidRequestedTimeRange else {
+                bookingError = "End time must be later than the start time."
+                isSubmittingBooking = false
+                return nil
+            }
             resolvedTimeStart = requestedStartTime.map(Self.formatTimeString)
             resolvedTimeEnd = requestedEndTime.map(Self.formatTimeString)
         case .calendar:
@@ -154,6 +168,9 @@ final class VendorBookingRequestStore {
             let conversationID: UUID
             if let existing = existingConversationID {
                 conversationID = existing
+                if inboxStore.isArchived(existing, for: .host) {
+                    inboxStore.unarchiveConversation(existing, for: .host)
+                }
             } else {
                 conversationID = try await inboxStore.startConversation(
                     with: vendor
@@ -164,6 +181,7 @@ final class VendorBookingRequestStore {
                 .map { $0.normalized() }
                 .filter(\.hasValue)
 
+            let idempotencyKey = UUID()
             _ = try await bookingService.submitBookingRequest(
                 conversationID: conversationID,
                 eventDate: date,
@@ -172,9 +190,10 @@ final class VendorBookingRequestStore {
                 requestedTimeEnd: resolvedTimeEnd,
                 title: "Direct inquiry",
                 budgetLabel: nil,
-                guestCountLabel: "",
+                guestCountLabel: guestCountLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : guestCountLabel.trimmingCharacters(in: .whitespacesAndNewlines),
                 requestedServices: nil,
-                intakeAnswers: normalizedAnswers.isEmpty ? nil : normalizedAnswers
+                intakeAnswers: normalizedAnswers.isEmpty ? nil : normalizedAnswers,
+                idempotencyKey: idempotencyKey
             )
 
             await inboxStore.loadConversations(for: .host)
@@ -185,8 +204,10 @@ final class VendorBookingRequestStore {
             requestedStartTime = nil
             requestedEndTime = nil
             bookingNote = ""
+            guestCountLabel = ""
             intakeAnswers = []
             isSubmittingBooking = false
+            bookingSubmittedSuccessfully = true
 
             router.openConversation(conversationID)
         } catch {

@@ -260,9 +260,13 @@ struct VendorProfileLoadedView: View {
                     requestedStartTime: bookingStore.requestedStartTime,
                     requestedEndTime: bookingStore.requestedEndTime,
                     note: Bindable(bookingStore).bookingNote,
+                    showsGuestCount: vendor.collectsGuestCount,
+                    guestCountLabel: Bindable(bookingStore).guestCountLabel,
                     intakeQuestions: vendor.enabledLeadIntakeQuestions,
                     intakeAnswers: Bindable(bookingStore).intakeAnswers,
                     isSubmitting: bookingStore.isSubmittingBooking,
+                    bookingSubmittedSuccessfully: bookingStore.bookingSubmittedSuccessfully,
+                    hasValidTimeRange: bookingStore.schedulingMode != .eventTimeRange || bookingStore.hasValidRequestedTimeRange,
                     onSubmit: {
                         Task {
                             if let refreshed = await bookingStore.submitBookingRequest(

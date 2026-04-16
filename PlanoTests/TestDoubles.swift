@@ -695,6 +695,10 @@ actor TestBookingService: BookingServiceProtocol {
     var messagesByConversation: [UUID: [MessageRecord]]
     var bookingRequests: [BookingRequestRecord]
     var bookings: [BookingRecord]
+    var confirmPaymentResultOverride: BookingTransitionResult?
+    var vendorConfirmPaymentResultOverride: BookingTransitionResult?
+    var confirmPaymentResultOverride: BookingTransitionResult?
+    var vendorConfirmPaymentResultOverride: BookingTransitionResult?
 
     init(
         conversations: [ConversationRecord] = [],
@@ -714,6 +718,10 @@ actor TestBookingService: BookingServiceProtocol {
 
     func fetchVendorConversations(vendorID: UUID) async throws -> [ConversationRecord] {
         conversations.filter { $0.vendorID == vendorID }
+    }
+
+    func createConversation(vendorID: UUID, hostID: UUID) async throws -> ConversationRecord {
+        try await createConversation(vendorID: vendorID, hostID: hostID, eventID: nil)
     }
 
     func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord {
@@ -784,8 +792,21 @@ actor TestBookingService: BookingServiceProtocol {
         budgetLabel: String?,
         guestCountLabel: String?,
         requestedServices: [String]?,
-        intakeAnswers: [LeadIntakeAnswer]?
+        intakeAnswers: [LeadIntakeAnswer]?,
+        idempotencyKey: UUID
     ) async throws -> BookingTransitionResult {
+        if let requestedTimeStart,
+           let requestedTimeEnd,
+           requestedTimeEnd <= requestedTimeStart {
+            throw APIError.notSupported("Requested end time must be later than the start time.")
+        }
+
+        if let requestedTimeStart,
+           let requestedTimeEnd,
+           requestedTimeEnd <= requestedTimeStart {
+            throw APIError.notSupported("Requested end time must be later than the start time.")
+        }
+
         let conversation = try conversationRecord(for: conversationID)
         let request = BookingRequestRecord(
             id: UUID(),
@@ -810,7 +831,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func acceptBooking(conversationID: UUID) async throws -> BookingTransitionResult {
+    func acceptBooking(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -834,7 +855,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?) async throws -> BookingTransitionResult {
+    func requestPayment(conversationID: UUID, amountCents: Int, note: String?, paymentType: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -861,7 +882,17 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func confirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func confirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
+        if let confirmPaymentResultOverride {
+            updateConversationStage(conversationID, stage: confirmPaymentResultOverride.stage)
+            return confirmPaymentResultOverride
+        }
+
+        if let confirmPaymentResultOverride {
+            updateConversationStage(conversationID, stage: confirmPaymentResultOverride.stage)
+            return confirmPaymentResultOverride
+        }
+
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -888,7 +919,17 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func vendorConfirmPayment(conversationID: UUID) async throws -> BookingTransitionResult {
+    func vendorConfirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
+        if let vendorConfirmPaymentResultOverride {
+            updateConversationStage(conversationID, stage: vendorConfirmPaymentResultOverride.stage)
+            return vendorConfirmPaymentResultOverride
+        }
+
+        if let vendorConfirmPaymentResultOverride {
+            updateConversationStage(conversationID, stage: vendorConfirmPaymentResultOverride.stage)
+            return vendorConfirmPaymentResultOverride
+        }
+
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -915,7 +956,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func declineBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func declineBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -940,7 +981,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func cancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func cancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -967,7 +1008,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?) async throws -> BookingTransitionResult {
+    func respondToCancellationRequest(conversationID: UUID, approved: Bool, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         let newStage = approved ? BookingStage.cancelled : BookingStage.accepted
         updateConversationStage(conversationID, stage: newStage.rawValue)
         return BookingTransitionResult(
@@ -978,7 +1019,7 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func forceCancelBooking(conversationID: UUID, reason: String?) async throws -> BookingTransitionResult {
+    func forceCancelBooking(conversationID: UUID, reason: String?, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) {
             let current = bookings[index]
             bookings[index] = BookingRecord(
@@ -1007,12 +1048,58 @@ actor TestBookingService: BookingServiceProtocol {
         )
     }
 
-    func createConversationServer(vendorID: UUID, eventID: UUID?) async throws -> ConversationRecord {
-        try await createConversation(vendorID: vendorID, hostID: FixtureData.hostID, eventID: eventID)
+    func createConversationServer(vendorID: UUID) async throws -> ConversationRecord {
+        try await createConversation(vendorID: vendorID, hostID: FixtureData.hostID, eventID: nil)
     }
 
     func fetchConversationSummaries(role: String) async throws -> [ConversationSummaryRecord] {
-        []
+        conversations
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
+            .map { conversation in
+                let latestMessage = messagesByConversation[conversation.id]?
+                    .sorted { lhs, rhs in
+                        switch (lhs.sequenceNumber, rhs.sequenceNumber) {
+                        case let (.some(left), .some(right)) where left != right:
+                            left < right
+                        default:
+                            lhs.createdAt < rhs.createdAt
+                        }
+                    }
+                    .last
+
+                return ConversationSummaryRecord(
+                    conversationID: conversation.id,
+                    eventID: conversation.eventID,
+                    vendorID: conversation.vendorID,
+                    hostID: conversation.hostID,
+                    hostDisplayName: conversation.hostDisplayName,
+                    vendorDisplayName: conversation.vendorDisplayName,
+                    vendorCategory: conversation.vendorCategory,
+                    eventTitle: conversation.eventTitle,
+                    eventDateLabel: conversation.eventDateLabel,
+                    eventContextLine: conversation.eventContextLine,
+                    stage: conversation.stage,
+                    lastActivityAt: conversation.lastActivityAt,
+                    hostUnreadCount: conversation.hostUnreadCount,
+                    vendorUnreadCount: conversation.vendorUnreadCount,
+                    latestMessagePreview: latestPreview(for: latestMessage),
+                    latestRequestTitle: bookingRequests.first(where: { $0.conversationID == conversation.id })?.title,
+                    latestRequestBudgetLabel: bookingRequests.first(where: { $0.conversationID == conversation.id })?.budgetLabel,
+                    latestRequestEventDate: bookingRequests.first(where: { $0.conversationID == conversation.id })?.eventDate,
+                    latestBookingID: bookings.first(where: { $0.conversationID == conversation.id })?.id,
+                    latestBookingStage: bookings.first(where: { $0.conversationID == conversation.id })?.stage
+                )
+            }
+    }
+
+    private func latestPreview(for message: MessageRecord?) -> String? {
+        guard let message else { return nil }
+
+        if message.kind == "attachment" {
+            return "Sent attachment"
+        }
+
+        return message.body
     }
 
     func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
@@ -1256,13 +1343,22 @@ actor TestPlannedVendorService: PlannedVendorServiceProtocol {
 
 actor TestMessagingService: MessagingServiceProtocol {
     var messages: [UUID: [MessageRecord]] = [:]
+    var attachmentsByMessageID: [UUID: [MessageAttachmentRecord]] = [:]
     var readConversations: Set<UUID> = []
 
-    func fetchMessages(conversationID: UUID, before cursor: Date?, limit: Int) async throws -> [MessageRecord] {
+    func setMessages(_ records: [MessageRecord], for conversationID: UUID) {
+        messages[conversationID] = records
+    }
+
+    func setAttachments(_ records: [MessageAttachmentRecord], for messageID: UUID) {
+        attachmentsByMessageID[messageID] = records
+    }
+
+    func fetchMessages(conversationID: UUID, beforeSequence: Int?, limit: Int) async throws -> [MessageRecord] {
         let allMessages = messages[conversationID] ?? []
         let filtered: [MessageRecord]
-        if let cursor {
-            filtered = allMessages.filter { $0.createdAt < cursor }
+        if let beforeSequence {
+            filtered = allMessages.filter { ($0.sequenceNumber ?? .max) < beforeSequence }
         } else {
             filtered = allMessages
         }
@@ -1278,7 +1374,8 @@ actor TestMessagingService: MessagingServiceProtocol {
             kind: kind,
             createdAt: .now,
             status: "sent",
-            clientID: clientID
+            clientID: clientID,
+            sequenceNumber: (messages[conversationID]?.compactMap(\.sequenceNumber).max() ?? 0) + 1
         )
         messages[conversationID, default: []].append(record)
         return record
@@ -1308,7 +1405,7 @@ actor TestMessagingService: MessagingServiceProtocol {
     }
 
     func fetchAttachments(messageIDs: [UUID]) async throws -> [MessageAttachmentRecord] {
-        []
+        messageIDs.flatMap { attachmentsByMessageID[$0] ?? [] }
     }
 
     func signedURL(for storagePath: String) async throws -> URL {
@@ -1330,15 +1427,39 @@ actor TestMessagingService: MessagingServiceProtocol {
     func registerDeviceToken(_ token: String, userID: UUID) async throws {}
     func removeDeviceToken(_ token: String, userID: UUID) async throws {}
 
-    func sendMessageWithAttachment(conversationID: UUID, body: String, kind: String, clientID: UUID, storagePath: String, fileName: String, mimeType: String, fileSizeBytes: Int64, width: Int?, height: Int?) async throws -> MessageRecord {
-        MessageRecord(
+    func sendMessageWithAttachments(conversationID: UUID, body: String, kind: String, clientID: UUID, attachments: [MessageAttachmentUpload]) async throws -> MessageSendResult {
+        let record = MessageRecord(
             id: UUID(),
             conversationID: conversationID,
             senderRole: "host",
             body: body,
             kind: kind,
             createdAt: .now,
-            clientID: clientID
+            status: "sent",
+            clientID: clientID,
+            sequenceNumber: (messages[conversationID]?.compactMap(\.sequenceNumber).max() ?? 0) + 1
+        )
+        messages[conversationID, default: []].append(record)
+
+        let attachmentRecords = attachments.map { attachment in
+            MessageAttachmentRecord(
+                id: UUID(),
+                messageID: record.id,
+                storagePath: attachment.storagePath,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                fileSizeBytes: attachment.fileSizeBytes,
+                width: attachment.width,
+                height: attachment.height,
+                thumbnailPath: nil,
+                createdAt: .now
+            )
+        }
+        attachmentsByMessageID[record.id] = attachmentRecords
+
+        return MessageSendResult(
+            message: record,
+            attachments: attachmentRecords
         )
     }
 }

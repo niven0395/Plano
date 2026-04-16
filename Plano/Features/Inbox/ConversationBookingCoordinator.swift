@@ -16,8 +16,24 @@ final class ConversationBookingCoordinator {
 
     /// Mutable state owned by InboxStore, forwarded here for reads.
     var confirmingPaymentIDs: Set<UUID> = []
+    var processingBookingActionIDs: Set<UUID> = []
     var confirmPaymentError: String?
     var bookingActionError: String?
+
+    func isBookingActionInFlight(_ conversationID: UUID) -> Bool {
+        processingBookingActionIDs.contains(conversationID)
+    }
+
+    /// Returns false if an action is already in flight for this conversation, otherwise marks it in-flight.
+    func tryBeginBookingAction(_ conversationID: UUID) -> Bool {
+        guard !processingBookingActionIDs.contains(conversationID) else { return false }
+        processingBookingActionIDs.insert(conversationID)
+        return true
+    }
+
+    func endBookingAction(_ conversationID: UUID) {
+        processingBookingActionIDs.remove(conversationID)
+    }
 
     init(
         bookingService: any BookingServiceProtocol,
@@ -25,6 +41,39 @@ final class ConversationBookingCoordinator {
     ) {
         self.bookingService = bookingService
         self.sessionStore = sessionStore
+    }
+
+    private func applyTransitionResult(
+        _ result: BookingTransitionResult,
+        to conversationID: UUID,
+        mutateConversations: ((inout [ConversationThread]) -> Void) -> Void,
+        findConversationIndex: (UUID) -> Int?
+    ) {
+        guard let index = findConversationIndex(conversationID) else { return }
+
+        mutateConversations { conversations in
+            conversations[index].stage = BookingStage.fromDatabaseValue(result.stage)
+            conversations[index].lastActivityAt = .now
+            conversations[index].cancellationRequestDeadline = result.cancellationRequestDeadline
+
+            if let requestedBy = result.cancellationRequestedBy {
+                if requestedBy == conversations[index].hostUserID {
+                    conversations[index].cancellationRequestedByRole = .host
+                } else if requestedBy == conversations[index].vendorID {
+                    conversations[index].cancellationRequestedByRole = .vendor
+                } else {
+                    conversations[index].cancellationRequestedByRole = nil
+                }
+            } else if BookingStage.fromDatabaseValue(result.stage) != .cancellationRequested {
+                conversations[index].cancellationRequestedByRole = nil
+            }
+
+            conversations[index].cancellationDeclinedAt = result.cancellationDeclinedAt
+
+            if BookingStage.fromDatabaseValue(result.stage) != .paid {
+                conversations[index].paymentRequest?.status = .pending
+            }
+        }
     }
 
     // MARK: - Accept
@@ -36,9 +85,15 @@ final class ConversationBookingCoordinator {
         reloadConversations: () async -> Void,
         setLoadingState: (LoadingState) -> Void
     ) async {
+        guard !processingBookingActionIDs.contains(conversationID) else { return }
+        processingBookingActionIDs.insert(conversationID)
+        defer { processingBookingActionIDs.remove(conversationID) }
+
+        let idempotencyKey = UUID()
+
         guard let index = conversationIndex else {
             do {
-                _ = try await bookingService.acceptBooking(conversationID: conversationID)
+                _ = try await bookingService.acceptBooking(conversationID: conversationID, idempotencyKey: idempotencyKey)
                 await reloadConversations()
             } catch {
                 setLoadingState(.failed(error.localizedDescription))
@@ -59,7 +114,14 @@ final class ConversationBookingCoordinator {
         }
 
         do {
-            _ = try await bookingService.acceptBooking(conversationID: conversationID)
+            let result = try await bookingService.acceptBooking(conversationID: conversationID, idempotencyKey: idempotencyKey)
+            applyTransitionResult(
+                result,
+                to: conversationID,
+                mutateConversations: mutateConversations,
+                findConversationIndex: { _ in index }
+            )
+            await reloadConversations()
         } catch {
             if let previous {
                 mutateConversations { conversations in
@@ -80,9 +142,15 @@ final class ConversationBookingCoordinator {
         reloadConversations: () async -> Void,
         setLoadingState: (LoadingState) -> Void
     ) async {
+        guard !processingBookingActionIDs.contains(conversationID) else { return }
+        processingBookingActionIDs.insert(conversationID)
+        defer { processingBookingActionIDs.remove(conversationID) }
+
+        let idempotencyKey = UUID()
+
         guard let index = conversationIndex else {
             do {
-                _ = try await bookingService.declineBooking(conversationID: conversationID, reason: reason)
+                _ = try await bookingService.declineBooking(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
                 await reloadConversations()
             } catch {
                 setLoadingState(.failed(error.localizedDescription))
@@ -107,7 +175,14 @@ final class ConversationBookingCoordinator {
         }
 
         do {
-            _ = try await bookingService.declineBooking(conversationID: conversationID, reason: reason)
+            let result = try await bookingService.declineBooking(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
+            applyTransitionResult(
+                result,
+                to: conversationID,
+                mutateConversations: mutateConversations,
+                findConversationIndex: { _ in index }
+            )
+            await reloadConversations()
         } catch {
             if let previous {
                 mutateConversations { conversations in
@@ -131,13 +206,16 @@ final class ConversationBookingCoordinator {
         reloadConversations: () async -> Void,
         setLoadingState: (LoadingState) -> Void
     ) async {
+        let idempotencyKey = UUID()
+
         guard let index = conversationIndex else {
             do {
                 _ = try await bookingService.requestPayment(
                     conversationID: conversationID,
                     amountCents: amountCents,
                     note: VendorPaymentRequestComposer.normalized(note),
-                    paymentType: paymentType.rawValue
+                    paymentType: paymentType.rawValue,
+                    idempotencyKey: idempotencyKey
                 )
                 await reloadConversations()
             } catch {
@@ -168,12 +246,20 @@ final class ConversationBookingCoordinator {
         }
 
         do {
-            _ = try await bookingService.requestPayment(
+            let result = try await bookingService.requestPayment(
                 conversationID: conversationID,
                 amountCents: amountCents,
                 note: normalizedNote,
-                paymentType: paymentType.rawValue
+                paymentType: paymentType.rawValue,
+                idempotencyKey: idempotencyKey
             )
+            applyTransitionResult(
+                result,
+                to: conversationID,
+                mutateConversations: mutateConversations,
+                findConversationIndex: { _ in index }
+            )
+            await reloadConversations()
         } catch {
             if let previous {
                 mutateConversations { conversations in
@@ -196,24 +282,17 @@ final class ConversationBookingCoordinator {
         confirmingPaymentIDs.insert(conversationID)
         confirmPaymentError = nil
 
-        do {
-            _ = try await bookingService.confirmPayment(conversationID: conversationID)
+        let idempotencyKey = UUID()
 
-            if let index = findConversationIndex(conversationID) {
-                mutateConversations { conversations in
-                    conversations[index].stage = .paid
-                    conversations[index].paymentRequest?.status = .paid
-                    conversations[index].lastActivityAt = .now
-                    conversations[index].messages.append(ChatMessage(
-                        sender: .system,
-                        body: "Payment confirmed. Booking is now paid.",
-                        sentAt: .now,
-                        kind: .system
-                    ))
-                }
-            } else {
-                await reloadConversations()
-            }
+        do {
+            let result = try await bookingService.confirmPayment(conversationID: conversationID, idempotencyKey: idempotencyKey)
+            applyTransitionResult(
+                result,
+                to: conversationID,
+                mutateConversations: mutateConversations,
+                findConversationIndex: findConversationIndex
+            )
+            await reloadConversations()
         } catch {
             confirmPaymentError = error.localizedDescription
             AppLogger.booking.error("Failed to confirm payment for \(conversationID): \(error.localizedDescription, privacy: .public)")
@@ -234,24 +313,17 @@ final class ConversationBookingCoordinator {
         confirmingPaymentIDs.insert(conversationID)
         confirmPaymentError = nil
 
-        do {
-            _ = try await bookingService.vendorConfirmPayment(conversationID: conversationID)
+        let idempotencyKey = UUID()
 
-            if let index = findConversationIndex(conversationID) {
-                mutateConversations { conversations in
-                    conversations[index].stage = .paid
-                    conversations[index].paymentRequest?.status = .paid
-                    conversations[index].lastActivityAt = .now
-                    conversations[index].messages.append(ChatMessage(
-                        sender: .system,
-                        body: "Vendor confirmed payment received. Booking is now paid.",
-                        sentAt: .now,
-                        kind: .system
-                    ))
-                }
-            } else {
-                await reloadConversations()
-            }
+        do {
+            let result = try await bookingService.vendorConfirmPayment(conversationID: conversationID, idempotencyKey: idempotencyKey)
+            applyTransitionResult(
+                result,
+                to: conversationID,
+                mutateConversations: mutateConversations,
+                findConversationIndex: findConversationIndex
+            )
+            await reloadConversations()
         } catch {
             confirmPaymentError = error.localizedDescription
             AppLogger.booking.error("Failed to vendor-confirm payment for \(conversationID): \(error.localizedDescription, privacy: .public)")
@@ -294,8 +366,9 @@ final class ConversationBookingCoordinator {
             }
         }
 
+        let idempotencyKey = UUID()
         let serverTask: @Sendable () async throws -> BookingTransitionResult = { [bookingService] in
-            try await bookingService.cancelBooking(conversationID: conversationID, reason: reason)
+            try await bookingService.cancelBooking(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
         }
 
         return (mutation, serverTask)
@@ -312,9 +385,15 @@ final class ConversationBookingCoordinator {
         reloadConversations: () async -> Void,
         setLoadingState: (LoadingState) -> Void
     ) async {
+        guard !processingBookingActionIDs.contains(conversationID) else { return }
+        processingBookingActionIDs.insert(conversationID)
+        defer { processingBookingActionIDs.remove(conversationID) }
+
+        let idempotencyKey = UUID()
+
         guard let index = conversationIndex else {
             do {
-                _ = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: approved, reason: reason)
+                _ = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: approved, reason: reason, idempotencyKey: idempotencyKey)
                 await reloadConversations()
             } catch {
                 setLoadingState(.failed(error.localizedDescription))
@@ -336,7 +415,14 @@ final class ConversationBookingCoordinator {
             }
 
             do {
-                _ = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: true, reason: nil)
+                let result = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: true, reason: nil, idempotencyKey: idempotencyKey)
+                applyTransitionResult(
+                    result,
+                    to: conversationID,
+                    mutateConversations: mutateConversations,
+                    findConversationIndex: { _ in index }
+                )
+                await reloadConversations()
             } catch {
                 if let previous {
                     mutateConversations { conversations in
@@ -347,7 +433,7 @@ final class ConversationBookingCoordinator {
             }
         } else {
             do {
-                _ = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: false, reason: reason)
+                _ = try await bookingService.respondToCancellationRequest(conversationID: conversationID, approved: false, reason: reason, idempotencyKey: idempotencyKey)
                 await reloadConversations()
             } catch {
                 bookingActionError = error.localizedDescription
@@ -390,8 +476,9 @@ final class ConversationBookingCoordinator {
             }
         }
 
+        let idempotencyKey = UUID()
         let serverTask: @Sendable () async throws -> BookingTransitionResult = { [bookingService] in
-            try await bookingService.forceCancelBooking(conversationID: conversationID, reason: reason)
+            try await bookingService.forceCancelBooking(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
         }
 
         return (mutation, serverTask)
@@ -426,11 +513,13 @@ final class ConversationBookingCoordinator {
             thread.vendorUnreadCount += 1
         }
 
+        let idempotencyKey = UUID()
         let serverTask: @Sendable () async throws -> Void = { [bookingService] in
             _ = try await bookingService.submitBookingRequest(
                 conversationID: conversationID,
                 eventDate: eventDate,
-                note: note
+                note: note,
+                idempotencyKey: idempotencyKey
             )
         }
 

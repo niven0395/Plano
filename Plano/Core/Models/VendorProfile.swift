@@ -26,6 +26,7 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
     let schedulingMode: SchedulingMode
     let bookingMode: BookingMode
     let paymentMode: PaymentMode
+    let collectsGuestCount: Bool
     let cancellationDeadlineDays: Int?
     let phone: String?
     let website: String?
@@ -84,6 +85,7 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         availabilityMode: AvailabilityMode = .contactToDiscuss,
         bookingMode: BookingMode = .inquiryOnly,
         paymentMode: PaymentMode = .external,
+        collectsGuestCount: Bool? = nil,
         cancellationDeadlineDays: Int? = nil,
         phone: String? = nil,
         website: String? = nil,
@@ -140,6 +142,7 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         self.schedulingMode = schedulingMode
         self.bookingMode = bookingMode
         self.paymentMode = paymentMode
+        self.collectsGuestCount = collectsGuestCount ?? category.defaultCollectsGuestCount
         self.cancellationDeadlineDays = cancellationDeadlineDays
         self.phone = phone
         self.website = website
@@ -155,7 +158,7 @@ nonisolated struct VendorProfile: Identifiable, Hashable, Sendable {
         self.availability = availability
         self.services = services
         self.categoryDetails = categoryDetails
-        self.leadIntakeQuestions = leadIntakeQuestions ?? LeadIntakeTemplateLibrary.defaultQuestions(for: category)
+        self.leadIntakeQuestions = leadIntakeQuestions ?? []
         self.policies = policies
         self.serviceItems = serviceItems.sorted { $0.displayOrder < $1.displayOrder }
         self.packages = packages.sorted { $0.displayOrder < $1.displayOrder }

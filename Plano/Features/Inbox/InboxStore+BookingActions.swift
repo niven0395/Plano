@@ -69,6 +69,7 @@ extension InboxStore {
             conversations.insert(thread, at: 0)
             conversations.sort { $0.lastActivityAt > $1.lastActivityAt }
             realtimeManager?.addConversation(thread.id)
+            persistConversationSnapshotIfNeeded(thread.id)
 
             analyticsService.track(AnalyticsEvent(
                 eventType: .conversationStarted,
@@ -208,6 +209,7 @@ extension InboxStore {
 
     func cancelBooking(in conversationID: UUID, reason: String?) {
         guard let snapshot = conversation(id: conversationID, for: sessionStore.currentRole) else { return }
+        guard bookingCoordinator.tryBeginBookingAction(conversationID) else { return }
 
         let currentStage = snapshot.stage
 
@@ -215,10 +217,12 @@ extension InboxStore {
         // based on role, vendor policy, and deadline window.
         // Skip optimistic mutation because the outcome is uncertain.
         if currentStage == .paid {
+            let idempotencyKey = UUID()
             Task { [weak self] in
                 guard let self else { return }
+                defer { bookingCoordinator.endBookingAction(conversationID) }
                 do {
-                    let result = try await bookingService.cancelBooking(conversationID: conversationID, reason: reason)
+                    let result = try await bookingService.cancelBooking(conversationID: conversationID, reason: reason, idempotencyKey: idempotencyKey)
                     let newStage = BookingStage.fromDatabaseValue(result.stage)
                     updateConversation(conversationID) { thread in
                         thread.stage = newStage
@@ -260,6 +264,7 @@ extension InboxStore {
 
         Task { [weak self] in
             guard let self else { return }
+            defer { bookingCoordinator.endBookingAction(conversationID) }
             do {
                 _ = try await serverTask()
                 await loadConversations(for: cancellingRole)
@@ -280,6 +285,7 @@ extension InboxStore {
 
     func forceCancelBooking(in conversationID: UUID, reason: String?) {
         guard let snapshot = conversation(id: conversationID, for: sessionStore.currentRole) else { return }
+        guard bookingCoordinator.tryBeginBookingAction(conversationID) else { return }
 
         let cancellingRole = sessionStore.currentRole
 
@@ -295,6 +301,7 @@ extension InboxStore {
 
         Task { [weak self] in
             guard let self else { return }
+            defer { bookingCoordinator.endBookingAction(conversationID) }
             do {
                 _ = try await serverTask()
                 await loadConversations(for: cancellingRole)

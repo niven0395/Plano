@@ -38,6 +38,7 @@ struct VendorProfileDraft: Hashable {
     var instagramHandle = ""
     var tiktokHandle = ""
     var tags: [String] = []
+    var collectsGuestCount = true
     var categoryDetails: CategoryDetails?
     var services: [String] = []
     var leadIntakeQuestions: [LeadIntakeQuestion] = []
@@ -226,10 +227,6 @@ struct VendorProfileDraft: Hashable {
             score += 5
         }
 
-        if !enabledLeadIntakeQuestions.isEmpty {
-            score += 5
-        }
-
         if let categoryDetails, !categoryDetails.isEmpty {
             score += 10
         }
@@ -290,6 +287,7 @@ struct VendorProfileDraft: Hashable {
         instagramHandle = record.instagramHandle ?? ""
         tiktokHandle = record.tiktokHandle ?? ""
         tags = record.tags ?? []
+        collectsGuestCount = record.collectsGuestCount ?? category.defaultCollectsGuestCount
         categoryDetails = record.categoryDetails
         services = record.services ?? []
         leadIntakeQuestions = LeadIntakeTemplateLibrary.resolvedQuestions(for: category, stored: record.leadIntakeQuestions)
@@ -329,6 +327,7 @@ struct VendorProfileDraft: Hashable {
             advanceBookingDays: min(max(advanceBookingDays, 7), 365),
             bookingMode: bookingMode.rawValue,
             paymentMode: paymentMode.rawValue,
+            collectsGuestCount: collectsGuestCount,
             cancellationDeadlineDays: cancellationDeadlineDays,
             phone: phone.trimmed.nilIfEmpty,
             website: website.trimmed.nilIfEmpty,

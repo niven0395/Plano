@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 // MARK: - Query helpers, archive/draft/assistant delegates, vendor profile accessors
 
@@ -53,6 +54,58 @@ extension InboxStore {
 
     func reload() async {
         await loadConversations(for: sessionStore.currentRole)
+    }
+
+    func setActiveConversation(_ conversationID: UUID?, for role: UserRole) {
+        activeConversationID = conversationID
+        activeConversationRole = conversationID == nil ? nil : role
+    }
+
+    func isActiveConversation(_ conversationID: UUID, for role: UserRole) -> Bool {
+        activeConversationID == conversationID && activeConversationRole == role
+    }
+
+    func loadCachedConversations(for role: UserRole, userID: UUID) async {
+        guard conversations.isEmpty,
+              let cacheManager = messageCacheManager else { return }
+
+        do {
+            let cachedRecords = try await cacheManager.fetchCachedConversations()
+            let filteredRecords = cachedRecords.filter { record in
+                switch role {
+                case .host:
+                    record.hostUserID == userID
+                case .vendor:
+                    record.vendorID == userID
+                }
+            }
+
+            guard !filteredRecords.isEmpty else { return }
+
+            conversations = filteredRecords.map { record in
+                ConversationThread(
+                    id: record.id,
+                    eventID: record.eventID,
+                    vendorID: record.vendorID,
+                    hostUserID: record.hostUserID,
+                    hostName: record.hostName,
+                    vendorName: record.vendorName,
+                    vendorCategory: VendorCategory.fromDatabaseValue(record.vendorCategory) ?? .entertainer,
+                    eventTitle: record.eventTitle,
+                    eventDateLabel: record.eventDateLabel,
+                    eventContextLine: record.eventContextLine,
+                    stage: BookingStage.fromDatabaseValue(record.stage),
+                    messages: [],
+                    lastActivityAt: record.lastActivityAt,
+                    lastMessagePreviewText: record.lastMessagePreviewText,
+                    hostUnreadCount: record.hostUnreadCount,
+                    vendorUnreadCount: record.vendorUnreadCount
+                )
+            }
+            .sorted { $0.lastActivityAt > $1.lastActivityAt }
+        } catch {
+            AppLogger.networking.error("Failed to load cached conversations: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func existingConversationID(vendorID: UUID) -> UUID? {
@@ -151,8 +204,17 @@ extension InboxStore {
                 paymentRequest: thread.paymentRequest,
                 messages: thread.messages,
                 lastActivityAt: thread.lastActivityAt,
+                lastMessagePreviewText: thread.lastMessagePreviewText,
                 hostUnreadCount: thread.hostUnreadCount,
-                vendorUnreadCount: thread.vendorUnreadCount
+                vendorUnreadCount: thread.vendorUnreadCount,
+                hasLoadedInitialMessages: thread.hasLoadedInitialMessages,
+                hasOlderMessages: thread.hasOlderMessages,
+                isLoadingMessages: thread.isLoadingMessages,
+                cancellationRequestDeadline: thread.cancellationRequestDeadline,
+                cancellationRequestedByRole: thread.cancellationRequestedByRole,
+                cancellationDeclinedAt: thread.cancellationDeclinedAt,
+                venueSettingLabel: thread.venueSettingLabel,
+                timeRangeLabel: thread.timeRangeLabel
             )
         }
     }
@@ -180,8 +242,17 @@ extension InboxStore {
                 paymentRequest: thread.paymentRequest,
                 messages: thread.messages,
                 lastActivityAt: thread.lastActivityAt,
+                lastMessagePreviewText: thread.lastMessagePreviewText,
                 hostUnreadCount: thread.hostUnreadCount,
-                vendorUnreadCount: thread.vendorUnreadCount
+                vendorUnreadCount: thread.vendorUnreadCount,
+                hasLoadedInitialMessages: thread.hasLoadedInitialMessages,
+                hasOlderMessages: thread.hasOlderMessages,
+                isLoadingMessages: thread.isLoadingMessages,
+                cancellationRequestDeadline: thread.cancellationRequestDeadline,
+                cancellationRequestedByRole: thread.cancellationRequestedByRole,
+                cancellationDeclinedAt: thread.cancellationDeclinedAt,
+                venueSettingLabel: thread.venueSettingLabel,
+                timeRangeLabel: thread.timeRangeLabel
             )
         }
     }

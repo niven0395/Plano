@@ -11,6 +11,7 @@ struct PlanoRootView: View {
     @Environment(VendorOnboardingStore.self) private var vendorOnboardingStore
     @Environment(VendorDashboardStore.self) private var vendorDashboardStore
     @AppStorage("plano.host.hasSeenTour") private var hasSeenTour = false
+    @State private var splashMinimumMet = false
 
     var body: some View {
         @Bindable var router = router
@@ -90,22 +91,18 @@ struct PlanoRootView: View {
         } content: {
             HostOnboardingView()
         }
-        .overlay(alignment: .top) {
-            if session.identityState == .initializing {
-                AppSurface {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                            .tint(AppTheme.Palette.accent)
-
-                        Text("Preparing guest session")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                    }
-                    .padding(.vertical, 10)
-                }
-                .padding(.horizontal, AppTheme.screenPadding)
-                .padding(.top, 10)
+        .overlay {
+            if session.identityState == .initializing || !splashMinimumMet {
+                SplashScreenView()
+                    .transition(.opacity.combined(with: .scale(scale: 1.05)))
+                    .zIndex(1)
             }
+        }
+        .animation(AppAnimation.transition, value: session.identityState == .initializing)
+        .animation(AppAnimation.transition, value: splashMinimumMet)
+        .task {
+            try? await Task.sleep(for: .milliseconds(800))
+            splashMinimumMet = true
         }
         // Role changes are handled by PlanoApp.handleRoleChange which also loads data
     }

@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 import OSLog
+import UserNotifications
+#if canImport(UIKit)
+import UIKit
+#endif
 #if canImport(TipKit)
 import TipKit
 #endif
@@ -8,6 +12,7 @@ import TipKit
 @main
 struct PlanoApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @UIApplicationDelegateAdaptor(PlanoAppDelegate.self) private var appDelegate
 
     @State private var environment: AppEnvironment
     @State private var authStore: AuthStore
@@ -53,6 +58,7 @@ struct PlanoApp: App {
         let realtimeManager = RealtimeManager()
         let networkMonitor = NetworkMonitor()
         let pushNotificationManager = PushNotificationManager(messagingService: services.messagingService)
+        PlanoAppDelegate.pushNotificationManager = pushNotificationManager
 
         #if canImport(Supabase)
         if let client = SupabaseClientProvider().makeClient() {
@@ -138,6 +144,16 @@ struct PlanoApp: App {
             )
             .task {
                 configureTipsIfNeeded()
+                pushNotificationManager.configureCategoriesAndDelegation()
+                pushNotificationManager.setCurrentUser(sessionStore.currentUserID)
+                pushNotificationManager.onNotificationTapped = { [weak router, weak inboxStore, weak sessionStore] conversationID in
+                    router?.openConversation(conversationID)
+                    Task { @MainActor in
+                        guard let inboxStore, let sessionStore else { return }
+                        _ = await inboxStore.ensureConversationLoaded(conversationID, for: sessionStore.currentRole)
+                        await inboxStore.loadMessages(for: conversationID)
+                    }
+                }
                 networkMonitor.start { [weak inboxStore, weak realtimeManager] isConnected in
                     realtimeManager?.handleConnectivityChange(isConnected: isConnected)
                     if isConnected {
@@ -149,6 +165,9 @@ struct PlanoApp: App {
             }
             .onChange(of: sessionStore.identityState) { oldState, newState in
                 handleIdentityStateChange(from: oldState, to: newState)
+            }
+            .onChange(of: sessionStore.currentUserID) { _, newUserID in
+                pushNotificationManager.setCurrentUser(newUserID)
             }
             .onChange(of: sessionStore.currentRole) { _, newRole in
                 handleRoleChange(newRole)
@@ -339,6 +358,63 @@ struct PlanoApp: App {
         }
     }
 }
+
+#if canImport(UIKit)
+final class PlanoAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    static weak var pushNotificationManager: PushNotificationManager?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+
+        if let remoteNotification = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+            Task { @MainActor in
+                Self.pushNotificationManager?.handleNotification(userInfo: remoteNotification)
+            }
+        }
+
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Task { @MainActor in
+            Self.pushNotificationManager?.handleDeviceToken(deviceToken)
+        }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        Task { @MainActor in
+            Self.pushNotificationManager?.handleRegistrationError(error)
+        }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await MainActor.run {
+            Self.pushNotificationManager?.handleNotification(
+                userInfo: response.notification.request.content.userInfo
+            )
+        }
+    }
+}
+#endif
 
 // MARK: - Centralized Environment Injection
 

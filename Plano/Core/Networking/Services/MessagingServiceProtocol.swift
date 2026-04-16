@@ -4,11 +4,11 @@ protocol MessagingServiceProtocol: Sendable {
     /// Fetch messages with cursor-based pagination.
     /// - Parameters:
     ///   - conversationID: The conversation to fetch messages from.
-    ///   - cursor: Fetch messages created before this date. Pass nil for the latest page.
+    ///   - beforeSequence: Fetch messages before this sequence number. Pass nil for the latest page.
     ///   - limit: Maximum number of messages to return.
     func fetchMessages(
         conversationID: UUID,
-        before cursor: Date?,
+        beforeSequence: Int?,
         limit: Int
     ) async throws -> [MessageRecord]
 
@@ -21,19 +21,14 @@ protocol MessagingServiceProtocol: Sendable {
         clientID: UUID
     ) async throws -> MessageRecord
 
-    /// Send a message with an attachment via edge function (upload must be done first).
-    func sendMessageWithAttachment(
+    /// Send a message with uploaded attachments via a single atomic server contract.
+    func sendMessageWithAttachments(
         conversationID: UUID,
         body: String,
         kind: String,
         clientID: UUID,
-        storagePath: String,
-        fileName: String,
-        mimeType: String,
-        fileSizeBytes: Int64,
-        width: Int?,
-        height: Int?
-    ) async throws -> MessageRecord
+        attachments: [MessageAttachmentUpload]
+    ) async throws -> MessageSendResult
 
     /// Mark all messages in a conversation as read for the given role.
     func markMessagesRead(

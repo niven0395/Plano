@@ -18,13 +18,16 @@ final class InboxStore {
     @ObservationIgnored var analyticsService: any AnalyticsServiceProtocol = UnavailableAnalyticsService(message: "")
     @ObservationIgnored private var hasLoadedIdentityKey: String?
     @ObservationIgnored private var offlineSendQueue: OfflineSendQueue?
-    @ObservationIgnored var typingDebounceTimers: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored var typingDebounceTimers: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var activeTypingKeys: Set<String> = []
     /// Tracks the most recent message timestamp per conversation for catch-up sync.
     @ObservationIgnored var lastRealtimeMessageAt: [UUID: Date] = [:]
     /// Local SwiftData cache for offline message persistence.
     @ObservationIgnored var messageCacheManager: MessageCacheManager?
     /// In-flight conversation creation tasks keyed by "vendorID-eventID" to prevent duplicate requests.
     @ObservationIgnored var conversationCreationTasks: [String: Task<UUID, Error>] = [:]
+    @ObservationIgnored var activeConversationID: UUID?
+    @ObservationIgnored var activeConversationRole: UserRole?
 
     // MARK: - Internal managers
 
@@ -42,6 +45,14 @@ final class InboxStore {
     var confirmingPaymentIDs: Set<UUID> {
         get { bookingCoordinator.confirmingPaymentIDs }
         set { bookingCoordinator.confirmingPaymentIDs = newValue }
+    }
+    var processingBookingActionIDs: Set<UUID> {
+        get { bookingCoordinator.processingBookingActionIDs }
+        set { bookingCoordinator.processingBookingActionIDs = newValue }
+    }
+
+    func isBookingActionInFlight(_ conversationID: UUID) -> Bool {
+        bookingCoordinator.isBookingActionInFlight(conversationID)
     }
     var confirmPaymentError: String? {
         get { bookingCoordinator.confirmPaymentError }
@@ -103,8 +114,8 @@ final class InboxStore {
         messageSender.onAppendMessage = { [weak self] message, conversationID, unreadRole in
             self?.appendMessage(message, to: conversationID, incrementUnreadFor: unreadRole)
         }
-        messageSender.onReplaceOptimistic = { [weak self] clientID, conversationID, message in
-            self?.replaceOptimisticMessage(clientID: clientID, in: conversationID, with: message)
+        messageSender.onPersistedMessage = { [weak self] clientID, conversationID, result in
+            self?.replaceOptimisticMessage(clientID: clientID, in: conversationID, with: result)
         }
         messageSender.onUpdateStatus = { [weak self] clientID, conversationID, status in
             self?.updateMessageStatus(clientID: clientID, in: conversationID, to: status)
@@ -161,14 +172,16 @@ final class InboxStore {
         }
         realtimeManager?.onReconnected = { [weak self] in
             Task { @MainActor [weak self] in
-                await self?.catchUpAfterReconnect()
+                guard let self else { return }
+                await self.loadConversations(for: self.sessionStore.currentRole)
+                await self.catchUpAfterReconnect()
             }
         }
     }
 
     func drainOfflineQueue() {
         Task {
-            await offlineSendQueue?.drain()
+            await offlineSendQueue?.drain(for: sessionStore.currentUserID)
         }
     }
 
@@ -194,36 +207,32 @@ final class InboxStore {
         let identityKey = "\(role.rawValue).\(userID.uuidString)"
         if conversations.isEmpty {
             loadingState = .loading
+            await loadCachedConversations(for: role, userID: userID)
         } else {
             isRefreshing = true
         }
 
         do {
-            let records: [ConversationRecord]
-            switch role {
-            case .host:
-                records = try await bookingService.fetchConversations(hostID: userID)
-            case .vendor:
-                records = try await bookingService.fetchVendorConversations(vendorID: userID)
-            }
+            let summaries = try await bookingService.fetchConversationSummaries(role: role.rawValue)
 
-            AppLogger.booking.info("loadConversations(\(role.rawValue, privacy: .public)): fetched \(records.count) records for userID=\(userID.uuidString, privacy: .public)")
-            for record in records {
-                AppLogger.booking.info("  conv=\(record.id.uuidString.prefix(8), privacy: .public) stage=\(record.stage, privacy: .public) vendorID=\(record.vendorID.uuidString.prefix(8), privacy: .public) hostID=\(record.hostID.uuidString.prefix(8), privacy: .public)")
-            }
+            AppLogger.booking.info(
+                "loadConversations(\(role.rawValue, privacy: .public)): fetched \(summaries.count) summaries for userID=\(userID.uuidString, privacy: .public)"
+            )
 
-            let conversationIDs = records.map(\.id)
+            let existingByID = Dictionary(uniqueKeysWithValues: conversations.map { ($0.id, $0) })
+            let conversationIDs = summaries.map(\.conversationID)
             let bookingRequests = try await bookingService.fetchBookingRequests(conversationIDs: conversationIDs)
             let bookings = try await bookingService.fetchBookings(conversationIDs: conversationIDs)
-            await loadVendorProfiles(for: Set(records.map(\.vendorID)))
+            await loadVendorProfiles(for: Set(summaries.map(\.vendorID)))
 
             let requestByConversation = latestBookingRequests(bookingRequests)
             let bookingByConversation = latestBookings(bookings)
             bookingRequestsByConversation = requestByConversation
 
-            let rebuiltConversations = records.map { record in
-                let request = requestByConversation[record.id]
-                let booking = bookingByConversation[record.id]
+            let rebuiltConversations = summaries.map { summary in
+                let request = requestByConversation[summary.conversationID]
+                let booking = bookingByConversation[summary.conversationID]
+                let existing = existingByID[summary.conversationID]
 
                 let paymentRequest: PaymentRequest? = booking.flatMap { b in
                     guard let amountCents = b.paymentRequestedAmountCents else { return nil }
@@ -238,35 +247,75 @@ final class InboxStore {
                 }
 
                 let cancellationRequestedByRole: UserRole? = booking?.cancellationRequestedBy.flatMap { requestedBy in
-                    if requestedBy == record.hostID { return .host }
-                    if requestedBy == record.vendorID { return .vendor }
+                    if requestedBy == summary.hostID { return .host }
+                    if requestedBy == summary.vendorID { return .vendor }
                     return nil
                 }
 
                 return ConversationThread(
-                    id: record.id,
-                    eventID: record.eventID,
+                    id: summary.conversationID,
+                    eventID: summary.eventID,
                     eventDate: booking?.eventDate ?? request?.eventDate,
-                    vendorID: record.vendorID,
-                    hostUserID: record.hostID,
-                    hostName: record.hostDisplayName,
-                    vendorName: record.vendorDisplayName,
-                    vendorCategory: VendorCategory.fromDatabaseValue(record.vendorCategory) ?? .entertainer,
-                    eventTitle: record.eventTitle ?? "Direct inquiry",
-                    eventDateLabel: record.eventDateLabel ?? "Date pending",
-                    eventContextLine: record.eventContextLine ?? "Guest count pending",
-                    stage: BookingStage.fromDatabaseValue(record.stage),
+                    vendorID: summary.vendorID,
+                    hostUserID: summary.hostID,
+                    hostName: summary.hostDisplayName,
+                    vendorName: summary.vendorDisplayName,
+                    vendorCategory: VendorCategory.fromDatabaseValue(summary.vendorCategory) ?? .entertainer,
+                    eventTitle: summary.eventTitle ?? "Direct inquiry",
+                    eventDateLabel: summary.eventDateLabel ?? "Date pending",
+                    eventContextLine: summary.eventContextLine ?? "Guest count pending",
+                    stage: BookingStage.fromDatabaseValue(summary.stage),
                     bookingEventDate: booking?.eventDate ?? request?.eventDate,
                     paymentRequest: paymentRequest,
-                    messages: [],
-                    lastActivityAt: record.lastActivityAt,
-                    hostUnreadCount: record.hostUnreadCount ?? 0,
-                    vendorUnreadCount: record.vendorUnreadCount ?? 0,
-                    hasLoadedInitialMessages: false,
-                    hasOlderMessages: false,
+                    messages: existing?.messages ?? [],
+                    lastActivityAt: max(existing?.lastActivityAt ?? .distantPast, summary.lastActivityAt),
+                    lastMessagePreviewText: existing?.messages.last?.previewText ?? summary.latestMessagePreview ?? existing?.lastMessagePreviewText,
+                    hostUnreadCount: isActiveConversation(summary.conversationID, for: .host) ? 0 : (summary.hostUnreadCount ?? existing?.hostUnreadCount ?? 0),
+                    vendorUnreadCount: isActiveConversation(summary.conversationID, for: .vendor) ? 0 : (summary.vendorUnreadCount ?? existing?.vendorUnreadCount ?? 0),
+                    hasLoadedInitialMessages: existing?.hasLoadedInitialMessages ?? false,
+                    hasOlderMessages: existing?.hasOlderMessages ?? false,
+                    isLoadingMessages: existing?.isLoadingMessages ?? false,
                     cancellationRequestDeadline: booking?.cancellationRequestDeadline,
                     cancellationRequestedByRole: cancellationRequestedByRole,
                     cancellationDeclinedAt: booking?.cancellationDeclinedAt
+                )
+            }
+            .map { thread in
+                guard thread.stage == .active,
+                      let request = requestByConversation[thread.id] else {
+                    return thread
+                }
+
+                return ConversationThread(
+                    id: thread.id,
+                    eventID: thread.eventID,
+                    eventDate: thread.eventDate,
+                    vendorID: thread.vendorID,
+                    hostUserID: thread.hostUserID,
+                    hostName: thread.hostName,
+                    vendorName: thread.vendorName,
+                    vendorCategory: thread.vendorCategory,
+                    eventTitle: thread.eventTitle,
+                    eventDateLabel: thread.eventDateLabel,
+                    eventContextLine: thread.eventContextLine,
+                    stage: .requested,
+                    bookingEventDate: thread.bookingEventDate,
+                    paymentRequest: thread.paymentRequest,
+                    messages: thread.messages,
+                    lastActivityAt: thread.lastActivityAt,
+                    lastMessagePreviewText: thread.lastMessagePreviewText,
+                    hostUnreadCount: thread.hostUnreadCount,
+                    vendorUnreadCount: thread.vendorUnreadCount,
+                    hasLoadedInitialMessages: thread.hasLoadedInitialMessages,
+                    hasOlderMessages: thread.hasOlderMessages,
+                    isLoadingMessages: thread.isLoadingMessages,
+                    cancellationRequestDeadline: thread.cancellationRequestDeadline,
+                    cancellationRequestedByRole: thread.cancellationRequestedByRole,
+                    cancellationDeclinedAt: thread.cancellationDeclinedAt,
+                    venueSettingLabel: thread.venueSettingLabel,
+                    timeRangeLabel: request.requestedTimeStart != nil && request.requestedTimeEnd != nil
+                        ? "\(request.requestedTimeStart ?? "") – \(request.requestedTimeEnd ?? "")"
+                        : thread.timeRangeLabel
                 )
             }
             .sorted { $0.lastActivityAt > $1.lastActivityAt }
@@ -285,13 +334,21 @@ final class InboxStore {
             isRefreshing = false
             loadingState = .loaded
 
+            if let cacheManager = messageCacheManager {
+                Task {
+                    for thread in rebuiltConversations {
+                        try? await cacheManager.upsertConversation(thread)
+                    }
+                }
+            }
+
             drainOfflineQueue()
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {
             isRefreshing = false
             loadingState = .failed(error.localizedDescription)
-            AppLogger.booking.error("Failed to load conversations: \(error.localizedDescription, privacy: .public)")
+            AppLogger.booking.error("Failed to load conversations: \(error, privacy: .public)")
         }
     }
 
@@ -326,6 +383,11 @@ final class InboxStore {
         bookingRequestsByConversation = [:]
         vendorNotes = [:]
         typingSenders = [:]
+        activeConversationID = nil
+        activeConversationRole = nil
+        activeTypingKeys = []
+        typingDebounceTimers.values.forEach { $0.cancel() }
+        typingDebounceTimers = [:]
         hasLoadedIdentityKey = nil
         loadingState = .idle
     }

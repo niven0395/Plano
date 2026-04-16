@@ -29,6 +29,7 @@ actor MessageCacheManager {
                 body: record.body,
                 kind: record.kind,
                 createdAt: record.createdAt,
+                sequenceNumber: record.sequenceNumber,
                 status: record.status ?? "sent",
                 clientID: record.clientID
             )
@@ -60,6 +61,7 @@ actor MessageCacheManager {
                     body: record.body,
                     kind: record.kind,
                     createdAt: record.createdAt,
+                    sequenceNumber: record.sequenceNumber,
                     status: record.status ?? "sent",
                     clientID: record.clientID
                 )
@@ -115,6 +117,7 @@ actor MessageCacheManager {
             existing.eventContextLine = thread.eventContextLine
             existing.stage = thread.stage.rawValue
             existing.lastActivityAt = thread.lastActivityAt
+            existing.lastMessagePreviewText = thread.lastMessagePreview
             existing.hostUnreadCount = thread.hostUnreadCount
             existing.vendorUnreadCount = thread.vendorUnreadCount
             existing.eventID = thread.eventID
@@ -131,6 +134,7 @@ actor MessageCacheManager {
                 eventContextLine: thread.eventContextLine,
                 stage: thread.stage.rawValue,
                 lastActivityAt: thread.lastActivityAt,
+                lastMessagePreviewText: thread.lastMessagePreview,
                 hostUnreadCount: thread.hostUnreadCount,
                 vendorUnreadCount: thread.vendorUnreadCount,
                 eventID: thread.eventID
@@ -180,12 +184,25 @@ actor MessageCacheManager {
         try context.save()
     }
 
-    func fetchAttachments(messageIDs: [UUID]) throws -> [MessageAttachment] {
+    func fetchAttachments(messageIDs: [UUID]) throws -> [MessageAttachmentRecord] {
         let context = ModelContext(modelContainer)
         let descriptor = FetchDescriptor<CachedAttachment>(
             predicate: #Predicate { messageIDs.contains($0.messageID) }
         )
-        return try context.fetch(descriptor).map { $0.toAttachment() }
+        return try context.fetch(descriptor).map { cached in
+            MessageAttachmentRecord(
+                id: cached.attachmentID,
+                messageID: cached.messageID,
+                storagePath: cached.storagePath,
+                fileName: cached.fileName,
+                mimeType: cached.mimeType,
+                fileSizeBytes: cached.fileSizeBytes,
+                width: cached.width,
+                height: cached.height,
+                thumbnailPath: cached.thumbnailPath,
+                createdAt: cached.createdAt
+            )
+        }
     }
 
     // MARK: - Cleanup

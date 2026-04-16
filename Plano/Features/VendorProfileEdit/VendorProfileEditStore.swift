@@ -140,7 +140,7 @@ final class VendorProfileEditStore {
             .init(section: .categoryDetails, isComplete: draft.categoryDetails.map { !$0.isEmpty } ?? false),
             .init(section: .pricing, isComplete: draft.computedBasePriceCents != nil),
             .init(section: .availability, isComplete: availabilitySectionComplete),
-            .init(section: .leadIntake, isComplete: !draft.enabledLeadIntakeQuestions.isEmpty),
+            .init(section: .leadIntake, isComplete: true),
             .init(section: .gallery, isComplete: !draft.galleryImages.isEmpty),
             .init(section: .policies, isComplete: !draft.policies.isEmpty),
             .init(section: .socialContact, isComplete: !draft.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.website.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.instagramHandle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draft.tiktokHandle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
@@ -213,10 +213,6 @@ final class VendorProfileEditStore {
                 )
             } else if let profile = sessionStore.authenticatedProfile {
                 draft.businessName = profile.vendorDisplayName ?? ""
-            }
-
-            if draft.leadIntakeQuestions.isEmpty {
-                draft.leadIntakeQuestions = LeadIntakeTemplateLibrary.defaultQuestions(for: draft.category)
             }
 
             availabilityRecords = try await availability
@@ -591,14 +587,35 @@ final class VendorProfileEditStore {
         Calendar.current.date(byAdding: .day, value: 365, to: .now) ?? .now
     }
 
-    func ensureLeadIntakeQuestions() {
-        if draft.leadIntakeQuestions.isEmpty {
-            draft.leadIntakeQuestions = LeadIntakeTemplateLibrary.defaultQuestions(for: draft.category)
-        }
+    func addSuggestedQuestions() {
+        let suggested = LeadIntakeTemplateLibrary.suggestedQuestions(for: draft.category)
+        let existingIDs = Set(draft.leadIntakeQuestions.map(\.id))
+        let newQuestions = suggested.filter { !existingIDs.contains($0.id) }
+        draft.leadIntakeQuestions.append(contentsOf: newQuestions)
     }
 
-    func resetLeadIntakeQuestionsToTemplate() {
-        draft.leadIntakeQuestions = LeadIntakeTemplateLibrary.defaultQuestions(for: draft.category)
+    func addCustomQuestion() {
+        let question = LeadIntakeQuestion(
+            id: LeadIntakeQuestion.customID(),
+            prompt: "",
+            responseType: .shortText,
+            isRequired: false,
+            isEnabled: true
+        )
+        draft.leadIntakeQuestions.append(question)
+    }
+
+    func deleteQuestion(id: String) {
+        draft.leadIntakeQuestions.removeAll { $0.id == id }
+    }
+
+    func moveQuestion(from source: Int, to destination: Int) {
+        guard draft.leadIntakeQuestions.indices.contains(source),
+              destination >= 0,
+              destination < draft.leadIntakeQuestions.count
+        else { return }
+        let item = draft.leadIntakeQuestions.remove(at: source)
+        draft.leadIntakeQuestions.insert(item, at: destination)
     }
 
     func blockDates(_ dates: [Date]) async {

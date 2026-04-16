@@ -193,6 +193,72 @@ struct BookingTransitionTests {
     }
 
     @Test
+    @MainActor
+    func confirmPaymentReloadsAuthoritativeCancellationMetadata() async throws {
+        try await withIsolatedDefaults { defaults in
+            let conversation = makeConversation(stage: .paymentRequested)
+            let booking = makeBooking(conversation: conversation, stage: .paymentRequested)
+            let bookingService = TestBookingService(
+                conversations: [conversation],
+                bookings: [booking]
+            )
+            bookingService.confirmPaymentResultOverride = BookingTransitionResult(
+                conversationID: conversation.id,
+                stage: BookingStage.cancellationRequested.rawValue,
+                bookingID: booking.id,
+                dateConflicts: nil,
+                cancellationRequestDeadline: .now.addingTimeInterval(3600),
+                cancellationRequestedBy: FixtureData.hostID
+            )
+
+            let sessionStore = SessionStore(defaults: defaults)
+            sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
+
+            let store = InboxStore(
+                bookingService: bookingService,
+                messagingService: TestMessagingService(),
+                vendorProfileService: TestVendorProfileService(),
+                sessionStore: sessionStore,
+                defaults: defaults
+            )
+
+            await store.loadConversations(for: .host)
+            await store.confirmPayment(in: conversation.id)
+            try? await Task.sleep(for: .milliseconds(50))
+
+            let thread = try #require(store.conversation(id: conversation.id, for: .host))
+            #expect(thread.stage == .cancellationRequested)
+            #expect(thread.cancellationRequestedByRole == .host)
+            #expect(thread.cancellationRequestDeadline != nil)
+        }
+    }
+
+    @Test
+    func submitBookingRequestRejectsInvalidTimeRange() async throws {
+        let conversation = makeConversation(stage: .active)
+        let service = TestBookingService(conversations: [conversation])
+
+        do {
+            _ = try await service.submitBookingRequest(
+                conversationID: conversation.id,
+                eventDate: FixtureData.events[0].date,
+                note: "Need install support.",
+                requestedTimeStart: "18:00:00",
+                requestedTimeEnd: "17:00:00",
+                title: nil,
+                budgetLabel: nil,
+                guestCountLabel: nil,
+                requestedServices: nil,
+                intakeAnswers: nil,
+                idempotencyKey: UUID()
+            )
+            Issue.record("Expected invalid time range to throw")
+        } catch {
+            #expect(error.localizedDescription.contains("later than the start time"))
+        }
+    }
+
+    @Test
     func cancellationRequestedStageHasCorrectProperties() {
         let stage = BookingStage.cancellationRequested
         #expect(stage.title == "Cancellation requested")

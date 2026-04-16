@@ -4,12 +4,13 @@ import {
   jsonResponse,
   optionsResponse,
 } from "../_shared/http.ts";
+import { deliverAPNsNotifications } from "../_shared/apns.ts";
 
 /**
  * Process Push Queue
  *
  * Reads messages from the `push_notification_jobs` pgmq queue, processes each
- * push notification job (fetches device tokens, prepares APNs payload, logs it),
+ * push notification job (fetches device tokens and delivers via APNs when configured),
  * and archives processed messages.
  *
  * Intended to be invoked via cron (pg_cron / Supabase cron) or webhook trigger.
@@ -105,25 +106,30 @@ Deno.serve(async (req) => {
             : job.message_body;
 
         // Prepare the APNs payload
-        const apnsPayload = {
-          notification: {
-            title: job.sender_display_name,
-            body: truncatedBody,
-          },
+        const apnsResult = await deliverAPNsNotifications({
+          title: job.sender_display_name,
+          body: truncatedBody,
           data: {
             conversation_id: job.conversation_id,
             sender_role: job.sender_role,
             type: "new_message",
           },
           tokens: tokens.map((t: { token: string }) => t.token),
-        };
+        });
 
-        // NOTE: Actual APNs delivery requires Apple Push Notification service integration.
-        // When the APNs provider is configured, replace this log with the actual send call.
-        console.log(
-          `Push job ${msg.msg_id}: payload prepared for ${tokens.length} device(s):`,
-          JSON.stringify(apnsPayload),
-        );
+        if (apnsResult.invalidTokens.length > 0) {
+          await removeInvalidTokens(serviceClient, apnsResult.invalidTokens);
+        }
+
+        if (apnsResult.skipped) {
+          console.log(
+            `Push job ${msg.msg_id}: skipped APNs delivery (${apnsResult.reason ?? "unknown"})`,
+          );
+        } else {
+          console.log(
+            `Push job ${msg.msg_id}: delivered=${apnsResult.delivered}, failed=${apnsResult.failed}`,
+          );
+        }
 
         // Archive the processed message
         await archiveMessage(serviceClient, msg.msg_id);
@@ -153,5 +159,19 @@ async function archiveMessage(
 
   if (error) {
     console.error(`Failed to archive message ${msgId}:`, error.message);
+  }
+}
+
+async function removeInvalidTokens(
+  serviceClient: ReturnType<typeof createServiceClient>,
+  tokens: string[],
+): Promise<void> {
+  const { error } = await serviceClient
+    .from("device_tokens")
+    .delete()
+    .in("token", tokens);
+
+  if (error) {
+    console.error("Failed to remove invalid device tokens:", error.message);
   }
 }

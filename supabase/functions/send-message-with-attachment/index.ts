@@ -23,7 +23,8 @@ interface SendMessageWithAttachmentPayload {
   body: string;
   kind?: string;
   client_id?: string;
-  attachment: Attachment;
+  attachment?: Attachment;
+  attachments?: Attachment[];
 }
 
 Deno.serve(async (req) => {
@@ -33,38 +34,41 @@ Deno.serve(async (req) => {
     ensureMethod(req, "POST");
 
     const { serviceClient, user } = await requireUser(req);
-    const { conversation_id, body, kind, client_id, attachment } =
+    const { conversation_id, body, kind, client_id, attachment, attachments } =
       await parseJSON<SendMessageWithAttachmentPayload>(req);
+    const normalizedAttachments = attachments ?? (attachment ? [attachment] : []);
 
-    if (!conversation_id || !body || !attachment) {
+    if (!conversation_id || !body || normalizedAttachments.length === 0) {
       throw new HTTPError(
         400,
-        "conversation_id, body, and attachment are required."
+        "conversation_id, body, and at least one attachment are required."
       );
     }
 
-    if (!attachment.storage_path || !attachment.file_name || !attachment.mime_type || !attachment.file_size_bytes) {
-      throw new HTTPError(
-        400,
-        "attachment must include storage_path, file_name, mime_type, and file_size_bytes."
-      );
+    for (const currentAttachment of normalizedAttachments) {
+      if (
+        !currentAttachment.storage_path ||
+        !currentAttachment.file_name ||
+        !currentAttachment.mime_type ||
+        !currentAttachment.file_size_bytes
+      ) {
+        throw new HTTPError(
+          400,
+          "attachments must include storage_path, file_name, mime_type, and file_size_bytes."
+        );
+      }
     }
 
     const result = await runMessagingRPC<Record<string, unknown>>(
       serviceClient,
-      "send_message_with_attachment_server",
+      "send_message_with_attachments_server",
       {
         p_conversation_id: conversation_id,
         p_sender_id: user.id,
         p_body: body,
         p_kind: kind ?? "attachment",
         p_client_id: client_id ?? null,
-        p_storage_path: attachment.storage_path,
-        p_file_name: attachment.file_name,
-        p_mime_type: attachment.mime_type,
-        p_file_size_bytes: attachment.file_size_bytes,
-        p_width: attachment.width ?? null,
-        p_height: attachment.height ?? null,
+        p_attachments: normalizedAttachments,
       },
     );
 

@@ -222,6 +222,15 @@ nonisolated enum VendorCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var defaultCollectsGuestCount: Bool {
+        switch self {
+        case .photographer, .makeupArtist, .hairStylist, .photobooth:
+            false
+        default:
+            true
+        }
+    }
+
     var searchKeywords: [String] {
         switch self {
         case .decorator:

@@ -126,6 +126,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
     var paymentRequest: PaymentRequest?
     var messages: [ChatMessage]
     var lastActivityAt: Date
+    var lastMessagePreviewText: String?
     var hostUnreadCount: Int
     var vendorUnreadCount: Int
     var hasLoadedInitialMessages: Bool
@@ -158,6 +159,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         paymentRequest: PaymentRequest? = nil,
         messages: [ChatMessage],
         lastActivityAt: Date,
+        lastMessagePreviewText: String? = nil,
         hostUnreadCount: Int,
         vendorUnreadCount: Int,
         hasLoadedInitialMessages: Bool = false,
@@ -185,6 +187,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         self.paymentRequest = paymentRequest
         self.messages = messages
         self.lastActivityAt = lastActivityAt
+        self.lastMessagePreviewText = lastMessagePreviewText
         self.hostUnreadCount = hostUnreadCount
         self.vendorUnreadCount = vendorUnreadCount
         self.hasLoadedInitialMessages = hasLoadedInitialMessages
@@ -198,7 +201,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
     }
 
     var lastMessagePreview: String {
-        messages.last?.previewText ?? "No messages yet."
+        messages.last?.previewText ?? lastMessagePreviewText ?? "No messages yet."
     }
 
     var resolvedEventDate: Date? {

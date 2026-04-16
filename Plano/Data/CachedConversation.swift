@@ -15,6 +15,7 @@ final class CachedConversation {
     var eventContextLine: String
     var stage: String
     var lastActivityAt: Date
+    var lastMessagePreviewText: String?
     var hostUnreadCount: Int
     var vendorUnreadCount: Int
     var eventID: UUID?
@@ -31,6 +32,7 @@ final class CachedConversation {
         eventContextLine: String,
         stage: String,
         lastActivityAt: Date,
+        lastMessagePreviewText: String? = nil,
         hostUnreadCount: Int,
         vendorUnreadCount: Int,
         eventID: UUID? = nil
@@ -46,6 +48,7 @@ final class CachedConversation {
         self.eventContextLine = eventContextLine
         self.stage = stage
         self.lastActivityAt = lastActivityAt
+        self.lastMessagePreviewText = lastMessagePreviewText
         self.hostUnreadCount = hostUnreadCount
         self.vendorUnreadCount = vendorUnreadCount
         self.eventID = eventID
@@ -66,6 +69,7 @@ struct CachedConversationRecord: Sendable, Identifiable {
     let eventContextLine: String
     let stage: String
     let lastActivityAt: Date
+    let lastMessagePreviewText: String?
     let hostUnreadCount: Int
     let vendorUnreadCount: Int
     let eventID: UUID?
@@ -85,6 +89,7 @@ extension CachedConversation {
             eventContextLine: eventContextLine,
             stage: stage,
             lastActivityAt: lastActivityAt,
+            lastMessagePreviewText: lastMessagePreviewText,
             hostUnreadCount: hostUnreadCount,
             vendorUnreadCount: vendorUnreadCount,
             eventID: eventID

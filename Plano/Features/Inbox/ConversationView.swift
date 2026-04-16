@@ -113,6 +113,7 @@ struct ConversationContextCard: View {
 struct ConversationBookingStatusBanner: View {
     let thread: ConversationThread
     let role: UserRole
+    let vendor: VendorProfile?
     @Binding var isPresentingDeclinePrompt: Bool
     @Binding var isPresentingPaymentSheet: Bool
     @Binding var isPresentingCancellationApproval: Bool
@@ -131,6 +132,37 @@ struct ConversationBookingStatusBanner: View {
         return requestedByRole == role && thread.cancellationDeclinedAt != nil
     }
 
+    private var isActionInFlight: Bool {
+        inboxStore.isBookingActionInFlight(thread.id)
+    }
+
+    private var intakeAnswerRows: [(id: String, prompt: String, value: String)] {
+        guard let request = inboxStore.bookingRequestsByConversation[thread.id] else { return [] }
+        let answers = (request.intakeAnswers ?? []).filter(\.hasValue)
+        guard !answers.isEmpty else { return [] }
+
+        let orderedIDs = vendor?.enabledLeadIntakeQuestions.map(\.id) ?? []
+        let promptByID = Dictionary(uniqueKeysWithValues: (vendor?.enabledLeadIntakeQuestions ?? []).map { question in
+            (question.id, question.trimmedPrompt.isEmpty ? question.prompt : question.trimmedPrompt)
+        })
+
+        return answers
+            .sorted { lhs, rhs in
+                let l = orderedIDs.firstIndex(of: lhs.questionID) ?? .max
+                let r = orderedIDs.firstIndex(of: rhs.questionID) ?? .max
+                return l < r
+            }
+            .map { answer in
+                let prompt = promptByID[answer.questionID]
+                    ?? answer.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                return (
+                    id: answer.questionID,
+                    prompt: prompt.isEmpty ? "Requested detail" : prompt,
+                    value: answer.displayValue
+                )
+            }
+    }
+
     var body: some View {
         Group {
         switch thread.stage {
@@ -138,7 +170,7 @@ struct ConversationBookingStatusBanner: View {
             EmptyView()
         case .requested:
             if role == .vendor {
-                VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) {
                     Label("Booking requested", systemImage: "calendar.badge.clock")
                         .font(.subheadline.weight(.medium))
                     if let date = thread.bookingEventDate {
@@ -146,16 +178,48 @@ struct ConversationBookingStatusBanner: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    HStack(spacing: 12) {
-                        Button("Decline") { isPresentingDeclinePrompt = true }
-                            .buttonStyle(.bordered)
+
+                    let rows = intakeAnswerRows
+                    if !rows.isEmpty {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(rows, id: \.id) { row in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.prompt)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    Text(row.value)
+                                        .font(.footnote)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                        }
+                    }
+
+                    VStack(spacing: 8) {
                         Button("Accept") {
                             Task { await inboxStore.acceptBooking(in: thread.id) }
                         }
                         .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                        .disabled(isActionInFlight)
                         .sensoryFeedback(.success, trigger: thread.stage) { old, _ in
                             old == .requested
                         }
+
+                        Button("Request payment first") {
+                            isPresentingPaymentSheet = true
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                        .disabled(isActionInFlight)
+
+                        Button("Decline", role: .destructive) {
+                            isPresentingDeclinePrompt = true
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity)
+                        .disabled(isActionInFlight)
                     }
                 }
                 .padding()
@@ -213,6 +277,7 @@ struct ConversationBookingStatusBanner: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
                     .controlSize(.small)
+                    .disabled(isActionInFlight)
                 }
             }
             .padding()
@@ -234,9 +299,11 @@ struct ConversationBookingStatusBanner: View {
                     HStack(spacing: 12) {
                         Button("Decline") { isPresentingCancellationDeclinePrompt = true }
                             .buttonStyle(.bordered)
+                            .disabled(isActionInFlight)
                         Button("Approve Cancellation") { isPresentingCancellationApproval = true }
                             .buttonStyle(.borderedProminent)
                             .tint(.red)
+                            .disabled(isActionInFlight)
                     }
                 }
                 .padding()
@@ -310,7 +377,11 @@ struct ConversationComposerBar: View {
                         .background(AppTheme.Palette.elevatedSurface, in: .rect(cornerRadius: AppTheme.smallCornerRadius))
                         .onChange(of: draftText) { _, newValue in
                             inboxStore.updateDraft(newValue, for: conversationID, role: currentRole)
-                            inboxStore.sendTypingIndicator(for: conversationID, as: currentRole)
+                            inboxStore.sendTypingIndicator(
+                                for: conversationID,
+                                as: currentRole,
+                                isComposing: !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            )
                         }
 
                     Button {
@@ -520,7 +591,7 @@ struct MessageRow: View {
         case .attachment:
             contentRow {
                 VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 8) {
-                    if !message.body.isEmpty && !message.body.starts(with: "Sent ") {
+                    if !message.body.isEmpty && (message.attachments.isEmpty || !message.body.starts(with: "Sent ")) {
                         Text(message.body)
                             .font(.body)
                             .foregroundStyle(isCurrentUser ? AppTheme.Palette.accentForeground : AppTheme.Palette.textPrimary)

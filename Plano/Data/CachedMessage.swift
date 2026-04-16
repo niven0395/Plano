@@ -10,6 +10,7 @@ final class CachedMessage {
     var body: String
     var kind: String
     var createdAt: Date
+    var sequenceNumber: Int?
     var status: String
     var clientID: UUID?
     /// Tracks local sync state: "synced" for server-confirmed, "local" for outbox-pending.
@@ -22,6 +23,7 @@ final class CachedMessage {
         body: String,
         kind: String,
         createdAt: Date,
+        sequenceNumber: Int? = nil,
         status: String,
         clientID: UUID? = nil,
         syncState: String = "synced"
@@ -32,6 +34,7 @@ final class CachedMessage {
         self.body = body
         self.kind = kind
         self.createdAt = createdAt
+        self.sequenceNumber = sequenceNumber
         self.status = status
         self.clientID = clientID
         self.syncState = syncState
@@ -48,7 +51,8 @@ extension CachedMessage {
             kind: kind,
             createdAt: createdAt,
             status: status,
-            clientID: clientID
+            clientID: clientID,
+            sequenceNumber: sequenceNumber
         )
     }
 
@@ -57,6 +61,7 @@ extension CachedMessage {
         body = record.body
         kind = record.kind
         createdAt = record.createdAt
+        sequenceNumber = record.sequenceNumber
         status = record.status ?? "sent"
         clientID = record.clientID
         syncState = "synced"

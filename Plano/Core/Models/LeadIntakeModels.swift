@@ -23,6 +23,16 @@ nonisolated enum LeadIntakeFieldType: String, CaseIterable, Identifiable, Codabl
             "Number"
         }
     }
+
+    var symbolName: String {
+        switch self {
+        case .shortText: "text.cursor"
+        case .longText: "text.alignleft"
+        case .singleChoice: "checkmark.circle"
+        case .multiChoice: "checklist"
+        case .number: "number"
+        }
+    }
 }
 
 struct LeadIntakeQuestion: Identifiable, Hashable, Codable, Sendable {
@@ -76,6 +86,14 @@ struct LeadIntakeQuestion: Identifiable, Hashable, Codable, Sendable {
             isRequired: isRequired,
             isEnabled: isEnabled
         )
+    }
+
+    static func customID() -> String {
+        "custom-\(UUID().uuidString.lowercased())"
+    }
+
+    var isCustom: Bool {
+        id.hasPrefix("custom-")
     }
 
     func makeAnswer(values: [String] = []) -> LeadIntakeAnswer {
@@ -161,11 +179,16 @@ struct LeadIntakeAnswer: Identifiable, Hashable, Codable, Sendable {
 
 nonisolated enum LeadIntakeTemplateLibrary {
     static func resolvedQuestions(for category: VendorCategory, stored: [LeadIntakeQuestion]?) -> [LeadIntakeQuestion] {
-        let normalized = (stored ?? []).map { $0.normalized() }
-        return normalized.isEmpty ? defaultQuestions(for: category) : normalized
+        guard let stored else { return [] }
+        let normalized = stored.map { $0.normalized() }
+        return normalized
     }
 
     static func defaultQuestions(for category: VendorCategory) -> [LeadIntakeQuestion] {
+        []
+    }
+
+    static func suggestedQuestions(for category: VendorCategory) -> [LeadIntakeQuestion] {
         switch category {
         case .decorator, .florist:
             return [

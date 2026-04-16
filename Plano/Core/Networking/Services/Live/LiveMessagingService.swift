@@ -149,7 +149,7 @@ actor LiveMessagingService: MessagingServiceProtocol {
 
     func fetchMessages(
         conversationID: UUID,
-        before cursor: Date?,
+        beforeSequence: Int?,
         limit: Int
     ) async throws -> [MessageRecord] {
         let signpostID = OSSignpostID(log: Self.signpostLog)
@@ -161,14 +161,14 @@ actor LiveMessagingService: MessagingServiceProtocol {
             .eq("conversation_id", value: conversationID)
 
         let finalQuery: PostgrestTransformBuilder
-        if let cursor {
+        if let beforeSequence {
             finalQuery = filterBuilder
-                .lt("created_at", value: Self.iso8601Formatter.string(from: cursor))
-                .order("created_at", ascending: false)
+                .lt("sequence_number", value: beforeSequence)
+                .order("sequence_number", ascending: false)
                 .limit(limit)
         } else {
             finalQuery = filterBuilder
-                .order("created_at", ascending: false)
+                .order("sequence_number", ascending: false)
                 .limit(limit)
         }
 
@@ -202,38 +202,26 @@ actor LiveMessagingService: MessagingServiceProtocol {
         return result
     }
 
-    func sendMessageWithAttachment(
+    func sendMessageWithAttachments(
         conversationID: UUID,
         body: String,
         kind: String,
         clientID: UUID,
-        storagePath: String,
-        fileName: String,
-        mimeType: String,
-        fileSizeBytes: Int64,
-        width: Int?,
-        height: Int?
-    ) async throws -> MessageRecord {
+        attachments: [MessageAttachmentUpload]
+    ) async throws -> MessageSendResult {
         let signpostID = OSSignpostID(log: Self.signpostLog)
-        os_signpost(.begin, log: Self.signpostLog, name: "SendMessageWithAttachment", signpostID: signpostID)
-        defer { os_signpost(.end, log: Self.signpostLog, name: "SendMessageWithAttachment", signpostID: signpostID) }
+        os_signpost(.begin, log: Self.signpostLog, name: "SendMessageWithAttachments", signpostID: signpostID)
+        defer { os_signpost(.end, log: Self.signpostLog, name: "SendMessageWithAttachments", signpostID: signpostID) }
 
-        let payload = SendMessageWithAttachmentPayload(
+        let payload = SendMessageWithAttachmentsPayload(
             conversationID: conversationID,
             body: body,
             kind: kind,
             clientID: clientID,
-            attachment: .init(
-                storagePath: storagePath,
-                fileName: fileName,
-                mimeType: mimeType,
-                fileSizeBytes: fileSizeBytes,
-                width: width,
-                height: height
-            )
+            attachments: attachments
         )
 
-        let result: MessageRecord = try await invokeWithAuth(
+        let result: MessageSendResult = try await invokeWithAuth(
             "send-message-with-attachment",
             options: FunctionInvokeOptions(body: payload),
             decoder: Self.iso8601Decoder
@@ -417,35 +405,18 @@ private struct SendMessagePayload: Encodable {
     }
 }
 
-private struct SendMessageWithAttachmentPayload: Encodable {
+private struct SendMessageWithAttachmentsPayload: Encodable {
     let conversationID: UUID
     let body: String
     let kind: String
     let clientID: UUID
-    let attachment: AttachmentPayload
-
-    struct AttachmentPayload: Encodable {
-        let storagePath: String
-        let fileName: String
-        let mimeType: String
-        let fileSizeBytes: Int64
-        let width: Int?
-        let height: Int?
-
-        enum CodingKeys: String, CodingKey {
-            case storagePath = "storage_path"
-            case fileName = "file_name"
-            case mimeType = "mime_type"
-            case fileSizeBytes = "file_size_bytes"
-            case width, height
-        }
-    }
+    let attachments: [MessageAttachmentUpload]
 
     enum CodingKeys: String, CodingKey {
         case conversationID = "conversation_id"
         case body, kind
         case clientID = "client_id"
-        case attachment
+        case attachments
     }
 }
 
@@ -457,7 +428,7 @@ private struct RegisterDeviceTokenPayload: Encodable {
 actor LiveMessagingService: MessagingServiceProtocol {
     init(client: Any? = nil) {}
 
-    func fetchMessages(conversationID: UUID, before cursor: Date?, limit: Int) async throws -> [MessageRecord] {
+    func fetchMessages(conversationID: UUID, beforeSequence: Int?, limit: Int) async throws -> [MessageRecord] {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
@@ -465,7 +436,7 @@ actor LiveMessagingService: MessagingServiceProtocol {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 
-    func sendMessageWithAttachment(conversationID: UUID, body: String, kind: String, clientID: UUID, storagePath: String, fileName: String, mimeType: String, fileSizeBytes: Int64, width: Int?, height: Int?) async throws -> MessageRecord {
+    func sendMessageWithAttachments(conversationID: UUID, body: String, kind: String, clientID: UUID, attachments: [MessageAttachmentUpload]) async throws -> MessageSendResult {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 

@@ -146,7 +146,7 @@ struct FoundationRuntimeTests {
     }
 
     @Test
-    func vendorProfileRecordFallsBackToCategoryLeadIntakeTemplate() {
+    func vendorProfileRecordDefaultsToEmptyLeadIntakeQuestions() {
         let record = VendorProfileRecord(
             userID: UUID(),
             businessName: "Studio Petal",
@@ -155,8 +155,31 @@ struct FoundationRuntimeTests {
 
         let vendor = record.makeVendorProfile()
 
+        #expect(vendor.enabledLeadIntakeQuestions.isEmpty)
+    }
+
+    @Test
+    func vendorProfileRecordPreservesStoredLeadIntakeQuestions() {
+        let questions = LeadIntakeTemplateLibrary.suggestedQuestions(for: .decorator)
+        let record = VendorProfileRecord(
+            userID: UUID(),
+            businessName: "Studio Petal",
+            category: VendorCategory.decorator.rawValue,
+            leadIntakeQuestions: questions
+        )
+
+        let vendor = record.makeVendorProfile()
+
         #expect(vendor.enabledLeadIntakeQuestions.isEmpty == false)
         #expect(vendor.enabledLeadIntakeQuestions.allSatisfy { $0.id.hasPrefix("decorator-") })
+    }
+
+    @Test
+    func vendorCategoryDefaultCollectsGuestCount() {
+        #expect(VendorCategory.caterer.defaultCollectsGuestCount == true)
+        #expect(VendorCategory.photographer.defaultCollectsGuestCount == false)
+        #expect(VendorCategory.makeupArtist.defaultCollectsGuestCount == false)
+        #expect(VendorCategory.dj.defaultCollectsGuestCount == true)
     }
 
     @Test

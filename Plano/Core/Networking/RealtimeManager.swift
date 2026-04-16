@@ -24,7 +24,9 @@ final class RealtimeManager {
     @ObservationIgnored private var messageListenerTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var messageStatusListenerTask: Task<Void, Never>?
     @ObservationIgnored private var conversationListenerTask: Task<Void, Never>?
-    @ObservationIgnored private var typingListenerTask: Task<Void, Never>?
+    @ObservationIgnored private var typingListenerTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var typingStopListenerTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var typingStopTasks: [UUID: Task<Void, Never>] = [:]
 
     @ObservationIgnored var onMessageReceived: ((MessageRecord) -> Void)?
     /// Called when a message status changes (e.g. sent → delivered → read).
@@ -40,7 +42,7 @@ final class RealtimeManager {
     @ObservationIgnored private var messageChannels: [UUID: RealtimeChannelV2] = [:]
     @ObservationIgnored private var messageStatusChannel: RealtimeChannelV2?
     @ObservationIgnored private var conversationChannel: RealtimeChannelV2?
-    @ObservationIgnored private var typingChannel: RealtimeChannelV2?
+    @ObservationIgnored private var typingChannels: [UUID: RealtimeChannelV2] = [:]
 
     func configure(client: SupabaseClient) {
         self.client = client
@@ -65,7 +67,7 @@ final class RealtimeManager {
         }
 
         subscribeToMessages(client: client, conversationIDs: conversationIDs)
-        subscribeToMessageStatusUpdates(client: client, conversationIDs: conversationIDs)
+        subscribeToMessageStatusUpdates(client: client)
         subscribeToConversations(client: client, userID: userID, role: role)
         subscribeToTyping(client: client, conversationIDs: conversationIDs)
         #endif
@@ -77,9 +79,13 @@ final class RealtimeManager {
         messageStatusListenerTask?.cancel()
         messageStatusListenerTask = nil
         conversationListenerTask?.cancel()
-        typingListenerTask?.cancel()
         conversationListenerTask = nil
-        typingListenerTask = nil
+        for task in typingListenerTasks.values { task.cancel() }
+        typingListenerTasks.removeAll()
+        for task in typingStopListenerTasks.values { task.cancel() }
+        typingStopListenerTasks.removeAll()
+        for task in typingStopTasks.values { task.cancel() }
+        typingStopTasks.removeAll()
 
         #if canImport(Supabase)
         for channel in messageChannels.values {
@@ -93,11 +99,11 @@ final class RealtimeManager {
         if let conversationChannel {
             Task { await client?.realtimeV2.removeChannel(conversationChannel) }
         }
-        if let typingChannel {
-            Task { await client?.realtimeV2.removeChannel(typingChannel) }
+        for channel in typingChannels.values {
+            Task { await client?.realtimeV2.removeChannel(channel) }
         }
         conversationChannel = nil
-        typingChannel = nil
+        typingChannels.removeAll()
         #endif
 
         if !preserveConnectionState {
@@ -112,17 +118,18 @@ final class RealtimeManager {
         #if canImport(Supabase)
         if let client {
             subscribeToMessageBroadcast(client: client, conversationID: conversationID)
+            subscribeToTypingBroadcast(client: client, conversationID: conversationID)
         }
         #endif
     }
 
-    func sendTypingIndicator(conversationID: UUID, senderRole: String) {
+    func sendTypingIndicator(conversationID: UUID, senderRole: String, isTyping: Bool = true) {
         #if canImport(Supabase)
-        guard let typingChannel else { return }
+        guard let typingChannel = typingChannels[conversationID] else { return }
 
         Task {
             try? await typingChannel.broadcast(
-                event: "typing",
+                event: isTyping ? "typing_start" : "typing_stop",
                 message: [
                     "conversation_id": .string(conversationID.uuidString),
                     "sender_role": .string(senderRole),
@@ -197,7 +204,7 @@ final class RealtimeManager {
 
     // MARK: - Message status updates (Postgres Changes UPDATE on messages, for delivery status)
 
-    private func subscribeToMessageStatusUpdates(client: SupabaseClient, conversationIDs: Set<UUID>) {
+    private func subscribeToMessageStatusUpdates(client: SupabaseClient) {
         let channel = client.realtimeV2.channel("msg-status-\(UUID().uuidString.prefix(8))")
 
         let postgresChange = channel.postgresChange(
@@ -219,7 +226,10 @@ final class RealtimeManager {
                         decoder: RealtimePayloadDecoder.makeJSONDecoder()
                     )
 
-                    guard conversationIDs.contains(record.conversationID) else { continue }
+                    let isSubscribed = await MainActor.run { [weak self] in
+                        self?.subscribedConversationIDs.contains(record.conversationID) ?? false
+                    }
+                    guard isSubscribed else { continue }
                     guard let status = record.status else { continue }
 
                     onMessageStatusUpdated?(record.id, status)
@@ -272,31 +282,54 @@ final class RealtimeManager {
     // MARK: - Typing indicators (Client Broadcast)
 
     private func subscribeToTyping(client: SupabaseClient, conversationIDs: Set<UUID>) {
-        let channel = client.realtimeV2.channel("typing-\(UUID().uuidString.prefix(8))")
+        for conversationID in conversationIDs {
+            subscribeToTypingBroadcast(client: client, conversationID: conversationID)
+        }
+    }
 
-        typingChannel = channel
+    private func subscribeToTypingBroadcast(client: SupabaseClient, conversationID: UUID) {
+        guard typingListenerTasks[conversationID] == nil else { return }
 
-        typingListenerTask = Task {
+        let topic = "typing:conv:\(conversationID.uuidString)"
+        let channel = client.realtimeV2.channel(topic)
+        typingChannels[conversationID] = channel
+
+        typingListenerTasks[conversationID] = Task {
             await channel.subscribe()
 
-            for await message in channel.broadcastStream(event: "typing") {
-                guard let conversationIDString = message["conversation_id"]?.stringValue,
-                      let conversationID = UUID(uuidString: conversationIDString),
-                      let senderRoleString = message["sender_role"]?.stringValue,
-                      let senderRole = ChatMessageSender(rawValue: senderRoleString),
-                      conversationIDs.contains(conversationID) else {
+            for await message in channel.broadcastStream(event: "typing_start") {
+                guard let senderRoleString = message["sender_role"]?.stringValue,
+                      let senderRole = ChatMessageSender(rawValue: senderRoleString) else {
                     continue
                 }
 
-                if senderRole.userRole == currentRole { continue }
+                let isCurrentRole = await MainActor.run { [weak self] in
+                    senderRole.userRole == self?.currentRole
+                }
+                guard !isCurrentRole else { continue }
 
                 onTypingReceived?(conversationID, senderRole)
+                await scheduleTypingStop(for: conversationID)
+            }
+        }
 
-                Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .seconds(3))
+        typingStopListenerTasks[conversationID] = Task {
+            for await _ in channel.broadcastStream(event: "typing_stop") {
+                await MainActor.run { [weak self] in
+                    self?.typingStopTasks[conversationID]?.cancel()
+                    self?.typingStopTasks[conversationID] = nil
                     self?.onTypingStopped?(conversationID)
                 }
             }
+        }
+    }
+
+    private func scheduleTypingStop(for conversationID: UUID) {
+        typingStopTasks[conversationID]?.cancel()
+        typingStopTasks[conversationID] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            self?.typingStopTasks[conversationID] = nil
+            self?.onTypingStopped?(conversationID)
         }
     }
     #endif

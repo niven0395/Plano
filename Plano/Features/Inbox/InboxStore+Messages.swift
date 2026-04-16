@@ -13,14 +13,17 @@ extension InboxStore {
 
         conversations[index].isLoadingMessages = true
 
-        // Load from local cache first for instant UI
         if let cacheManager = messageCacheManager {
             do {
                 let cachedRecords = try await cacheManager.fetchMessages(conversationID: conversationID)
                 if !cachedRecords.isEmpty, let currentIndex = indexOfConversation(id: conversationID) {
-                    let cachedMessages = cachedRecords.map { makeChatMessage(from: $0) }
+                    let attachmentsByMessage = try await attachmentMap(for: cachedRecords, preferServerFallback: false)
+                    let cachedMessages = cachedRecords.map { record in
+                        makeChatMessage(from: record, attachments: attachmentsByMessage[record.id] ?? [])
+                    }
                     conversations[currentIndex].messages = cachedMessages
                     conversations[currentIndex].hasLoadedInitialMessages = true
+                    conversations[currentIndex].lastMessagePreviewText = cachedMessages.last?.previewText
                     if let lastDate = cachedRecords.last?.createdAt {
                         lastRealtimeMessageAt[conversationID] = lastDate
                     }
@@ -30,56 +33,24 @@ extension InboxStore {
             }
         }
 
-        // Fetch from server in background and merge
         do {
             let records = try await messagingService.fetchMessages(
                 conversationID: conversationID,
-                before: nil,
+                beforeSequence: nil,
                 limit: Self.messagesPerPage
             )
-
-            var messages = records.map { makeChatMessage(from: $0) }
-
-            let attachmentMessageIDs = records.filter { $0.kind == "attachment" }.map(\.id)
-            if !attachmentMessageIDs.isEmpty {
-                let attachmentRecords = try await messagingService.fetchAttachments(messageIDs: attachmentMessageIDs)
-                let attachmentsByMessage = Dictionary(grouping: attachmentRecords, by: \.messageID)
-                for i in messages.indices {
-                    if let msgAttachments = attachmentsByMessage[messages[i].id] {
-                        messages[i].attachments = msgAttachments.map { $0.toAttachment() }
-                    }
-                }
-
-                // Cache attachments
-                if let cacheManager = messageCacheManager {
-                    Task { try? await cacheManager.upsertAttachments(attachmentRecords) }
-                }
-            }
-
-            guard let currentIndex = indexOfConversation(id: conversationID) else { return }
-            conversations[currentIndex].messages = messages
-            conversations[currentIndex].hasLoadedInitialMessages = true
-            conversations[currentIndex].hasOlderMessages = records.count >= Self.messagesPerPage
-            conversations[currentIndex].isLoadingMessages = false
-
-            if let lastDate = records.last?.createdAt {
-                lastRealtimeMessageAt[conversationID] = lastDate
-            }
-
-            // Write to local cache in background
-            if let cacheManager = messageCacheManager {
-                Task { try? await cacheManager.upsertMessages(records) }
-            }
+            let attachmentsByMessage = try await attachmentMap(for: records)
+            applyLatestMessagePage(
+                records,
+                attachmentsByMessage: attachmentsByMessage,
+                to: conversationID,
+                hasOlderMessages: records.count >= Self.messagesPerPage
+            )
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {
             guard let currentIndex = indexOfConversation(id: conversationID) else { return }
-            // If we already have cached messages, mark as loaded despite network failure
-            if conversations[currentIndex].hasLoadedInitialMessages {
-                conversations[currentIndex].isLoadingMessages = false
-            } else {
-                conversations[currentIndex].isLoadingMessages = false
-            }
+            conversations[currentIndex].isLoadingMessages = false
             AppLogger.booking.error("Failed to load messages: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -90,22 +61,25 @@ extension InboxStore {
         let thread = conversations[index]
         guard thread.hasOlderMessages, !thread.isLoadingMessages else { return }
 
-        let cursor = thread.messages.first?.sentAt
+        guard let beforeSequence = thread.messages.compactMap(\.sequenceNumber).min() else {
+            conversations[index].hasOlderMessages = false
+            return
+        }
         conversations[index].isLoadingMessages = true
 
         do {
             let records = try await messagingService.fetchMessages(
                 conversationID: conversationID,
-                before: cursor,
+                beforeSequence: beforeSequence,
                 limit: Self.messagesPerPage
             )
-
-            let olderMessages = records.map { makeChatMessage(from: $0) }
-
-            guard let currentIndex = indexOfConversation(id: conversationID) else { return }
-            conversations[currentIndex].messages.insert(contentsOf: olderMessages, at: 0)
-            conversations[currentIndex].hasOlderMessages = records.count >= Self.messagesPerPage
-            conversations[currentIndex].isLoadingMessages = false
+            let attachmentsByMessage = try await attachmentMap(for: records)
+            prependOlderMessagePage(
+                records,
+                attachmentsByMessage: attachmentsByMessage,
+                to: conversationID,
+                hasOlderMessages: records.count >= Self.messagesPerPage
+            )
         } catch is CancellationError {
             // Normal task lifecycle
         } catch {
@@ -117,7 +91,7 @@ extension InboxStore {
 
     // MARK: - Read receipts & typing
 
-    func markConversationRead(_ conversationID: UUID, for role: UserRole) {
+    func markConversationRead(_ conversationID: UUID, for role: UserRole, forceRemote: Bool = false) {
         guard let index = indexOfConversation(id: conversationID) else { return }
 
         var thread = conversations[index]
@@ -131,8 +105,9 @@ extension InboxStore {
             thread.vendorUnreadCount = 0
         }
         conversations[index] = thread
+        persistConversationSnapshotIfNeeded(conversationID)
 
-        if hadUnread {
+        if hadUnread || forceRemote {
             Task {
                 try? await messagingService.markMessagesRead(
                     conversationID: conversationID,
@@ -150,6 +125,7 @@ extension InboxStore {
         guard !messageBody.isEmpty else { return false }
 
         updateDraft("", for: conversationID, role: role)
+        stopTypingIndicator(for: conversationID, as: role)
         messageSender.sendMessage(messageBody, in: conversationID, as: role)
         return true
     }
@@ -166,6 +142,7 @@ extension InboxStore {
         in conversationID: UUID,
         as role: UserRole
     ) {
+        stopTypingIndicator(for: conversationID, as: role)
         messageSender.sendMessageWithAttachments(body, attachments: attachments, in: conversationID, as: role)
     }
 
@@ -173,14 +150,50 @@ extension InboxStore {
         try await messagingService.signedURL(for: storagePath)
     }
 
-    func sendTypingIndicator(for conversationID: UUID, as role: UserRole) {
-        let key = conversationID
-        typingDebounceTimers[key]?.cancel()
-        realtimeManager?.sendTypingIndicator(conversationID: conversationID, senderRole: role.rawValue)
+    func sendTypingIndicator(
+        for conversationID: UUID,
+        as role: UserRole,
+        isComposing: Bool
+    ) {
+        let key = typingKey(for: conversationID, role: role)
 
-        typingDebounceTimers[key] = Task {
-            try? await Task.sleep(for: .seconds(2))
+        guard isComposing else {
+            typingDebounceTimers[key]?.cancel()
+            typingDebounceTimers[key] = nil
+
+            if activeTypingKeys.remove(key) != nil {
+                realtimeManager?.sendTypingIndicator(
+                    conversationID: conversationID,
+                    senderRole: role.rawValue,
+                    isTyping: false
+                )
+            }
+            return
         }
+
+        typingDebounceTimers[key]?.cancel()
+        if activeTypingKeys.insert(key).inserted {
+            realtimeManager?.sendTypingIndicator(
+                conversationID: conversationID,
+                senderRole: role.rawValue,
+                isTyping: true
+            )
+        }
+
+        typingDebounceTimers[key] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            self?.typingDebounceTimers[key] = nil
+            guard self?.activeTypingKeys.remove(key) != nil else { return }
+            self?.realtimeManager?.sendTypingIndicator(
+                conversationID: conversationID,
+                senderRole: role.rawValue,
+                isTyping: false
+            )
+        }
+    }
+
+    func stopTypingIndicator(for conversationID: UUID, as role: UserRole) {
+        sendTypingIndicator(for: conversationID, as: role, isComposing: false)
     }
 
     func retryFailedMessage(clientID: UUID, in conversationID: UUID, as role: UserRole) {
@@ -241,28 +254,16 @@ extension InboxStore {
             }
 
             for await (conversationID, records) in group {
-                guard !records.isEmpty,
-                      let index = indexOfConversation(id: conversationID) else { continue }
+                guard !records.isEmpty else { continue }
 
-                var merged = 0
-                for record in records {
-                    // Deduplicate by id and clientID
-                    if conversations[index].messages.contains(where: { $0.id == record.id }) {
-                        continue
-                    }
-                    if let clientID = record.clientID,
-                       conversations[index].messages.contains(where: { $0.clientID == clientID }) {
-                        continue
-                    }
-
-                    let message = makeChatMessage(from: record)
-                    conversations[index].messages.append(message)
-                    lastRealtimeMessageAt[conversationID] = record.createdAt
-                    merged += 1
-                }
+                let attachmentsByMessage = (try? await attachmentMap(for: records)) ?? [:]
+                let merged = mergeIncomingRecords(
+                    records,
+                    attachmentsByMessage: attachmentsByMessage,
+                    into: conversationID
+                )
 
                 if merged > 0 {
-                    conversations[index].lastActivityAt = records.last?.createdAt ?? conversations[index].lastActivityAt
                     AppLogger.networking.notice(
                         "Catch-up sync: merged \(merged, privacy: .public) messages for conversation \(conversationID.uuidString.prefix(8), privacy: .public)"
                     )
@@ -271,5 +272,9 @@ extension InboxStore {
         }
 
         conversations.sort { $0.lastActivityAt > $1.lastActivityAt }
+    }
+
+    private func typingKey(for conversationID: UUID, role: UserRole) -> String {
+        "\(conversationID.uuidString).\(role.rawValue)"
     }
 }

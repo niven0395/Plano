@@ -75,7 +75,8 @@ struct BasicInfoEditView: View {
             store.lastSaveOutcome = .idle
         }
         .onChange(of: store.draft.category) { _, newCategory in
-            store.resetLeadIntakeQuestionsToTemplate()
+            store.draft.leadIntakeQuestions = []
+            store.draft.collectsGuestCount = newCategory.defaultCollectsGuestCount
             store.draft.categoryDetails = .empty(for: newCategory)
         }
         .onChange(of: selectedPhoto) { _, newPhoto in

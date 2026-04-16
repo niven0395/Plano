@@ -39,6 +39,7 @@ struct ConversationContentView: View {
                     ConversationBookingStatusBanner(
                         thread: conversation,
                         role: session.currentRole,
+                        vendor: vendor,
                         isPresentingDeclinePrompt: $isPresentingDeclinePrompt,
                         isPresentingPaymentSheet: $isPresentingPaymentSheet,
                         isPresentingCancellationApproval: $isPresentingCancellationApproval,
@@ -119,15 +120,20 @@ struct ConversationContentView: View {
                 isComposerFocused = false
             }
             .onAppear {
+                inboxStore.setActiveConversation(conversationID, for: session.currentRole)
                 inboxStore.markConversationRead(conversationID, for: session.currentRole)
                 scrollToBottom(using: proxy, animated: false)
+            }
+            .onDisappear {
+                inboxStore.stopTypingIndicator(for: conversationID, as: session.currentRole)
+                inboxStore.setActiveConversation(nil, for: session.currentRole)
             }
             .task(id: conversationID) {
                 guard session.currentRole == .vendor else { return }
                 await inboxStore.refreshDateConflicts(in: conversationID)
             }
-            .onChange(of: conversation.messages.count) { _, _ in
-                inboxStore.markConversationRead(conversationID, for: session.currentRole)
+            .onChange(of: conversation.messages.last?.id) { _, _ in
+                inboxStore.markConversationRead(conversationID, for: session.currentRole, forceRemote: true)
                 scrollToBottom(using: proxy)
             }
             .onChange(of: isTyping) { _, _ in

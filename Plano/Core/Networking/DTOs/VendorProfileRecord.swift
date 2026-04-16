@@ -27,6 +27,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
     let advanceBookingDays: Int?
     let bookingMode: String?
     let paymentMode: String?
+    let collectsGuestCount: Bool?
     let cancellationDeadlineDays: Int?
     let phone: String?
     let website: String?
@@ -78,6 +79,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         case advanceBookingDays = "advance_booking_days"
         case bookingMode = "booking_mode"
         case paymentMode = "payment_mode"
+        case collectsGuestCount = "collects_guest_count"
         case cancellationDeadlineDays = "cancellation_deadline_days"
         case phone
         case website
@@ -130,6 +132,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         advanceBookingDays: Int? = nil,
         bookingMode: String? = nil,
         paymentMode: String? = nil,
+        collectsGuestCount: Bool? = nil,
         cancellationDeadlineDays: Int? = nil,
         phone: String? = nil,
         website: String? = nil,
@@ -180,6 +183,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         self.advanceBookingDays = advanceBookingDays
         self.bookingMode = bookingMode
         self.paymentMode = paymentMode
+        self.collectsGuestCount = collectsGuestCount
         self.cancellationDeadlineDays = cancellationDeadlineDays
         self.phone = phone
         self.website = website
@@ -233,6 +237,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         advanceBookingDays = try container.decodeIfPresent(Int.self, forKey: .advanceBookingDays)
         bookingMode = try container.decodeIfPresent(String.self, forKey: .bookingMode)
         paymentMode = try container.decodeIfPresent(String.self, forKey: .paymentMode)
+        collectsGuestCount = try container.decodeIfPresent(Bool.self, forKey: .collectsGuestCount)
         cancellationDeadlineDays = try container.decodeIfPresent(Int.self, forKey: .cancellationDeadlineDays)
         phone = try container.decodeIfPresent(String.self, forKey: .phone)
         website = try container.decodeIfPresent(String.self, forKey: .website)
@@ -288,6 +293,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
         advanceBookingDays = profile.advanceBookingDays
         bookingMode = profile.bookingMode.rawValue
         paymentMode = profile.paymentMode.rawValue
+        collectsGuestCount = profile.collectsGuestCount
         cancellationDeadlineDays = profile.cancellationDeadlineDays
         phone = profile.phone
         website = profile.website
@@ -407,6 +413,7 @@ nonisolated struct VendorProfileRecord: Codable, Hashable {
             availabilityMode: resolvedWeeklySchedule.derivedAvailabilityMode(for: resolvedBookingMode),
             bookingMode: resolvedBookingMode,
             paymentMode: paymentMode.flatMap(PaymentMode.init(rawValue:)) ?? .external,
+            collectsGuestCount: collectsGuestCount,
             cancellationDeadlineDays: cancellationDeadlineDays,
             phone: phone,
             website: website,

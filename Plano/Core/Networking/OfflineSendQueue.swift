@@ -11,6 +11,7 @@ actor OfflineSendQueue {
 
     struct PendingMessage: Codable, Identifiable {
         let id: UUID
+        let ownerUserID: UUID
         let clientID: UUID
         let conversationID: UUID
         let body: String
@@ -19,8 +20,7 @@ actor OfflineSendQueue {
         let createdAt: Date
         var retryCount: Int
         var lastAttemptAt: Date?
-        /// Optional attachment info for queued attachment messages.
-        var attachment: PendingAttachmentInfo?
+        var attachments: [PendingAttachmentInfo]
 
         var nextRetryDelay: TimeInterval {
             let base: TimeInterval = 1
@@ -33,14 +33,15 @@ actor OfflineSendQueue {
     private let fileURL: URL
     private var isDraining = false
     private var drainTask: Task<Void, Never>?
+    private var activeDrainUserID: UUID?
 
     private let messagingService: any MessagingServiceProtocol
-    private let onMessageSent: @Sendable (UUID, UUID, MessageRecord) async -> Void
+    private let onMessageSent: @Sendable (UUID, UUID, MessageSendResult) async -> Void
     private let onMessageFailed: @Sendable (UUID, UUID) async -> Void
 
     init(
         messagingService: any MessagingServiceProtocol,
-        onMessageSent: @escaping @Sendable (UUID, UUID, MessageRecord) async -> Void,
+        onMessageSent: @escaping @Sendable (UUID, UUID, MessageSendResult) async -> Void,
         onMessageFailed: @escaping @Sendable (UUID, UUID) async -> Void
     ) {
         self.messagingService = messagingService
@@ -50,22 +51,28 @@ actor OfflineSendQueue {
         loadFromDisk()
     }
 
-    var pendingCount: Int { queue.count }
+    func pendingCount(for ownerUserID: UUID?) -> Int {
+        guard let ownerUserID else { return 0 }
+        return queue.filter { $0.ownerUserID == ownerUserID }.count
+    }
 
-    var pendingClientIDs: Set<UUID> {
-        Set(queue.map(\.clientID))
+    func pendingClientIDs(for ownerUserID: UUID?) -> Set<UUID> {
+        guard let ownerUserID else { return [] }
+        return Set(queue.lazy.filter { $0.ownerUserID == ownerUserID }.map(\.clientID))
     }
 
     func enqueue(
+        ownerUserID: UUID,
         clientID: UUID,
         conversationID: UUID,
         body: String,
         kind: String,
         senderRole: String,
-        attachment: PendingAttachmentInfo? = nil
+        attachments: [PendingAttachmentInfo] = []
     ) {
         let message = PendingMessage(
             id: UUID(),
+            ownerUserID: ownerUserID,
             clientID: clientID,
             conversationID: conversationID,
             body: body,
@@ -73,22 +80,30 @@ actor OfflineSendQueue {
             senderRole: senderRole,
             createdAt: .now,
             retryCount: 0,
-            attachment: attachment
+            attachments: attachments
         )
 
         queue.append(message)
         saveToDisk()
 
-        AppLogger.networking.notice("Queued offline message \(clientID.uuidString, privacy: .public)\(attachment != nil ? " (with attachment)" : "")")
+        AppLogger.networking.notice(
+            "Queued offline message \(clientID.uuidString, privacy: .public)\(attachments.isEmpty ? "" : " (with attachments)")"
+        )
     }
 
-    func drain() {
-        guard !isDraining, !queue.isEmpty else { return }
+    func drain(for ownerUserID: UUID?) {
+        guard let ownerUserID else { return }
+        guard queue.contains(where: { $0.ownerUserID == ownerUserID }) else { return }
+
+        if isDraining, activeDrainUserID == ownerUserID {
+            return
+        }
 
         drainTask?.cancel()
+        activeDrainUserID = ownerUserID
         drainTask = Task { [weak self] in
             guard let self else { return }
-            await performDrain()
+            await performDrain(for: ownerUserID)
         }
     }
 
@@ -96,108 +111,100 @@ actor OfflineSendQueue {
         drainTask?.cancel()
         drainTask = nil
         isDraining = false
+        activeDrainUserID = nil
     }
 
-    func removeMessage(clientID: UUID) {
-        queue.removeAll { $0.clientID == clientID }
+    func removeMessage(clientID: UUID, ownerUserID: UUID? = nil) {
+        queue.removeAll {
+            $0.clientID == clientID &&
+            (ownerUserID == nil || $0.ownerUserID == ownerUserID)
+        }
         saveToDisk()
     }
 
-    private func performDrain() {
+    private func performDrain(for ownerUserID: UUID) async {
         isDraining = true
+        defer {
+            if activeDrainUserID == ownerUserID {
+                isDraining = false
+                activeDrainUserID = nil
+            }
+        }
 
-        Task {
-            while !queue.isEmpty {
-                guard !Task.isCancelled else { break }
+        while let index = queue.firstIndex(where: { $0.ownerUserID == ownerUserID }) {
+            guard !Task.isCancelled else { break }
 
-                let message = queue[0]
+            let message = queue[index]
 
-                // Wait for retry delay if needed
-                if message.retryCount > 0 {
-                    let delay = message.nextRetryDelay
-                    do {
-                        try await Task.sleep(for: .seconds(delay))
-                    } catch {
-                        break
-                    }
-                }
-
+            if message.retryCount > 0 {
+                let delay = message.nextRetryDelay
                 do {
-                    let record: MessageRecord
-
-                    if let attachmentInfo = message.attachment {
-                        // Upload attachment first, then send message with attachment
-                        let localURL = URL(fileURLWithPath: attachmentInfo.localFilePath)
-                        let data = try Data(contentsOf: localURL)
-                        let senderID = UUID() // Placeholder — will be resolved by server
-                        let storagePath = try await messagingService.uploadAttachment(
-                            data: data,
-                            fileName: attachmentInfo.fileName,
-                            mimeType: attachmentInfo.mimeType,
-                            userID: senderID
-                        )
-
-                        record = try await messagingService.sendMessageWithAttachment(
-                            conversationID: message.conversationID,
-                            body: message.body,
-                            kind: message.kind,
-                            clientID: message.clientID,
-                            storagePath: storagePath,
-                            fileName: attachmentInfo.fileName,
-                            mimeType: attachmentInfo.mimeType,
-                            fileSizeBytes: attachmentInfo.fileSizeBytes,
-                            width: nil,
-                            height: nil
-                        )
-                    } else {
-                        record = try await messagingService.sendMessage(
-                            conversationID: message.conversationID,
-                            body: message.body,
-                            kind: message.kind,
-                            senderRole: message.senderRole,
-                            clientID: message.clientID
-                        )
-                    }
-
-                    // Success - remove from queue
-                    queue.removeAll { $0.id == message.id }
-                    saveToDisk()
-
-                    await onMessageSent(message.conversationID, message.clientID, record)
-
-                    AppLogger.networking.notice(
-                        "Offline message sent: \(message.clientID.uuidString, privacy: .public)"
-                    )
+                    try await Task.sleep(for: .seconds(delay))
                 } catch {
-                    if isNonRetryable(error) {
-                        // Permanent failure - remove and notify
-                        queue.removeAll { $0.id == message.id }
-                        saveToDisk()
-                        await onMessageFailed(message.conversationID, message.clientID)
-
-                        AppLogger.networking.error(
-                            "Offline message permanently failed: \(error.localizedDescription, privacy: .public)"
-                        )
-                    } else {
-                        // Transient failure - increment retry count
-                        if let index = queue.firstIndex(where: { $0.id == message.id }) {
-                            queue[index].retryCount += 1
-                            queue[index].lastAttemptAt = .now
-
-                            if queue[index].retryCount >= 10 {
-                                queue.remove(at: index)
-                                await onMessageFailed(message.conversationID, message.clientID)
-                                AppLogger.networking.error(
-                                    "Offline message exhausted retries: \(message.clientID.uuidString, privacy: .public)"
-                                )
-                            }
-                        }
-                        saveToDisk()
-                    }
+                    break
                 }
             }
 
-            isDraining = false
+            do {
+                let result: MessageSendResult
+
+                if message.attachments.isEmpty {
+                    let record = try await messagingService.sendMessage(
+                        conversationID: message.conversationID,
+                        body: message.body,
+                        kind: message.kind,
+                        senderRole: message.senderRole,
+                        clientID: message.clientID
+                    )
+                    result = MessageSendResult(message: record)
+                } else {
+                    let uploads = try await uploadAttachments(for: message)
+                    result = try await messagingService.sendMessageWithAttachments(
+                        conversationID: message.conversationID,
+                        body: message.body,
+                        kind: message.kind,
+                        clientID: message.clientID,
+                        attachments: uploads
+                    )
+                }
+
+                queue.removeAll { $0.id == message.id }
+                saveToDisk()
+                cleanupAttachments(message.attachments)
+
+                await onMessageSent(message.conversationID, message.clientID, result)
+
+                AppLogger.networking.notice(
+                    "Offline message sent: \(message.clientID.uuidString, privacy: .public)"
+                )
+            } catch {
+                if isNonRetryable(error) {
+                    queue.removeAll { $0.id == message.id }
+                    saveToDisk()
+                    cleanupAttachments(message.attachments)
+                    await onMessageFailed(message.conversationID, message.clientID)
+
+                    AppLogger.networking.error(
+                        "Offline message permanently failed: \(error.localizedDescription, privacy: .public)"
+                    )
+                } else {
+                    if let retryIndex = queue.firstIndex(where: { $0.id == message.id }) {
+                        queue[retryIndex].retryCount += 1
+                        queue[retryIndex].lastAttemptAt = .now
+
+                        if queue[retryIndex].retryCount >= 10 {
+                            let exhaustedMessage = queue.remove(at: retryIndex)
+                            cleanupAttachments(exhaustedMessage.attachments)
+                            await onMessageFailed(exhaustedMessage.conversationID, exhaustedMessage.clientID)
+                            AppLogger.networking.error(
+                                "Offline message exhausted retries: \(exhaustedMessage.clientID.uuidString, privacy: .public)"
+                            )
+                        }
+                    }
+
+                    saveToDisk()
+                }
+            }
         }
     }
 
@@ -232,6 +239,42 @@ actor OfflineSendQueue {
             try data.write(to: fileURL, options: .atomic)
         } catch {
             AppLogger.networking.error("Failed to save offline queue: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func uploadAttachments(for message: PendingMessage) async throws -> [MessageAttachmentUpload] {
+        var uploads: [MessageAttachmentUpload] = []
+        uploads.reserveCapacity(message.attachments.count)
+
+        for attachment in message.attachments {
+            let localURL = URL(fileURLWithPath: attachment.localFilePath)
+            let data = try Data(contentsOf: localURL)
+            let storagePath = try await messagingService.uploadAttachment(
+                data: data,
+                fileName: attachment.fileName,
+                mimeType: attachment.mimeType,
+                userID: message.ownerUserID
+            )
+
+            uploads.append(
+                MessageAttachmentUpload(
+                    storagePath: storagePath,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    fileSizeBytes: attachment.fileSizeBytes,
+                    width: nil,
+                    height: nil
+                )
+            )
+        }
+
+        return uploads
+    }
+
+    private func cleanupAttachments(_ attachments: [PendingAttachmentInfo]) {
+        let fileManager = FileManager.default
+        for attachment in attachments {
+            try? fileManager.removeItem(at: URL(fileURLWithPath: attachment.localFilePath))
         }
     }
 }

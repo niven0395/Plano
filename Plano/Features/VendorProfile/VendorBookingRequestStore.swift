@@ -178,6 +178,7 @@ final class VendorBookingRequestStore {
             )
 
             await inboxStore.loadConversations(for: .host)
+            inboxStore.unarchiveConversation(conversationID, for: .host)
 
             isPresentingBookingSheet = false
             selectedBookingDate = nil

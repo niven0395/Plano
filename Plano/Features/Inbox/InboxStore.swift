@@ -272,6 +272,13 @@ final class InboxStore {
             .sorted { $0.lastActivityAt > $1.lastActivityAt }
 
             conversations = rebuiltConversations
+
+            for thread in rebuiltConversations where thread.stage.isActionable {
+                if isArchived(thread.id, for: role) {
+                    unarchiveConversation(thread.id, for: role)
+                }
+            }
+
             if role == .vendor {
                 await refreshVendorDateConflicts(for: rebuiltConversations)
             } else {

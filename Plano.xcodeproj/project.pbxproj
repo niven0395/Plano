@@ -24,6 +24,7 @@
 		AC0E417E2F5A651600DB4C82 /* Plano.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Plano.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC4DDB700000000000000001 /* Config/App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
 		AC4DDB700000000000000002 /* Config/LocalSecrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/LocalSecrets.example.xcconfig; sourceTree = SOURCE_ROOT; };
+		AC4DDB700000000000000003 /* Config/DemoSupabase.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/DemoSupabase.xcconfig; sourceTree = SOURCE_ROOT; };
 		B10000000000000000000001 /* PlanoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlanoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -63,6 +64,7 @@
 			isa = PBXGroup;
 			children = (
 				AC4DDB700000000000000001 /* Config/App.xcconfig */,
+				AC4DDB700000000000000003 /* Config/DemoSupabase.xcconfig */,
 				AC4DDB700000000000000002 /* Config/LocalSecrets.example.xcconfig */,
 				AC0E41802F5A651600DB4C82 /* Plano */,
 				B10000000000000000000002 /* PlanoTests */,

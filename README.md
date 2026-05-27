@@ -24,18 +24,22 @@ Requirements:
 
 - macOS with the current Xcode release used for iOS development
 - iOS Simulator or a physical iPhone
-- Supabase project credentials for live auth, search, messaging, and booking calls
 
 Setup:
 
 1. Clone the repository.
 2. Open `Plano.xcodeproj` in Xcode.
-3. Copy `Config/LocalSecrets.example.xcconfig` to `Config/LocalSecrets.xcconfig`.
-4. Add the Supabase URL and anon key to `Config/LocalSecrets.xcconfig`.
-5. Select the `Plano` scheme.
-6. Build and run.
+3. Select the `Plano` scheme.
+4. Build and run.
 
-`Config/LocalSecrets.xcconfig` is intentionally ignored by Git. Without it, the app still builds, but live Supabase-backed flows are unavailable.
+The repository includes `Config/DemoSupabase.xcconfig`, which points local builds at the demo Supabase backend so auth, discovery, messaging, and booking can be tested immediately after cloning.
+
+Optional private backend setup:
+
+1. Copy `Config/LocalSecrets.example.xcconfig` to `Config/LocalSecrets.xcconfig`.
+2. Add the Supabase URL and anon key for your own project.
+
+`Config/LocalSecrets.xcconfig` is intentionally ignored by Git and overrides the tracked demo config when present.
 
 ## Architecture Highlights
 

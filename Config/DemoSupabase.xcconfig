@@ -1,0 +1,4 @@
+// Public Supabase client config for the hiring-manager demo.
+// This is an anon client key only. Never put service-role keys or database passwords here.
+SUPABASE_URL = https:$(SLASH)$(SLASH)uytbxijaigrvkxpcbohm.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5dGJ4aWphaWdydmt4cGNib2htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5ODY5NDYsImV4cCI6MjA4ODU2Mjk0Nn0.nLJwDbksosQQNmF48N6ub93cLXwHmixlkJiSY0dyyts

@@ -1,5 +1,6 @@
-#include? "LocalSecrets.xcconfig"
-
 SLASH = /
-SUPABASE_URL = $(inherited)
-SUPABASE_ANON_KEY = $(inherited)
+
+// Public demo backend so a fresh clone can run live auth, discovery, and booking.
+// LocalSecrets.xcconfig is optional and overrides these values for private projects.
+#include "DemoSupabase.xcconfig"
+#include? "LocalSecrets.xcconfig"

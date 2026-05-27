@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import UserNotifications
 import OSLog
+import Security
 
 @MainActor
 @Observable
@@ -28,8 +29,12 @@ final class PushNotificationManager: NSObject {
                 permissionStatus = .authorized
 
                 #if !targetEnvironment(simulator)
-                await MainActor.run {
-                    UIApplication.shared.registerForRemoteNotifications()
+                if hasRemoteNotificationEntitlement {
+                    await MainActor.run {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
+                } else {
+                    AppLogger.app.notice("Push remote registration skipped: missing aps-environment entitlement")
                 }
                 #endif
 
@@ -114,5 +119,14 @@ final class PushNotificationManager: NSObject {
         )
 
         center.setNotificationCategories([messageCategory])
+    }
+
+    private var hasRemoteNotificationEntitlement: Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let entitlement = SecTaskCopyValueForEntitlement(task, "aps-environment" as CFString, nil) else {
+            return false
+        }
+
+        return entitlement as? String != nil
     }
 }

@@ -9,10 +9,10 @@ struct VendorOnboardingStoreTests {
         await withIsolatedDefaults { defaults in
             let store = makeStore(defaults: defaults)
 
-            #expect(!store.isSlideOneValid)
+            #expect(store.isSlideOneValid == false)
 
             store.businessName = "  "
-            #expect(!store.isSlideOneValid)
+            #expect(store.isSlideOneValid == false)
 
             store.businessName = "Studio Luna"
             #expect(store.isSlideOneValid)
@@ -41,7 +41,7 @@ struct VendorOnboardingStoreTests {
             store.selectedCategory = .photographer
 
             #expect(store.currentSlide == 0)
-            #expect(!store.slideOneSubmitted)
+            #expect(store.slideOneSubmitted == false)
 
             await store.submitSlideOne()
 
@@ -78,7 +78,7 @@ struct VendorOnboardingStoreTests {
 
             store.skipCurrentSlide()
 
-            #expect(!sessionStore.requiresVendorOnboarding)
+            #expect(sessionStore.requiresVendorOnboarding == false)
         }
     }
 
@@ -124,7 +124,7 @@ struct VendorOnboardingStoreTests {
             let store = makeStore(defaults: defaults, sessionStore: sessionStore)
             store.cancel()
 
-            #expect(!sessionStore.requiresVendorOnboarding)
+            #expect(sessionStore.requiresVendorOnboarding == false)
         }
     }
 
@@ -134,7 +134,7 @@ struct VendorOnboardingStoreTests {
         await withIsolatedDefaults { defaults in
             let store = makeStore(defaults: defaults)
 
-            #expect(!store.isLastSlide)
+            #expect(store.isLastSlide == false)
 
             store.currentSlide = VendorOnboardingStore.totalSlides - 1
             #expect(store.isLastSlide)

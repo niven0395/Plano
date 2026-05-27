@@ -45,6 +45,50 @@ nonisolated struct ConversationSummaryRecord: Codable, Hashable, Sendable {
         case latestBookingStage = "latest_booking_stage"
     }
 
+    init(
+        conversationID: UUID,
+        eventID: UUID?,
+        vendorID: UUID,
+        hostID: UUID?,
+        hostDisplayName: String,
+        vendorDisplayName: String,
+        vendorCategory: String,
+        eventTitle: String?,
+        eventDateLabel: String?,
+        eventContextLine: String?,
+        stage: String,
+        lastActivityAt: Date,
+        hostUnreadCount: Int?,
+        vendorUnreadCount: Int?,
+        latestMessagePreview: String?,
+        latestRequestTitle: String?,
+        latestRequestBudgetLabel: String?,
+        latestRequestEventDate: Date?,
+        latestBookingID: UUID?,
+        latestBookingStage: String?
+    ) {
+        self.conversationID = conversationID
+        self.eventID = eventID
+        self.vendorID = vendorID
+        self.hostID = hostID
+        self.hostDisplayName = hostDisplayName
+        self.vendorDisplayName = vendorDisplayName
+        self.vendorCategory = vendorCategory
+        self.eventTitle = eventTitle
+        self.eventDateLabel = eventDateLabel
+        self.eventContextLine = eventContextLine
+        self.stage = stage
+        self.lastActivityAt = lastActivityAt
+        self.hostUnreadCount = hostUnreadCount
+        self.vendorUnreadCount = vendorUnreadCount
+        self.latestMessagePreview = latestMessagePreview
+        self.latestRequestTitle = latestRequestTitle
+        self.latestRequestBudgetLabel = latestRequestBudgetLabel
+        self.latestRequestEventDate = latestRequestEventDate
+        self.latestBookingID = latestBookingID
+        self.latestBookingStage = latestBookingStage
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         conversationID = try container.decode(UUID.self, forKey: .conversationID)

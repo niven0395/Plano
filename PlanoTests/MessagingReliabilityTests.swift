@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct MessagingReliabilityTests {
     @Test
-    func mergeIncomingRecordsReconcilesOptimisticMessageByClientID() async {
+    func mergeIncomingRecordsReconcilesOptimisticMessageByClientID() async throws {
         let bookingService = TestBookingService()
         let messagingService = TestMessagingService()
         let (store, _) = makeStore(
@@ -53,7 +53,7 @@ struct MessagingReliabilityTests {
     }
 
     @Test
-    func catchUpAfterReconnectReconcilesOptimisticMessageByClientID() async {
+    func catchUpAfterReconnectReconcilesOptimisticMessageByClientID() async throws {
         let bookingService = TestBookingService()
         let messagingService = TestMessagingService()
         let (store, _) = makeStore(
@@ -101,7 +101,7 @@ struct MessagingReliabilityTests {
     }
 
     @Test
-    func loadConversationsSeedsPreviewFromSummaryAndPreservesLoadedMessages() async {
+    func loadConversationsSeedsPreviewFromSummaryAndPreservesLoadedMessages() async throws {
         let conversation = FixtureData.conversationRecord()
         let bookingService = TestBookingService(
             conversations: [conversation],
@@ -159,7 +159,7 @@ struct MessagingReliabilityTests {
     }
 
     @Test
-    func activeConversationKeepsUnreadCountZeroDuringRealtimeConversationUpdates() async {
+    func activeConversationKeepsUnreadCountZeroDuringRealtimeConversationUpdates() async throws {
         let conversation = FixtureData.conversationRecord()
         let bookingService = TestBookingService(conversations: [conversation])
         let messagingService = TestMessagingService()

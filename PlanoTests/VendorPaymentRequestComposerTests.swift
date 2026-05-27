@@ -12,7 +12,7 @@ struct VendorPaymentRequestComposerTests {
             vendorName: "Studio North"
         )
 
-        #expect(note.contains("$250.00"))
+        #expect(note.contains("$250"))
         #expect(note.contains("payments@studio.test"))
         #expect(note.contains("e-transfer"))
     }
@@ -26,7 +26,7 @@ struct VendorPaymentRequestComposerTests {
             vendorName: "Studio North"
         )
 
-        #expect(note.contains("$185.00"))
+        #expect(note.contains("$185"))
         #expect(note.contains("cash"))
         #expect(note.contains("hand"))
     }
@@ -38,7 +38,7 @@ struct VendorPaymentRequestComposerTests {
             note: "Please send an e-transfer to payments@studio.test."
         )
 
-        #expect(body.contains("Payment of $125.00 requested."))
+        #expect(body.contains("Deposit of $125 requested."))
         #expect(body.contains("payments@studio.test"))
     }
 }

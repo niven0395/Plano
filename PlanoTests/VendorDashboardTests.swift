@@ -24,75 +24,35 @@ struct VendorDashboardTests {
             }
 
             let events = [
-                PartyEvent(
+                makeEvent(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000E101") ?? UUID(),
                     title: "Host approval pending",
-                    type: .engagement,
                     date: eventDates[0],
-                    venue: "Maison North",
-                    city: "Toronto",
-                    guestCount: 50,
-                    venueSetting: .indoor,
-                    planningNote: "",
-                    progress: 0.3,
-                    stage: .accepted,
-                    eventStage: .planning
+                    guestCount: 50
                 ),
-                PartyEvent(
+                makeEvent(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000E102") ?? UUID(),
                     title: "Quote next",
-                    type: .birthday,
                     date: eventDates[1],
-                    venue: "The Atrium",
-                    city: "Toronto",
-                    guestCount: 25,
-                    venueSetting: .outdoor,
-                    planningNote: "",
-                    progress: 0.2,
-                    stage: .requested,
-                    eventStage: .planning
+                    guestCount: 25
                 ),
-                PartyEvent(
+                makeEvent(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000E103") ?? UUID(),
                     title: "Fresh request",
-                    type: .cocktailNight,
                     date: eventDates[2],
-                    venue: "Lobby Bar",
-                    city: "Toronto",
-                    guestCount: 90,
-                    venueSetting: .indoor,
-                    planningNote: "",
-                    progress: 0.1,
-                    stage: .requested,
-                    eventStage: .planning
+                    guestCount: 90
                 ),
-                PartyEvent(
+                makeEvent(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000E104") ?? UUID(),
                     title: "Confirm details",
-                    type: .bridalShower,
                     date: eventDates[3],
-                    venue: "Rose Hall",
-                    city: "Toronto",
-                    guestCount: 50,
-                    venueSetting: .both,
-                    planningNote: "",
-                    progress: 0.4,
-                    stage: .accepted,
-                    eventStage: .planning
+                    guestCount: 50
                 ),
-                PartyEvent(
+                makeEvent(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000E105") ?? UUID(),
                     title: "Host reviewing quote",
-                    type: .dinnerParty,
                     date: eventDates[4],
-                    venue: "North House",
-                    city: "Toronto",
-                    guestCount: 25,
-                    venueSetting: .tbd,
-                    planningNote: "",
-                    progress: 0.35,
-                    stage: .accepted,
-                    eventStage: .planning
+                    guestCount: 25
                 ),
             ]
 
@@ -101,7 +61,7 @@ struct VendorDashboardTests {
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000C101") ?? UUID(),
                     hostName: "Maya Chen",
                     event: events[0],
-                    stage: .accepted
+                    stage: .paymentRequested
                 ),
                 conversationRecord(
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000C102") ?? UUID(),
@@ -125,7 +85,7 @@ struct VendorDashboardTests {
                     id: UUID(uuidString: "00000000-0000-0000-0000-00000000C105") ?? UUID(),
                     hostName: "Lena Park",
                     event: events[4],
-                    stage: .accepted
+                    stage: .paymentRequested
                 ),
             ]
 
@@ -167,19 +127,11 @@ struct VendorDashboardTests {
     @MainActor
     func vendorDashboardExcludesDraftConversationsFromLeadQueue() async {
         await withIsolatedDefaults { defaults in
-            let upcomingEvent = PartyEvent(
+            let upcomingEvent = makeEvent(
                 id: UUID(uuidString: "00000000-0000-0000-0000-00000000E201") ?? UUID(),
                 title: "Lead-ready event",
-                type: .engagement,
                 date: Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now,
-                venue: "Maison North",
-                city: "Toronto",
-                guestCount: 40,
-                venueSetting: .outdoor,
-                planningNote: "",
-                progress: 0.2,
-                stage: .requested,
-                eventStage: .planning
+                guestCount: 40
             )
 
             let conversations = [
@@ -250,7 +202,7 @@ struct VendorDashboardTests {
     private func conversationRecord(
         id: UUID,
         hostName: String,
-        event: PartyEvent,
+        event: FixtureData.EventFixture,
         stage: BookingStage
     ) -> ConversationRecord {
         ConversationRecord(
@@ -262,7 +214,7 @@ struct VendorDashboardTests {
             vendorDisplayName: "Studio Petal",
             vendorCategory: VendorCategory.decorator.rawValue,
             eventTitle: event.title,
-            eventDateLabel: event.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()),
+            eventDateLabel: event.formattedDate,
             eventContextLine: event.contextLine,
             stage: stage.rawValue,
             lastActivityAt: .now,
@@ -270,6 +222,22 @@ struct VendorDashboardTests {
             updatedAt: .now,
             hostUnreadCount: nil,
             vendorUnreadCount: nil
+        )
+    }
+
+    private func makeEvent(
+        id: UUID,
+        title: String,
+        date: Date,
+        guestCount: Int
+    ) -> FixtureData.EventFixture {
+        FixtureData.EventFixture(
+            id: id,
+            title: title,
+            date: date,
+            venue: "Maison North",
+            city: "Toronto",
+            guestCount: guestCount
         )
     }
 

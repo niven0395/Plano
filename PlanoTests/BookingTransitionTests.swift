@@ -159,7 +159,7 @@ struct BookingTransitionTests {
 
         _ = try await service.submitBookingRequest(
             conversationID: conversation.id,
-            eventDate: FixtureData.events[0].date,
+            eventDate: FixtureData.primaryEvent.date,
             note: "Need install support."
         )
 
@@ -181,8 +181,15 @@ struct BookingTransitionTests {
             bookings: [booking]
         )
 
-        let firstResult = try await service.confirmPayment(conversationID: conversation.id)
-        let secondResult = try await service.confirmPayment(conversationID: conversation.id)
+        let idempotencyKey = UUID()
+        let firstResult = try await service.confirmPayment(
+            conversationID: conversation.id,
+            idempotencyKey: idempotencyKey
+        )
+        let secondResult = try await service.confirmPayment(
+            conversationID: conversation.id,
+            idempotencyKey: idempotencyKey
+        )
 
         let bookings = try await service.fetchBookings(conversationIDs: [conversation.id])
         let paidBooking = try #require(bookings.first)
@@ -202,14 +209,14 @@ struct BookingTransitionTests {
                 conversations: [conversation],
                 bookings: [booking]
             )
-            bookingService.confirmPaymentResultOverride = BookingTransitionResult(
+            await bookingService.setConfirmPaymentResultOverride(BookingTransitionResult(
                 conversationID: conversation.id,
                 stage: BookingStage.cancellationRequested.rawValue,
                 bookingID: booking.id,
                 dateConflicts: nil,
                 cancellationRequestDeadline: .now.addingTimeInterval(3600),
                 cancellationRequestedBy: FixtureData.hostID
-            )
+            ))
 
             let sessionStore = SessionStore(defaults: defaults)
             sessionStore.applyAnonymousSession(FixtureData.anonymousSession(name: "Maya Chen"))
@@ -241,7 +248,7 @@ struct BookingTransitionTests {
         do {
             _ = try await service.submitBookingRequest(
                 conversationID: conversation.id,
-                eventDate: FixtureData.events[0].date,
+                eventDate: FixtureData.primaryEvent.date,
                 note: "Need install support.",
                 requestedTimeStart: "18:00:00",
                 requestedTimeEnd: "17:00:00",
@@ -264,10 +271,10 @@ struct BookingTransitionTests {
         #expect(stage.title == "Cancellation requested")
         #expect(stage.vendorActionLabel == "Review cancellation")
         #expect(stage.tone == .gold)
-        #expect(!stage.isConfirmed)
+        #expect(stage.isConfirmed == false)
         #expect(stage.requiresVendorAction)
-        #expect(!stage.isTerminal)
-        #expect(!stage.isRebookable)
+        #expect(stage.isTerminal == false)
+        #expect(stage.isRebookable == false)
         #expect(stage.isActionable)
     }
 
@@ -292,9 +299,9 @@ struct BookingTransitionTests {
 
     @Test
     func terminalStagesAreNotCancellable() {
-        #expect(!BookingStage.declined.isCancellable)
-        #expect(!BookingStage.cancelled.isCancellable)
-        #expect(!BookingStage.cancellationRequested.isCancellable)
+        #expect(BookingStage.declined.isCancellable == false)
+        #expect(BookingStage.cancelled.isCancellable == false)
+        #expect(BookingStage.cancellationRequested.isCancellable == false)
     }
 
     @Test
@@ -463,7 +470,7 @@ struct BookingTransitionTests {
             // Before archiving, the conversation is visible
             let before = store.conversation(id: conversation.id, for: .host)
             #expect(before != nil)
-            #expect(!store.isArchived(conversation.id, for: .host))
+            #expect(store.isArchived(conversation.id, for: .host) == false)
 
             // Archive the conversation (simulates "Remove from plan")
             store.archiveConversation(conversation.id, for: .host)
@@ -476,7 +483,7 @@ struct BookingTransitionTests {
     }
 
     private func makeConversation(rawStage: String) -> ConversationRecord {
-        let event = FixtureData.events[0]
+        let event = FixtureData.primaryEvent
         return ConversationRecord(
             id: UUID(),
             eventID: event.id,
@@ -507,7 +514,7 @@ struct BookingTransitionTests {
             requestedServices: ["Floral design"],
             note: "Need install support.",
             guestCountLabel: "80 guests",
-            eventDate: FixtureData.events[0].date,
+            eventDate: FixtureData.primaryEvent.date,
             createdAt: .now
         )
     }
@@ -545,7 +552,7 @@ struct BookingTransitionTests {
             depositAmountCents: 123_000,
             totalAmountCents: 410_000,
             currency: "cad",
-            eventDate: FixtureData.events[0].date,
+            eventDate: FixtureData.primaryEvent.date,
             depositMethod: depositPaidAt == nil ? nil : "Apple Pay",
             depositPaidAt: depositPaidAt,
             cancellationRequestedBy: cancellationRequestedBy,

@@ -209,6 +209,7 @@ struct DiscoveryFlowTests {
                 availabilityService: TestAvailabilityService(),
                 sessionStore: sessionStore
             )
+            await store.load()
 
             #expect(store.isSaved(planner: planner) == false)
             store.toggleSaved(planner: planner)
@@ -231,7 +232,12 @@ struct DiscoveryFlowTests {
                 inboxStore.existingConversationID(vendorID: vendorID)
             )
 
-            store.openConversation()
+            store.openConversation(
+                planner: planner,
+                inboxStore: inboxStore,
+                router: router,
+                hostIdentityPromptStore: hostIdentityPromptStore
+            )
             try? await Task.sleep(for: .milliseconds(50))
 
             #expect(router.selectedTab == .inbox)

@@ -2,6 +2,23 @@ import Foundation
 @testable import Plano
 
 enum FixtureData {
+    struct EventFixture: Hashable {
+        let id: UUID
+        let title: String
+        let date: Date
+        let venue: String
+        let city: String
+        let guestCount: Int
+
+        var formattedDate: String {
+            date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        }
+
+        var contextLine: String {
+            "\(guestCount) guests · \(city)"
+        }
+    }
+
     static let hostID = UUID(uuidString: "00000000-0000-0000-0000-00000000A001")!
     static let vendorID = UUID(uuidString: "00000000-0000-0000-0000-00000000B001")!
     static let secondVendorID = UUID(uuidString: "00000000-0000-0000-0000-00000000B002")!
@@ -10,37 +27,34 @@ enum FixtureData {
     static let cocktailEventID = UUID(uuidString: "00000000-0000-0000-0000-00000000E002")!
     static let conversationID = UUID(uuidString: "00000000-0000-0000-0000-00000000C001")!
 
-    static var events: [PartyEvent] {
+    static var eventFixtures: [EventFixture] {
         [
-            PartyEvent(
+            EventFixture(
                 id: engagementEventID,
                 title: "Garden Engagement Dinner",
-                type: .engagement,
                 date: Calendar.current.date(byAdding: .day, value: 30, to: .now) ?? .now,
                 venue: "Maison North",
                 city: "Toronto",
-                guestCount: 50,
-                venueSetting: .outdoor,
-                planningNote: "Need calm, fast-moving vendor decisions.",
-                progress: 0.22,
-                stage: .requested,
-                eventStage: .planning
+                guestCount: 50
             ),
-            PartyEvent(
+            EventFixture(
                 id: cocktailEventID,
                 title: "Cocktail Night",
-                type: .cocktailNight,
                 date: Calendar.current.date(byAdding: .day, value: 45, to: .now) ?? .now,
                 venue: "The Atrium",
                 city: "Toronto",
-                guestCount: 90,
-                venueSetting: .indoor,
-                planningNote: "Music, venue flow, and fast hospitality are the priorities.",
-                progress: 0.3,
-                stage: .requested,
-                eventStage: .planning
+                guestCount: 90
             ),
         ]
+    }
+
+    static var primaryEvent: EventFixture {
+        eventFixtures[0]
+    }
+
+    static func eventFixture(id: UUID?) -> EventFixture? {
+        guard let id else { return nil }
+        return eventFixtures.first { $0.id == id }
     }
 
     static var vendorProfiles: [VendorProfile] {
@@ -262,7 +276,7 @@ enum FixtureData {
         )
     }
 
-    static func conversationRecord(event: PartyEvent = FixtureData.events[0]) -> ConversationRecord {
+    static func conversationRecord(event: EventFixture = FixtureData.primaryEvent) -> ConversationRecord {
         ConversationRecord(
             id: conversationID,
             eventID: event.id,
@@ -389,44 +403,16 @@ actor TestAuthService: AuthServiceProtocol {
     }
 }
 
-actor TestEventService: EventServiceProtocol {
-    var events: [PartyEvent]
-
-    init(events: [PartyEvent] = FixtureData.events) {
-        self.events = events
-    }
-
-    func fetchEvents() async throws -> [PartyEvent] {
-        events
-    }
-
-    func createEvent(from draft: EventDraft) async throws -> PartyEvent {
-        let event = draft.makeEvent()
-        events.append(event)
-        return event
-    }
-
-    func updateEventVenue(_ venue: String, eventID: UUID) async throws -> PartyEvent {
-        guard let index = events.firstIndex(where: { $0.id == eventID }) else {
-            throw APIError.invalidResponse
-        }
-
-        events[index].venue = venue.trimmingCharacters(in: .whitespacesAndNewlines)
-        return events[index]
-    }
-
-    func deleteEvent(eventID: UUID) async throws -> DeletionResult {
-        events.removeAll { $0.id == eventID }
-        return DeletionResult(cancelledBookings: 0)
-    }
-}
-
 actor TestVendorSearchService: VendorSearchServiceProtocol {
     var vendorProfiles: [VendorProfile]
     var savedVendorIDs: Set<UUID> = []
 
-    init(vendorProfiles: [VendorProfile] = FixtureData.vendorProfiles) {
+    init(
+        vendorProfiles: [VendorProfile] = FixtureData.vendorProfiles,
+        savedVendorIDs: Set<UUID> = []
+    ) {
         self.vendorProfiles = vendorProfiles
+        self.savedVendorIDs = savedVendorIDs
     }
 
     func searchVendors(matching request: VendorSearchRequest) async throws -> [VendorProfileRecord] {
@@ -695,8 +681,7 @@ actor TestBookingService: BookingServiceProtocol {
     var messagesByConversation: [UUID: [MessageRecord]]
     var bookingRequests: [BookingRequestRecord]
     var bookings: [BookingRecord]
-    var confirmPaymentResultOverride: BookingTransitionResult?
-    var vendorConfirmPaymentResultOverride: BookingTransitionResult?
+    var externalBookingRequests: [ExternalBookingRequestRecord]
     var confirmPaymentResultOverride: BookingTransitionResult?
     var vendorConfirmPaymentResultOverride: BookingTransitionResult?
 
@@ -704,12 +689,18 @@ actor TestBookingService: BookingServiceProtocol {
         conversations: [ConversationRecord] = [],
         messagesByConversation: [UUID: [MessageRecord]] = [:],
         bookingRequests: [BookingRequestRecord] = [],
-        bookings: [BookingRecord] = []
+        bookings: [BookingRecord] = [],
+        externalBookingRequests: [ExternalBookingRequestRecord] = []
     ) {
         self.conversations = conversations
         self.messagesByConversation = messagesByConversation
         self.bookingRequests = bookingRequests
         self.bookings = bookings
+        self.externalBookingRequests = externalBookingRequests
+    }
+
+    func setConfirmPaymentResultOverride(_ result: BookingTransitionResult?) {
+        confirmPaymentResultOverride = result
     }
 
     func fetchConversations(hostID: UUID) async throws -> [ConversationRecord] {
@@ -725,7 +716,7 @@ actor TestBookingService: BookingServiceProtocol {
     }
 
     func createConversation(vendorID: UUID, hostID: UUID, eventID: UUID?) async throws -> ConversationRecord {
-        let event = FixtureData.events.first(where: { $0.id == eventID })
+        let event = FixtureData.eventFixture(id: eventID)
         let record = ConversationRecord(
             id: UUID(),
             eventID: eventID,
@@ -795,12 +786,6 @@ actor TestBookingService: BookingServiceProtocol {
         intakeAnswers: [LeadIntakeAnswer]?,
         idempotencyKey: UUID
     ) async throws -> BookingTransitionResult {
-        if let requestedTimeStart,
-           let requestedTimeEnd,
-           requestedTimeEnd <= requestedTimeStart {
-            throw APIError.notSupported("Requested end time must be later than the start time.")
-        }
-
         if let requestedTimeStart,
            let requestedTimeEnd,
            requestedTimeEnd <= requestedTimeStart {
@@ -885,11 +870,7 @@ actor TestBookingService: BookingServiceProtocol {
     func confirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let confirmPaymentResultOverride {
             updateConversationStage(conversationID, stage: confirmPaymentResultOverride.stage)
-            return confirmPaymentResultOverride
-        }
-
-        if let confirmPaymentResultOverride {
-            updateConversationStage(conversationID, stage: confirmPaymentResultOverride.stage)
+            applyTransitionResultToBooking(confirmPaymentResultOverride, conversationID: conversationID)
             return confirmPaymentResultOverride
         }
 
@@ -922,11 +903,7 @@ actor TestBookingService: BookingServiceProtocol {
     func vendorConfirmPayment(conversationID: UUID, idempotencyKey: UUID) async throws -> BookingTransitionResult {
         if let vendorConfirmPaymentResultOverride {
             updateConversationStage(conversationID, stage: vendorConfirmPaymentResultOverride.stage)
-            return vendorConfirmPaymentResultOverride
-        }
-
-        if let vendorConfirmPaymentResultOverride {
-            updateConversationStage(conversationID, stage: vendorConfirmPaymentResultOverride.stage)
+            applyTransitionResultToBooking(vendorConfirmPaymentResultOverride, conversationID: conversationID)
             return vendorConfirmPaymentResultOverride
         }
 
@@ -1102,6 +1079,50 @@ actor TestBookingService: BookingServiceProtocol {
         return message.body
     }
 
+    private func applyTransitionResultToBooking(
+        _ result: BookingTransitionResult,
+        conversationID: UUID
+    ) {
+        guard let index = bookings.firstIndex(where: { $0.conversationID == conversationID }) else { return }
+
+        let current = bookings[index]
+        bookings[index] = BookingRecord(
+            id: current.id,
+            conversationID: current.conversationID,
+            eventID: current.eventID,
+            vendorID: current.vendorID,
+            hostID: current.hostID,
+            depositAmountLabel: current.depositAmountLabel,
+            depositAmountCents: current.depositAmountCents,
+            totalAmountCents: current.totalAmountCents,
+            currency: current.currency,
+            eventDate: current.eventDate,
+            stripePaymentIntentID: current.stripePaymentIntentID,
+            depositMethod: current.depositMethod,
+            depositPaidAt: current.depositPaidAt,
+            paymentRequestedAmountCents: current.paymentRequestedAmountCents,
+            paymentRequestedAt: current.paymentRequestedAt,
+            paymentRequestNote: current.paymentRequestNote,
+            paymentConfirmedAt: current.paymentConfirmedAt,
+            paymentType: current.paymentType,
+            paymentReminderSentAt: current.paymentReminderSentAt,
+            cancelledBy: current.cancelledBy,
+            cancelledAt: current.cancelledAt,
+            cancellationReason: current.cancellationReason,
+            cancellationRequestedBy: result.cancellationRequestedBy ?? current.cancellationRequestedBy,
+            cancellationRequestedAt: result.cancellationRequestedBy == nil ? current.cancellationRequestedAt : .now,
+            cancellationRequestReason: current.cancellationRequestReason,
+            stageBeforeCancellationRequest: current.stageBeforeCancellationRequest,
+            cancellationRequestDeadline: result.cancellationRequestDeadline ?? current.cancellationRequestDeadline,
+            cancellationResponseBy: current.cancellationResponseBy,
+            cancellationDeclinedAt: result.cancellationDeclinedAt ?? current.cancellationDeclinedAt,
+            forceCancelled: result.forceCancelled ?? current.forceCancelled,
+            stage: result.stage,
+            createdAt: current.createdAt,
+            updatedAt: .now
+        )
+    }
+
     func linkConversationToEvent(conversationID: UUID, eventID: UUID) async throws {
         guard let index = conversations.firstIndex(where: { $0.id == conversationID }) else { return }
         let current = conversations[index]
@@ -1143,6 +1164,41 @@ actor TestBookingService: BookingServiceProtocol {
 
     func saveVendorNote(conversationID: UUID, content: String) async throws {
         vendorNotes[conversationID] = content
+    }
+
+    func fetchPendingExternalBookingRequests() async throws -> [ExternalBookingRequestRecord] {
+        externalBookingRequests.filter { $0.status == "pending" }
+    }
+
+    func acceptExternalBookingRequest(requestID: UUID) async throws -> ExternalBookingAcceptResult {
+        externalBookingRequests.removeAll { $0.id == requestID }
+        let conversation = try await createConversation(
+            vendorID: FixtureData.vendorID,
+            hostID: FixtureData.hostID,
+            eventID: nil
+        )
+        let booking = BookingRecord(
+            id: UUID(),
+            conversationID: conversation.id,
+            eventID: conversation.eventID,
+            vendorID: conversation.vendorID,
+            hostID: conversation.hostID,
+            stage: BookingStage.requested.rawValue,
+            createdAt: .now,
+            updatedAt: .now
+        )
+        bookings.append(booking)
+
+        return ExternalBookingAcceptResult(
+            requestID: requestID,
+            conversationID: conversation.id,
+            bookingID: booking.id,
+            inviteToken: "test-invite-token"
+        )
+    }
+
+    func declineExternalBookingRequest(requestID: UUID, reason: String?) async throws {
+        externalBookingRequests.removeAll { $0.id == requestID }
     }
 
     private func updateConversationStage(_ conversationID: UUID, stage: String) {
@@ -1193,7 +1249,7 @@ actor TestBookingService: BookingServiceProtocol {
     }
 
     private func eventDate(for eventID: UUID?) -> Date? {
-        FixtureData.events.first(where: { $0.id == eventID })?.date
+        FixtureData.eventFixture(id: eventID)?.date
     }
 
     private func computeDateConflicts(vendorID: UUID, eventDate: Date?) throws -> [DateConflict] {
@@ -1278,67 +1334,6 @@ struct TestAvailabilityService: VendorAvailabilityServiceProtocol {
     func setTimeslotBooking(record: VendorTimeslotBookingRecord) async throws {}
 
     func removeTimeslotBooking(vendorID: UUID, date: Date, startTime: String) async throws {}
-}
-
-actor TestPlannedVendorService: PlannedVendorServiceProtocol {
-    var plannedVendors: [PlannedVendorRecord] = []
-
-    func fetchPlannedVendors(eventID: UUID) async throws -> [PlannedVendorRecord] {
-        plannedVendors.filter { $0.eventID == eventID && $0.status != PlannedVendorStatus.removed.rawValue }
-    }
-
-    func fetchAllPlannedVendors(eventIDs: [UUID]) async throws -> [PlannedVendorRecord] {
-        plannedVendors.filter { eventIDs.contains($0.eventID) && $0.status != PlannedVendorStatus.removed.rawValue }
-    }
-
-    func planVendor(eventID: UUID, vendorID: UUID, category: VendorCategory) async throws -> PlannedVendorRecord {
-        if let index = plannedVendors.firstIndex(where: { $0.eventID == eventID && $0.vendorID == vendorID }) {
-            let existing = plannedVendors[index]
-            let updated = PlannedVendorRecord(
-                id: existing.id,
-                eventID: eventID,
-                vendorID: vendorID,
-                category: category.rawValue,
-                status: PlannedVendorStatus.planned.rawValue,
-                availabilityCheckedAt: .now
-            )
-            plannedVendors[index] = updated
-            return updated
-        }
-
-        let record = PlannedVendorRecord(
-            eventID: eventID,
-            vendorID: vendorID,
-            category: category.rawValue,
-            status: PlannedVendorStatus.planned.rawValue,
-            availabilityCheckedAt: .now
-        )
-        plannedVendors.append(record)
-        return record
-    }
-
-    func removePlannedVendor(eventID: UUID, vendorID: UUID) async throws {
-        plannedVendors.removeAll { $0.eventID == eventID && $0.vendorID == vendorID }
-    }
-
-    func updateStatus(eventID: UUID, vendorID: UUID, status: PlannedVendorStatus) async throws {
-        guard let index = plannedVendors.firstIndex(where: { $0.eventID == eventID && $0.vendorID == vendorID }) else { return }
-        let existing = plannedVendors[index]
-        plannedVendors[index] = PlannedVendorRecord(
-            id: existing.id,
-            eventID: eventID,
-            vendorID: vendorID,
-            category: existing.category,
-            status: status.rawValue,
-            availabilityCheckedAt: existing.availabilityCheckedAt
-        )
-    }
-
-    func batchUpdateStatus(eventID: UUID, vendorIDs: [UUID], status: PlannedVendorStatus) async throws {
-        for vendorID in vendorIDs {
-            try await updateStatus(eventID: eventID, vendorID: vendorID, status: status)
-        }
-    }
 }
 
 actor TestMessagingService: MessagingServiceProtocol {

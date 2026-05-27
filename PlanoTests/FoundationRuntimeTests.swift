@@ -58,48 +58,32 @@ struct FoundationRuntimeTests {
 
     @Test
     @MainActor
-    func hostPlanningLoadsMockEventsAndPersistsCreatedEvents() async throws {
-        try await withIsolatedDefaults { defaults in
-            let service = TestEventService()
-            let vendorSearchService = TestVendorSearchService()
+    func hostPlanningLoadsRecommendedVendorsAndCachesSavedVendors() async {
+        await withIsolatedDefaults { defaults in
+            let vendorSearchService = TestVendorSearchService(
+                savedVendorIDs: [FixtureData.vendorID]
+            )
             let planner = HostPlanningStore(
-                eventService: service,
                 vendorSearchService: vendorSearchService,
-                plannedVendorService: TestPlannedVendorService(),
                 defaults: defaults
             )
 
-            #expect(planner.events.isEmpty)
-            #expect(planner.selectedEvent.id == PartyEvent.placeholder.id)
+            #expect(planner.vendors.isEmpty)
+            #expect(planner.recommendedVendors.isEmpty)
 
             await planner.load()
 
             #expect(planner.loadingState == .loaded)
-            #expect(planner.events.count == FixtureData.events.count)
-            #expect(planner.selectedEvent.id == FixtureData.events.first?.id)
+            #expect(planner.vendors.count == FixtureData.vendorProfiles.count)
             #expect(planner.recommendedVendors.isEmpty == false)
+            #expect(planner.isSavedVendor(FixtureData.vendorID))
 
-            var draft = EventDraft()
-            draft.title = "Sunset Dinner Party"
-            draft.type = .dinnerParty
-            draft.venue = "The Atrium"
-            draft.city = "Toronto"
-            draft.venueSetting = .outdoor
-
-            let createdEvent = await planner.addEvent(from: draft)
-            let persistedEvents = try await service.fetchEvents()
-
-            #expect(createdEvent?.title == "Sunset Dinner Party")
-            #expect(planner.selectedEventID == createdEvent?.id)
-            #expect(persistedEvents.contains(where: { $0.title == "Sunset Dinner Party" }))
+            let restoredPlanner = HostPlanningStore(
+                vendorSearchService: TestVendorSearchService(),
+                defaults: defaults
+            )
+            #expect(restoredPlanner.isSavedVendor(FixtureData.vendorID))
         }
-    }
-
-    @Test
-    func guestCountValueResolvesLegacyAndNumericInputs() {
-        #expect(GuestCountValue.resolve(from: GuestCountTier.medium.rawValue) == GuestCountTier.medium.representativeCount)
-        #expect(GuestCountValue.resolve(from: "64") == 64)
-        #expect(GuestCountValue.resolve(from: "35-60 guests") == 47)
     }
 
     @Test

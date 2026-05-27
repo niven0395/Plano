@@ -37,8 +37,6 @@ struct HomeView: View {
                     }
                 }
 
-                SectionHeader(title: "Discover")
-
                 SearchBarView(
                     store: searchStore,
                     showsFilters: showsFilters,
@@ -87,17 +85,39 @@ private struct HomePopularCategoriesSection: View {
     let categories: [CategoryShortcut]
     let onSelect: (VendorCategory) -> Void
 
+    private let gridColumns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
-                ForEach(Array(categories.enumerated()), id: \.element.id) { index, shortcut in
-                    Button {
-                        onSelect(shortcut.category)
-                    } label: {
-                        CategoryShortcutCard(shortcut: shortcut)
+        VStack(alignment: .leading, spacing: 18) {
+            SectionHeader(
+                title: "Browse by category",
+                subtitle: "Curated vendors across every slice of your event."
+            )
+
+            if let hero = categories.first {
+                Button {
+                    onSelect(hero.category)
+                } label: {
+                    CategoryHeroCard(shortcut: hero)
+                }
+                .buttonStyle(CategoryCardButtonStyle())
+                .staggeredAppear(index: 0)
+            }
+
+            if categories.count > 1 {
+                LazyVGrid(columns: gridColumns, spacing: 12) {
+                    ForEach(Array(categories.dropFirst().enumerated()), id: \.element.id) { index, shortcut in
+                        Button {
+                            onSelect(shortcut.category)
+                        } label: {
+                            CategoryShortcutCard(shortcut: shortcut)
+                        }
+                        .buttonStyle(CategoryCardButtonStyle())
+                        .staggeredAppear(index: index + 1)
                     }
-                    .buttonStyle(CategoryCardButtonStyle())
-                    .staggeredAppear(index: index)
                 }
             }
         }
@@ -108,27 +128,54 @@ private struct WelcomeHeroCard: View {
     var onDismiss: () -> Void
 
     var body: some View {
-        AppSurface(style: .highlighted) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    Text("Find your perfect vendors")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Welcome")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.Palette.accent)
+                    .textCase(.uppercase)
+                    .tracking(0.8)
 
-                    Spacer()
+                Text("Find your perfect vendors")
+                    .font(.system(size: 32, weight: .semibold, design: .rounded))
+                    .tracking(-0.8)
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    Button("Dismiss", systemImage: "xmark") {
-                        onDismiss()
-                    }
-                    .labelStyle(.iconOnly)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.subdued)
-                }
-
-                Text("Browse by category to discover vendors for your next event.")
-                    .font(.subheadline)
+                Text("Browse by category or search directly to discover vendors for your next event.")
+                    .font(.body)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(26)
+            .padding(.trailing, 40)
+            .background(
+                LinearGradient(
+                    colors: [
+                        AppTheme.Palette.elevatedSurface,
+                        AppTheme.toneBackground(.sand).opacity(0.45),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: .rect(cornerRadius: AppTheme.cardCornerRadius)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                    .stroke(AppTheme.Palette.border, lineWidth: 1)
+            }
+            .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 12)
+
+            Button("Dismiss welcome", systemImage: "xmark") {
+                onDismiss()
+            }
+            .labelStyle(.iconOnly)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(AppTheme.Palette.textSecondary)
+            .frame(width: 32, height: 32)
+            .background(AppTheme.Palette.chipFill, in: Circle())
+            .padding(14)
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
@@ -162,59 +209,148 @@ private struct CategoryShortcutCard: View {
 private struct CategoryImageCard: View {
     let imageName: String
     let title: String
+    var height: CGFloat = 150
 
     var body: some View {
         Image(imageName)
             .resizable()
             .aspectRatio(contentMode: .fill)
             .frame(minWidth: 0, maxWidth: .infinity)
-            .frame(height: 140)
+            .frame(height: height)
             .clipped()
             .overlay(alignment: .bottom) {
-                LinearGradient(
-                    colors: [.black.opacity(0.45), .clear],
-                    startPoint: .bottom,
-                    endPoint: .top
-                )
-                .frame(height: 64)
-            }
-            .overlay(alignment: .bottomLeading) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(14)
+                CategoryGlassCaption(title: title, isCompact: true)
             }
             .clipShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
-            .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 12)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            }
+            .shadow(color: AppTheme.Palette.shadow, radius: 14, y: 10)
     }
 }
 
 private struct CategoryIconCard: View {
     let shortcut: CategoryShortcut
     let tone: AccentTone
+    var height: CGFloat = 150
 
     var body: some View {
-        AppSurface {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Image(systemName: shortcut.category.symbolName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.toneColor(tone))
-                        .frame(width: 34, height: 34)
-                        .background(AppTheme.toneBackground(tone), in: .rect(cornerRadius: 10))
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.subdued)
-                }
-
-                Text(shortcut.category.singularTitle)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+        EditorialArtworkPanel(
+            tone: tone,
+            symbolName: shortcut.category.symbolName,
+            height: height
+        )
+        .overlay(alignment: .bottom) {
+            CategoryGlassCaption(title: shortcut.category.singularTitle, isCompact: true)
         }
+        .shadow(color: AppTheme.Palette.shadow, radius: 14, y: 10)
+    }
+}
+
+// MARK: - Hero Category Card (first tile — full width)
+
+private struct CategoryHeroCard: View {
+    let shortcut: CategoryShortcut
+
+    private var tone: AccentTone { shortcut.category.accentTone }
+
+    private let height: CGFloat = 220
+
+    var body: some View {
+        Group {
+            if let imageName = shortcut.category.categoryImageName {
+                heroImage(imageName)
+            } else {
+                heroEditorial
+            }
+        }
+        .clipShape(.rect(cornerRadius: AppTheme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: AppTheme.cardCornerRadius)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        }
+        .shadow(color: AppTheme.Palette.shadow, radius: 18, y: 14)
+    }
+
+    private func heroImage(_ imageName: String) -> some View {
+        Image(imageName)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .clipped()
+            .overlay(alignment: .bottomLeading) {
+                heroCaption
+            }
+    }
+
+    private var heroEditorial: some View {
+        EditorialArtworkPanel(
+            tone: tone,
+            symbolName: shortcut.category.symbolName,
+            height: height
+        )
+        .overlay(alignment: .bottomLeading) {
+            heroCaption
+        }
+    }
+
+    private var heroCaption: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Start here")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .textCase(.uppercase)
+                .tracking(0.8)
+
+            HStack(alignment: .lastTextBaseline) {
+                Text(shortcut.category.singularTitle)
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .tracking(-0.4)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "arrow.up.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+// MARK: - Glass caption strip for standard cards
+
+private struct CategoryGlassCaption: View {
+    let title: String
+    let isCompact: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, isCompact ? 10 : 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial)
+        .environment(\.colorScheme, .dark)
     }
 }

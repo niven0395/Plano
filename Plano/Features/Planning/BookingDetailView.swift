@@ -31,7 +31,6 @@ struct BookingDetailView: View {
                     eventDetailsCard(thread)
                     requestDetailsCard
                     paymentCard(thread)
-                    chatAction
                 } else if isLoading {
                     loadingState
                 } else {
@@ -43,12 +42,46 @@ struct BookingDetailView: View {
                 }
             }
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, thread != nil ? 96 : 32)
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .navigationTitle("Booking")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if thread != nil, stage.isCancellable {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel booking", role: .destructive) {
+                        cancellationReason = ""
+                        isPresentingCancellation = true
+                    }
+                    .foregroundStyle(AppTheme.toneColor(.coral))
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if thread != nil {
+                AppFloatingActionBar {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Booking")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(AppTheme.Palette.subdued)
+                            .textCase(.uppercase)
+                            .tracking(0.4)
+                        Text(stage.title)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppTheme.toneColor(stage.tone))
+                            .lineLimit(1)
+                    }
+                } trailing: {
+                    Button(action: openConversation) {
+                        Label("Message vendor", systemImage: "bubble.left.fill")
+                    }
+                    .buttonStyle(AppFloatingActionBarButtonStyle())
+                    .accessibilityLabel("Message vendor")
+                }
+            }
+        }
         .task(id: conversationID) {
             await loadIfNeeded()
         }
@@ -223,27 +256,6 @@ struct BookingDetailView: View {
         }
     }
 
-    // MARK: - Chat Action
-
-    private var chatAction: some View {
-        VStack(spacing: 12) {
-            Button("Chat with vendor") {
-                openConversation()
-            }
-            .buttonStyle(PrimaryActionButtonStyle())
-
-            if stage.isCancellable {
-                Button("Cancel booking", role: .destructive) {
-                    cancellationReason = ""
-                    isPresentingCancellation = true
-                }
-                .buttonStyle(.plain)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.toneColor(.coral))
-            }
-        }
-    }
-
     // MARK: - Loading
 
     private var loadingState: some View {
@@ -269,7 +281,7 @@ struct BookingDetailView: View {
         case .requested:
             "Your request has been sent. Waiting for the vendor to respond."
         case .accepted:
-            "The vendor has accepted your request. They may send payment details next."
+            "The vendor has confirmed your booking. They may send payment details next."
         case .paymentRequested:
             "The vendor has requested payment. Review the amount and confirm when ready."
         case .paid:

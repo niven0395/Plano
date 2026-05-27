@@ -68,12 +68,14 @@ struct ProfileView: View {
                 displayName: session.currentDisplayName,
                 contactPhone: session.anonymousSession?.contactPhone,
                 contactEmail: session.anonymousSession?.contactEmail,
-                isGuest: true
+                isGuest: true,
+                role: session.currentRole
             )
         } else {
             ProfileIdentityCard(
                 displayName: session.currentDisplayName,
-                emailAddress: session.authenticatedProfile?.emailAddress
+                emailAddress: session.authenticatedProfile?.emailAddress,
+                role: session.currentRole
             )
         }
     }

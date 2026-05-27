@@ -59,40 +59,32 @@ struct SearchDiscoveryState: View {
                 subtitle: "Quick ways to jump into discovery when you know the kind of vendor you need."
             )
 
-            AppSurface {
-                VStack(spacing: 10) {
-                    ForEach(store.suggestedSearchCategories, id: \.self) { category in
-                        Button {
-                            store.applySuggestedSearch(for: category)
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: category.symbolName)
-                                    .font(.headline)
-                                    .foregroundStyle(AppTheme.toneColor(category.accentTone))
-                                    .frame(width: 22)
+            FlowLayout(spacing: 10) {
+                ForEach(store.suggestedSearchCategories, id: \.self) { category in
+                    Button {
+                        store.applySuggestedSearch(for: category)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: category.symbolName)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.toneColor(category.accentTone))
+                                .accessibilityHidden(true)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(store.suggestedSearchText(for: category))
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(AppTheme.Palette.textPrimary)
-                                        .multilineTextAlignment(.leading)
-
-                                    Text(category.singularTitle)
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(AppTheme.Palette.textSecondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "arrow.up.right")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(AppTheme.Palette.subdued)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 4)
+                            Text(store.suggestedSearchText(for: category))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
+                                .lineLimit(1)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.toneBackground(category.accentTone), in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(AppTheme.toneColor(category.accentTone).opacity(0.22), lineWidth: 1)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Search \(category.singularTitle)")
                 }
             }
 

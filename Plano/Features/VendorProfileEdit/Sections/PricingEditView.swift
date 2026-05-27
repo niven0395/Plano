@@ -88,24 +88,9 @@ struct PricingEditView: View {
 
                 // Add-ons
                 AddOnsSection(addOns: $store.draft.addOns, isExpanded: $isAddOnsExpanded)
-
-                // MARK: - Save
-
-                Button(store.loadingState.isLoading ? "Saving..." : "Save pricing") {
-                    store.draft.serviceItems = store.draft.preparedServiceItems
-
-                    Task {
-                        await store.save()
-                        if store.lastSaveOutcome == .saved {
-                            dismiss()
-                        }
-                    }
-                }
-                .buttonStyle(PrimaryActionButtonStyle())
-                .disabled(store.loadingState.isLoading)
             }
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
@@ -122,6 +107,15 @@ struct PricingEditView: View {
         .navigationTitle("Pricing")
         .navigationBarTitleDisplayMode(.inline)
         .animation(.snappy, value: store.draft.pricingModel)
+        .safeAreaInset(edge: .bottom) {
+            VendorProfileEditSaveBar(
+                store: store,
+                buttonLabel: "Save pricing",
+                beforeSave: {
+                    store.draft.serviceItems = store.draft.preparedServiceItems
+                }
+            )
+        }
         .saveFeedback(outcome: store.lastSaveOutcome, successMessage: "Pricing saved") {
             store.lastSaveOutcome = .idle
         }

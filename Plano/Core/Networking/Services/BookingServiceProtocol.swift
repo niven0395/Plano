@@ -29,6 +29,10 @@ protocol BookingServiceProtocol: Sendable {
 
     func fetchVendorNote(conversationID: UUID) async throws -> String?
     func saveVendorNote(conversationID: UUID, content: String) async throws
+
+    func fetchPendingExternalBookingRequests() async throws -> [ExternalBookingRequestRecord]
+    func acceptExternalBookingRequest(requestID: UUID) async throws -> ExternalBookingAcceptResult
+    func declineExternalBookingRequest(requestID: UUID, reason: String?) async throws
 }
 
 extension BookingServiceProtocol {

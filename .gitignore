@@ -1,7 +1,28 @@
 Config/LocalSecrets.xcconfig
+
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+*.xcuserdata/
+xcuserdata/
+
 .agent/
 .agents/
 .claude/
 .factory/
 .windsurf/
+AGENTS.md
+CLAUDE.md
+skills/
+skills-lock.json
 
+Plano copy/
+case_study_outputs/
+
+web/.env.local
+web/.dev.vars
+web/node_modules/
+web/.next/
+web/.wrangler/
+infra/**/.wrangler/

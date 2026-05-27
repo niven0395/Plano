@@ -11,6 +11,7 @@ struct ServiceContainer {
     let messagingService: any MessagingServiceProtocol
     let availabilityService: any VendorAvailabilityServiceProtocol
     let analyticsService: any AnalyticsServiceProtocol
+    let externalBookingClaimService: any ExternalBookingClaimServiceProtocol
     let signedURLCache: SignedURLCache
     let isConfigured: Bool
     let supportsAppleSignIn: Bool
@@ -43,6 +44,7 @@ struct ServiceContainer {
                 messagingService: LiveMessagingService(client: client),
                 availabilityService: LiveVendorAvailabilityService(client: client),
                 analyticsService: LiveAnalyticsService(client: client),
+                externalBookingClaimService: LiveExternalBookingClaimService(client: client),
                 signedURLCache: signedURLCache,
                 isConfigured: true,
                 supportsAppleSignIn: true
@@ -64,6 +66,7 @@ struct ServiceContainer {
             messagingService: UnavailableMessagingService(message: unavailableMessage),
             availabilityService: UnavailableVendorAvailabilityService(message: unavailableMessage),
             analyticsService: UnavailableAnalyticsService(message: unavailableMessage),
+            externalBookingClaimService: UnavailableExternalBookingClaimService(message: unavailableMessage),
             signedURLCache: signedURLCache,
             isConfigured: false,
             supportsAppleSignIn: false

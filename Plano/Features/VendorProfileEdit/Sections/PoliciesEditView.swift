@@ -29,8 +29,10 @@ struct PoliciesEditView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Policy")
-                                    .font(.footnote.weight(.semibold))
+                                    .font(.caption.weight(.semibold))
                                     .foregroundStyle(AppTheme.Palette.subdued)
+                                    .textCase(.uppercase)
+                                    .tracking(0.4)
 
                                 Spacer()
 
@@ -41,11 +43,13 @@ struct PoliciesEditView: View {
                             }
 
                             TextField("Title", text: $policy.title)
-                                .font(.headline)
+                                .font(.subheadline.weight(.semibold))
+                                .planoFormField()
 
                             TextField("Policy details", text: $policy.body, axis: .vertical)
                                 .lineLimit(4, reservesSpace: true)
                                 .font(.subheadline)
+                                .planoFormField()
                         }
                     }
                 }

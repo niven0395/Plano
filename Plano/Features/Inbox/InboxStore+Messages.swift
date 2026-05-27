@@ -126,6 +126,9 @@ extension InboxStore {
 
         updateDraft("", for: conversationID, role: role)
         stopTypingIndicator(for: conversationID, as: role)
+        if isArchived(conversationID, for: role) {
+            unarchiveConversation(conversationID, for: role)
+        }
         messageSender.sendMessage(messageBody, in: conversationID, as: role)
         return true
     }
@@ -143,6 +146,11 @@ extension InboxStore {
         as role: UserRole
     ) {
         stopTypingIndicator(for: conversationID, as: role)
+        // Re-sending into an archived thread (e.g. after cancelling a booking)
+        // should bring the conversation back into the active inbox.
+        if isArchived(conversationID, for: role) {
+            unarchiveConversation(conversationID, for: role)
+        }
         messageSender.sendMessageWithAttachments(body, attachments: attachments, in: conversationID, as: role)
     }
 

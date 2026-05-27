@@ -2,7 +2,10 @@ import SwiftUI
 
 struct AvailabilityEditView: View {
     let store: VendorProfileEditStore
-    @Environment(\.dismiss) private var dismiss
+
+    private var buttonLabel: String {
+        store.draft.bookingMode == .inquiryOnly ? "Save booking mode" : "Save availability"
+    }
 
     var body: some View {
         @Bindable var store = store
@@ -92,29 +95,20 @@ struct AvailabilityEditView: View {
                     }
                 }
 
-                Button(store.loadingState.isLoading ? "Saving..." : (store.draft.bookingMode == .inquiryOnly ? "Save booking mode" : "Save availability & booking"), action: save)
-                    .buttonStyle(PrimaryActionButtonStyle())
-                    .disabled(store.loadingState.isLoading)
             }
             .animation(.easeOut(duration: 0.25), value: store.draft.bookingMode)
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .navigationTitle("Availability & Booking")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            VendorProfileEditSaveBar(store: store, buttonLabel: buttonLabel)
+        }
         .saveFeedback(outcome: store.lastSaveOutcome, successMessage: "Availability saved") {
             store.lastSaveOutcome = .idle
-        }
-    }
-
-    private func save() {
-        Task {
-            await store.save()
-            if store.lastSaveOutcome == .saved {
-                dismiss()
-            }
         }
     }
 }

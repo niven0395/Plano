@@ -5,6 +5,8 @@ struct ProfileVendorLink: View {
     let vendorProfileEditStore: VendorProfileEditStore
     let currentUserID: UUID?
 
+    @State private var isPresentingShareSheet = false
+
     var body: some View {
         AppSurface(style: .highlighted) {
             VStack(alignment: .leading, spacing: 14) {
@@ -49,8 +51,32 @@ struct ProfileVendorLink: View {
                                 }
                         }
                         .buttonStyle(.plain)
+
+                        Button {
+                            isPresentingShareSheet = true
+                        } label: {
+                            Label("Share link", systemImage: "square.and.arrow.up")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 9)
+                                .background(AppTheme.Palette.chipFill, in: .capsule)
+                                .overlay {
+                                    Capsule().stroke(AppTheme.Palette.border, lineWidth: 1)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Share your booking link")
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $isPresentingShareSheet) {
+            if let currentUserID {
+                VendorShareLinkSheet(
+                    vendorID: currentUserID,
+                    vendorName: vendorDisplayName ?? ""
+                )
             }
         }
     }

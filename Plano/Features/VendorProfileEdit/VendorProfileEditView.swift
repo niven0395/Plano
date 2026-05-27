@@ -5,42 +5,35 @@ struct VendorProfileEditView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 SectionHeader(
-                    title: "Business profile",
-                    subtitle: "Build this section by section. Hosts should only see confident, useful information."
+                    title: "Your listing",
+                    subtitle: "Edit each section to help hosts trust and book you."
                 )
 
-                LazyVStack(spacing: 14) {
-                    ForEach(store.sectionStatuses) { status in
-                        NavigationLink {
-                            VendorProfileEditDestinationView(section: status.section, store: store)
-                        } label: {
-                            AppSurface {
-                                HStack(spacing: 14) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(status.section.dynamicTitle(for: store.draft.category))
-                                            .font(.headline)
-                                            .foregroundStyle(AppTheme.Palette.textPrimary)
+                AppSurface {
+                    VStack(spacing: 0) {
+                        ForEach(Array(store.sectionStatuses.enumerated()), id: \.element.id) { index, status in
+                            NavigationLink {
+                                VendorProfileEditDestinationView(section: status.section, store: store)
+                            } label: {
+                                VendorProfileEditRow(
+                                    section: status.section,
+                                    category: store.draft.category,
+                                    isComplete: status.isComplete
+                                )
+                            }
+                            .buttonStyle(.plain)
 
-                                        Text(status.section.dynamicSubtitle(for: store.draft.category))
-                                            .font(.subheadline)
-                                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(systemName: status.isComplete ? "checkmark.circle.fill" : "circle")
-                                        .font(.title3.weight(.semibold))
-                                        .foregroundStyle(status.isComplete ? AppTheme.toneColor(.sage) : AppTheme.Palette.subdued)
-                                }
+                            if index < store.sectionStatuses.count - 1 {
+                                Divider().padding(.leading, 70)
                             }
                         }
-                        .buttonStyle(.plain)
                     }
                 }
 
                 DeleteListingSection(store: store)
+                    .padding(.top, 8)
             }
             .padding(AppTheme.screenPadding)
             .padding(.bottom, 32)
@@ -55,6 +48,55 @@ struct VendorProfileEditView: View {
     }
 }
 
+// MARK: - Row
+
+private struct VendorProfileEditRow: View {
+    let section: VendorProfileEditSection
+    let category: VendorCategory
+    let isComplete: Bool
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(AppTheme.toneBackground(section.tone))
+                Image(systemName: section.symbolName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppTheme.toneColor(section.tone))
+            }
+            .frame(width: 44, height: 44)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(section.dynamicTitle(for: category))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                Text(section.dynamicSubtitle(for: category))
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            if isComplete {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppTheme.toneColor(.sage))
+                    .accessibilityLabel("Complete")
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.Palette.subdued)
+            }
+        }
+        .padding(.vertical, 16)
+        .contentShape(.rect)
+    }
+}
+
+// MARK: - Delete listing (tight destructive hierarchy)
+
 private struct DeleteListingSection: View {
     let store: VendorProfileEditStore
     @Environment(InboxStore.self) private var inboxStore
@@ -63,38 +105,39 @@ private struct DeleteListingSection: View {
     @State private var isDeletingListing = false
     @State private var listingDeletionError: String?
 
-    var body: some View {
-        AppSurface {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Remove listing")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
+    private var activeBookingCount: Int {
+        inboxStore.activeVendorBookingCount
+    }
 
-                let activeBookingCount = inboxStore.activeVendorBookingCount
-                Text(activeBookingCount > 0
-                    ? "Deleting your listing will cancel \(activeBookingCount) active booking\(activeBookingCount == 1 ? "" : "s") and notify each host. Your account stays active as a host."
-                    : "Permanently remove your vendor profile, gallery, services, and availability data. Your account stays active as a host."
-                )
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                Button(role: .destructive) {
-                    isConfirmingListingDelete = true
-                } label: {
-                    HStack {
-                        if isDeletingListing {
-                            ProgressView()
-                                .tint(.white)
-                        }
-                        Text("Delete listing")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.toneColor(.coral))
-                .disabled(isDeletingListing)
-            }
+    private var deleteSummaryText: String {
+        if isDeletingListing { return "Deleting…" }
+        if activeBookingCount > 0 {
+            return "Delete listing · cancels \(activeBookingCount) booking\(activeBookingCount == 1 ? "" : "s")"
         }
+        return "Delete listing"
+    }
+
+    var body: some View {
+        Button(role: .destructive) {
+            isConfirmingListingDelete = true
+        } label: {
+            HStack(spacing: 8) {
+                if isDeletingListing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(AppTheme.toneColor(.coral))
+                }
+                Text(deleteSummaryText)
+                    .font(.footnote.weight(.semibold))
+            }
+            .foregroundStyle(AppTheme.toneColor(.coral))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDeletingListing)
+        .hapticFeedback(.warning, trigger: isConfirmingListingDelete) { _, new in new }
         .confirmationDialog(
             "Delete vendor listing",
             isPresented: $isConfirmingListingDelete,
@@ -114,7 +157,6 @@ private struct DeleteListingSection: View {
                 }
             }
         } message: {
-            let activeBookingCount = inboxStore.activeVendorBookingCount
             if activeBookingCount > 0 {
                 Text("This will cancel \(activeBookingCount) active booking\(activeBookingCount == 1 ? "" : "s") and notify each host. Your vendor profile, gallery, and services will be permanently removed.")
             } else {
@@ -128,6 +170,42 @@ private struct DeleteListingSection: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(listingDeletionError ?? "")
+        }
+    }
+}
+
+// MARK: - Section icon / tone mapping
+
+private extension VendorProfileEditSection {
+    var symbolName: String {
+        switch self {
+        case .basicInfo: "person.text.rectangle.fill"
+        case .about: "text.alignleft"
+        case .categoryDetails: "square.grid.2x2.fill"
+        case .pricing: "dollarsign.circle.fill"
+        case .services: "checklist"
+        case .leadIntake: "questionmark.bubble.fill"
+        case .gallery: "photo.stack.fill"
+        case .policies: "doc.text.fill"
+        case .availability: "calendar"
+        case .socialContact: "link"
+        case .tagsKeywords: "tag.fill"
+        }
+    }
+
+    var tone: AccentTone {
+        switch self {
+        case .basicInfo: .blue
+        case .about: .sand
+        case .categoryDetails: .blue
+        case .pricing: .sage
+        case .services: .sage
+        case .leadIntake: .gold
+        case .gallery: .coral
+        case .policies: .sand
+        case .availability: .blue
+        case .socialContact: .coral
+        case .tagsKeywords: .gold
         }
     }
 }

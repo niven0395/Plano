@@ -48,18 +48,20 @@ struct PlanningView: View {
 
     @ViewBuilder
     private var bookingsSection: some View {
-        SectionHeader(
+        PlanningSectionHeader(
             title: "Your vendors",
+            count: activeBookings.count,
             subtitle: "\(activeBookings.count) active booking\(activeBookings.count == 1 ? "" : "s")"
         )
 
         LazyVStack(spacing: 12) {
             ForEach(activeBookings) { thread in
                 NavigationLink(value: DiscoveryRoute.bookingDetail(thread.id)) {
-                    PlanningVendorRow(
+                    ActiveBookingCard(
                         vendorName: thread.vendorName,
                         category: thread.vendorCategory,
-                        stage: thread.stage
+                        stage: thread.stage,
+                        eventDate: thread.bookingEventDate
                     )
                 }
                 .buttonStyle(.plain)
@@ -71,19 +73,20 @@ struct PlanningView: View {
 
     @ViewBuilder
     private var savedSection: some View {
-        SectionHeader(
+        PlanningSectionHeader(
             title: "Saved",
+            count: savedVendors.count,
             subtitle: "\(savedVendors.count) shortlisted vendor\(savedVendors.count == 1 ? "" : "s")"
         )
 
-        LazyVStack(spacing: 12) {
+        LazyVStack(spacing: 10) {
             ForEach(savedVendors) { vendor in
                 NavigationLink(value: DiscoveryRoute.vendorProfile(vendor.id)) {
-                    PlanningVendorRow(
+                    SavedVendorRow(
                         vendorName: vendor.businessName,
                         category: vendor.category,
-                        stage: nil,
-                        ratingLabel: vendor.ratingValue > 0 ? String(format: "%.1f", vendor.ratingValue) : nil
+                        rating: vendor.ratingValue > 0 ? vendor.ratingText : nil,
+                        reviewCount: vendor.reviewCount
                     )
                 }
                 .buttonStyle(.plain)
@@ -109,44 +112,150 @@ struct PlanningView: View {
     }
 }
 
-// MARK: - Planning Vendor Row
+// MARK: - Section Header with count pill
 
-private struct PlanningVendorRow: View {
-    let vendorName: String
-    let category: VendorCategory
-    let stage: BookingStage?
-    var ratingLabel: String? = nil
+private struct PlanningSectionHeader: View {
+    let title: String
+    let count: Int
+    let subtitle: String
 
     var body: some View {
-        AppSurface {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(title)
+                    .font(.system(size: 32, weight: .regular))
+                    .tracking(-1.1)
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3)
+                        .background(AppTheme.Palette.chipFill, in: Capsule())
+                }
+            }
+
+            Text(subtitle)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.textSecondary)
+        }
+    }
+}
+
+// MARK: - Active Booking Card (full card treatment)
+
+private struct ActiveBookingCard: View {
+    let vendorName: String
+    let category: VendorCategory
+    let stage: BookingStage
+    let eventDate: Date?
+
+    private var isUrgent: Bool {
+        // Urgent stages = those requiring imminent action
+        stage == .paymentRequested || stage == .requested || stage == .cancellationRequested
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(isUrgent ? AppTheme.toneColor(stage.tone) : Color.clear)
+                .frame(width: 3)
+                .accessibilityHidden(true)
+
+            AppSurface {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(AppTheme.toneBackground(category.accentTone))
+                            Image(systemName: category.symbolName)
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.toneColor(category.accentTone))
+                        }
+                        .frame(width: 44, height: 44)
+                        .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(vendorName)
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.Palette.textPrimary)
+                                .lineLimit(1)
+
+                            Text(category.singularTitle)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.Palette.textSecondary)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        StatusBadge(title: stage.title, tone: stage.tone)
+                    }
+
+                    if let eventDate {
+                        Label {
+                            Text(eventDate, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                                .font(.footnote.weight(.semibold))
+                        } icon: {
+                            Image(systemName: "calendar")
+                                .font(.footnote)
+                        }
+                        .foregroundStyle(AppTheme.Palette.subdued)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Saved Vendor Row (compact reference)
+
+private struct SavedVendorRow: View {
+    let vendorName: String
+    let category: VendorCategory
+    let rating: String?
+    let reviewCount: Int
+
+    var body: some View {
+        AppSurface(compact: true) {
             HStack(spacing: 12) {
                 Image(systemName: category.symbolName)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.toneColor(category.accentTone))
+                    .frame(width: 32, height: 32)
+                    .background(AppTheme.toneBackground(category.accentTone), in: Circle())
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(vendorName)
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.textPrimary)
+                        .lineLimit(1)
 
                     Text(category.singularTitle)
-                        .font(.subheadline)
+                        .font(.footnote)
                         .foregroundStyle(AppTheme.Palette.textSecondary)
                 }
 
-                Spacer()
+                Spacer(minLength: 8)
 
-                if let stage {
-                    StatusBadge(title: stage.title, tone: stage.tone)
-                } else if let ratingLabel {
+                if let rating {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
-                            .font(.caption2)
-                            .foregroundStyle(AppTheme.toneColor(.gold))
-                        Text(ratingLabel)
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
+                            .foregroundStyle(AppTheme.toneColor(.gold))
+                        Text(rating)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.Palette.textPrimary)
+                        if reviewCount > 0 {
+                            Text("(\(reviewCount))")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.Palette.textSecondary)
+                        }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(rating) stars from \(reviewCount) reviews")
                 }
             }
         }

@@ -5,9 +5,7 @@ import Observation
 
 enum AuthSheetMode: String, Identifiable {
     case vendorSignIn
-    case hostUpgrade
-    case emailAuth
-    case createAccount
+    case signIn
 
     var id: String { rawValue }
 
@@ -15,12 +13,8 @@ enum AuthSheetMode: String, Identifiable {
         switch self {
         case .vendorSignIn:
             "List your business"
-        case .hostUpgrade:
-            "Sign in with Apple"
-        case .emailAuth:
-            "Sign in"
-        case .createAccount:
-            "Create an account"
+        case .signIn:
+            "Welcome to Plano"
         }
     }
 
@@ -28,12 +22,8 @@ enum AuthSheetMode: String, Identifiable {
         switch self {
         case .vendorSignIn:
             "Sign in with Apple to create your vendor profile and start receiving leads."
-        case .hostUpgrade:
-            "Link this device session to Apple so your saved vendors and messages carry across devices."
-        case .emailAuth:
-            "Sign in or create an account with your email address."
-        case .createAccount:
-            "Keep your saved vendors, messages, and bookings across devices."
+        case .signIn:
+            "Sign in to message vendors, request bookings, and keep everything across devices."
         }
     }
 }
@@ -53,7 +43,6 @@ final class AuthStore {
     var presentedSheet: AuthSheetMode?
     private(set) var pendingVerificationEmail: String?
     var verificationLoadingState: LoadingState = .idle
-    var showEmailSignInAfterVerification = false
 
     init(
         authService: any AuthServiceProtocol,
@@ -100,16 +89,18 @@ final class AuthStore {
         }
     }
 
-    func presentHostUpgrade() {
-        presentedSheet = .hostUpgrade
+    func presentSignIn() {
+        presentedSheet = .signIn
     }
 
     func dismissPresentedSheet() {
         presentedSheet = nil
         pendingVendorOnboarding = false
+    }
+
+    func dismissVerificationBanner() {
         pendingVerificationEmail = nil
         verificationLoadingState = .idle
-        showEmailSignInAfterVerification = false
     }
 
     func configureAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
@@ -180,14 +171,6 @@ final class AuthStore {
         sessionStore.applyAnonymousSession(updatedSession)
     }
 
-    func presentCreateAccount() {
-        presentedSheet = .createAccount
-    }
-
-    func presentEmailAuth() {
-        presentedSheet = .emailAuth
-    }
-
     func signInWithEmail(email: String, password: String) async {
         loadingState = .loading
 
@@ -208,14 +191,16 @@ final class AuthStore {
         }
     }
 
-    func signUpWithEmail(email: String, password: String, displayName: String?) async {
+    func signUpWithEmail(email: String, password: String, displayName: String) async {
         loadingState = .loading
+
+        let trimmedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
             let result = try await authService.signUpWithEmail(
                 email: email,
                 password: password,
-                displayName: displayName
+                displayName: trimmedName.isEmpty ? nil : trimmedName
             )
 
             switch result {
@@ -223,10 +208,15 @@ final class AuthStore {
                 sessionStore.applyAuthenticatedSession(profile, preferredRole: .host)
                 presentedSheet = nil
                 pendingVendorOnboarding = false
+                pendingVerificationEmail = profile.isEmailVerified ? nil : email
                 loadingState = .loaded
 
             case .pendingVerification(let email):
+                // Session not issued yet — user stays anonymous and can keep
+                // browsing. Banner prompts verification + return sign-in.
                 pendingVerificationEmail = email
+                presentedSheet = nil
+                pendingVendorOnboarding = false
                 loadingState = .loaded
             }
         } catch is CancellationError {
@@ -234,13 +224,6 @@ final class AuthStore {
         } catch {
             loadingState = .failed(error.localizedDescription)
         }
-    }
-
-    func completeSignUpAndDismiss() {
-        pendingVerificationEmail = nil
-        verificationLoadingState = .idle
-        loadingState = .idle
-        showEmailSignInAfterVerification = true
     }
 
     func resendVerification() async {
@@ -357,7 +340,7 @@ final class AuthStore {
             let preferredRole: UserRole? = switch mode {
             case .vendorSignIn:
                 profile.isVendorOnboarded ? .vendor : .host
-            case .hostUpgrade, .emailAuth, .createAccount, nil:
+            case .signIn, nil:
                 .host
             }
 

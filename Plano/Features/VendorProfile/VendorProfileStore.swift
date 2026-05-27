@@ -226,4 +226,54 @@ final class VendorProfileStore {
             }
         }
     }
+
+    // MARK: - Composer dock submission
+
+    /// Starts (or reuses) the conversation with the vendor and posts the given
+    /// message. Navigates the host to the conversation on success. Booking
+    /// submission lives on `VendorBookingRequestStore` and the intake sheet.
+    func submitInitialMessage(
+        message: String,
+        inboxStore: InboxStore,
+        router: AppRouter,
+        hostIdentityPromptStore: HostIdentityPromptStore
+    ) {
+        guard sessionStore.canBrowse else { return }
+        guard canInitiateConversation else { return }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if sessionStore.needsNamePrompt {
+            hostIdentityPromptStore.present { [weak self] in
+                self?.dispatchInitialMessage(trimmed, inboxStore: inboxStore, router: router)
+            }
+            return
+        }
+
+        dispatchInitialMessage(trimmed, inboxStore: inboxStore, router: router)
+    }
+
+    private func dispatchInitialMessage(
+        _ message: String,
+        inboxStore: InboxStore,
+        router: AppRouter
+    ) {
+        guard let vendor else { return }
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let conversationID = try await inboxStore.startConversation(with: vendor)
+                inboxStore.sendMessageWithAttachments(
+                    message,
+                    attachments: [],
+                    in: conversationID,
+                    as: .host
+                )
+                router.openConversation(conversationID)
+            } catch {
+                self.loadingState = .failed(error.localizedDescription)
+            }
+        }
+    }
 }

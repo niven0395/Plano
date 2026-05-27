@@ -382,3 +382,19 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+# Public-access edge functions (anon key or unauthenticated callers).
+# These back the external-booking / App Clip flow, which by definition
+# serves users without a Plano account.
+[functions.book]
+verify_jwt = false
+
+[functions.well-known]
+verify_jwt = false
+
+[functions.submit-external-booking]
+verify_jwt = false
+
+[functions.claim-external-booking]
+verify_jwt = false
+

@@ -5,6 +5,7 @@ struct VendorDashboardView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AppEnvironment.self) private var environment
     @Environment(InboxStore.self) private var inboxStore
+    @Environment(SessionStore.self) private var session
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -108,14 +109,19 @@ struct VendorRequestsView: View {
         let leads = store.visibleLeadQueue
         let needingResponse = leads.filter(\.stage.requiresVendorAction)
         let waitingOnHost = leads.filter { !$0.stage.requiresVendorAction }
+        let externalRequests = store.externalPendingRequests
 
-        if leads.isEmpty {
+        if leads.isEmpty && externalRequests.isEmpty {
             EmptyStateCard(
                 symbolName: "tray",
                 title: "Queue is clear",
                 message: "When a host reaches out or a quote needs follow-up, it will show up here immediately."
             )
         } else {
+            if !externalRequests.isEmpty {
+                VendorExternalRequestsSection(store: store, requests: externalRequests)
+            }
+
             if !needingResponse.isEmpty {
                 leadSection(
                     title: "Needs your response",
@@ -291,6 +297,117 @@ private struct VendorLeadActionBadge: View {
                 Capsule()
                     .stroke(AppTheme.toneColor(stage.tone).opacity(0.18), lineWidth: 1)
             }
+    }
+}
+
+// MARK: - External (web-form) booking requests
+
+private struct VendorExternalRequestsSection: View {
+    let store: VendorDashboardStore
+    let requests: [ExternalBookingRequestRecord]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("New booking requests")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                Text("\(requests.count) request\(requests.count == 1 ? "" : "s") from your shared booking link.")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(spacing: 12) {
+                ForEach(requests) { request in
+                    VendorExternalRequestCard(store: store, request: request)
+                }
+            }
+        }
+    }
+}
+
+private struct VendorExternalRequestCard: View {
+    let store: VendorDashboardStore
+    let request: ExternalBookingRequestRecord
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
+    private var fullName: String {
+        "\(request.firstName) \(request.lastName)".trimmingCharacters(in: .whitespaces)
+    }
+
+    private var isBusy: Bool {
+        store.externalRequestActionInFlight.contains(request.id)
+    }
+
+    var body: some View {
+        AppSurface {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(fullName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                    Text(request.email)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    metaRow(icon: "calendar", text: Self.dateFormatter.string(from: request.eventDate))
+                    if let guestCount = request.guestCount, guestCount > 0 {
+                        metaRow(icon: "person.2", text: "\(guestCount) guests")
+                    }
+                }
+
+                if !request.note.isEmpty {
+                    Text(request.note)
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 6)
+                }
+
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await store.declineExternalRequest(request.id) }
+                    } label: {
+                        Text("Decline")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(SecondaryActionButtonStyle())
+                    .disabled(isBusy)
+
+                    Button {
+                        Task { await store.acceptExternalRequest(request.id) }
+                    } label: {
+                        Text(isBusy ? "Working…" : "Accept")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PrimaryActionButtonStyle())
+                    .disabled(isBusy)
+                }
+            }
+        }
+    }
+
+    private func metaRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(AppTheme.Palette.textSecondary)
+                .frame(width: 16)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(AppTheme.Palette.textSecondary)
+        }
     }
 }
 

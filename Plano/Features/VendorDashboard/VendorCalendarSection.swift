@@ -167,36 +167,53 @@ private struct VendorCalendarGrid: View {
         return days
     }
 
+    private var isViewingCurrentMonth: Bool {
+        Calendar.current.isDate(visibleMonthStart, equalTo: .now, toGranularity: .month)
+    }
+
+    private var monthSummary: MonthSummaryCounts {
+        let monthRange = Calendar.current.dateInterval(of: .month, for: visibleMonthStart)
+        var confirmed = 0
+        var pending = 0
+        var blocked = 0
+
+        for (date, entry) in bookingsByDate {
+            guard let range = monthRange, range.contains(date) else { continue }
+            if entry.hasConfirmed { confirmed += entry.bookings.filter { $0.kind == .confirmed }.count }
+            if entry.hasPending { pending += entry.bookings.filter { $0.kind == .pending }.count }
+        }
+
+        for blockedDate in blockedDates {
+            guard let range = monthRange, range.contains(blockedDate) else { continue }
+            blocked += 1
+        }
+
+        return MonthSummaryCounts(confirmed: confirmed, pending: pending, blocked: blocked)
+    }
+
     var body: some View {
         AppSurface {
             VStack(spacing: 16) {
-                HStack {
-                    Button("Previous month", systemImage: "chevron.left") {
-                        visibleMonthStart = Calendar.current.date(byAdding: .month, value: -1, to: visibleMonthStart) ?? visibleMonthStart
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                monthHeader
 
-                    Spacer()
-
-                    Text(visibleMonthStart.formatted(.dateTime.month(.wide).year()))
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                    Spacer()
-
-                    Button("Next month", systemImage: "chevron.right") {
-                        visibleMonthStart = Calendar.current.date(byAdding: .month, value: 1, to: visibleMonthStart) ?? visibleMonthStart
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                if monthSummary.isEmpty == false {
+                    SignalRow(items: [
+                        monthSummary.confirmed > 0
+                            ? .text("\(monthSummary.confirmed) confirmed", symbolName: "checkmark.circle.fill")
+                            : nil,
+                        monthSummary.pending > 0
+                            ? .text("\(monthSummary.pending) pending", symbolName: "clock.fill")
+                            : nil,
+                        monthSummary.blocked > 0
+                            ? .text("\(monthSummary.blocked) blocked", symbolName: "xmark.circle.fill")
+                            : nil,
+                    ])
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7),
-                    spacing: 4
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7),
+                    spacing: 6
                 ) {
                     ForEach(Calendar.current.shortWeekdaySymbols, id: \.self) { day in
                         Text(day)
@@ -214,6 +231,7 @@ private struct VendorCalendarGrid: View {
                                 hasConfirmed: entry?.hasConfirmed ?? false,
                                 hasPending: entry?.hasPending ?? false,
                                 isBlocked: blockedDates.contains(normalized),
+                                bookingCount: entry?.bookings.count ?? 0,
                                 isToday: Calendar.current.isDateInToday(day),
                                 isSelected: selectedDate.map { Calendar.current.isDate(day, inSameDayAs: $0) } ?? false,
                                 onSelect: { selectedDate = normalized }
@@ -227,6 +245,48 @@ private struct VendorCalendarGrid: View {
             }
         }
     }
+
+    private var monthHeader: some View {
+        HStack(spacing: 8) {
+            Button("Previous month", systemImage: "chevron.left") {
+                visibleMonthStart = Calendar.current.date(byAdding: .month, value: -1, to: visibleMonthStart) ?? visibleMonthStart
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.plain)
+            .foregroundStyle(AppTheme.Palette.textPrimary)
+
+            Spacer()
+
+            Text(visibleMonthStart.formatted(.dateTime.month(.wide).year()))
+                .font(.headline)
+                .foregroundStyle(AppTheme.Palette.textPrimary)
+
+            if !isViewingCurrentMonth {
+                Button("Today") {
+                    withAnimation(.snappy) {
+                        visibleMonthStart = Calendar.current.startOfDay(for: .now)
+                    }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.Palette.accent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(AppTheme.Palette.chipFill, in: Capsule())
+                .overlay { Capsule().stroke(AppTheme.Palette.border, lineWidth: 1) }
+                .transition(.opacity.combined(with: .scale))
+            }
+
+            Spacer()
+
+            Button("Next month", systemImage: "chevron.right") {
+                visibleMonthStart = Calendar.current.date(byAdding: .month, value: 1, to: visibleMonthStart) ?? visibleMonthStart
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.plain)
+            .foregroundStyle(AppTheme.Palette.textPrimary)
+        }
+        .animation(.snappy, value: isViewingCurrentMonth)
+    }
 }
 
 // MARK: - VendorCalendarDayCell
@@ -236,50 +296,56 @@ private struct VendorCalendarDayCell: View {
     let hasConfirmed: Bool
     let hasPending: Bool
     let isBlocked: Bool
+    let bookingCount: Int
     let isToday: Bool
     let isSelected: Bool
     let onSelect: () -> Void
 
+    private let cornerRadius: CGFloat = 10
+
     var body: some View {
         Button(action: onSelect) {
-            VStack(spacing: 4) {
-                Text(day.formatted(.dateTime.day()))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(isToday ? AppTheme.Palette.accent : AppTheme.Palette.textPrimary)
+            ZStack(alignment: .topTrailing) {
+                // Background wash: selected > blocked > confirmed+pending > confirmed > pending > none
+                backgroundFill
+                    .clipShape(.rect(cornerRadius: cornerRadius, style: .continuous))
 
-                HStack(spacing: 3) {
-                    if hasConfirmed {
+                // Blocked non-color safety cue — SF Symbol overlay
+                if isBlocked && !isSelected {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.toneColor(.coral))
+                        .symbolRenderingMode(.hierarchical)
+                        .padding(4)
+                }
+
+                VStack(spacing: 2) {
+                    Text(day.formatted(.dateTime.day()))
+                        .font(.subheadline.weight(isSelected ? .semibold : .medium))
+                        .foregroundStyle(dayNumberStyle)
+
+                    // Today dot (only when today and no selection fill)
+                    if isToday && !isSelected {
                         Circle()
-                            .fill(AppTheme.toneColor(.sage))
-                            .frame(width: 5, height: 5)
-                    }
-                    if hasPending {
-                        Circle()
-                            .fill(AppTheme.toneColor(.gold))
-                            .frame(width: 5, height: 5)
-                    }
-                    if isBlocked {
-                        Circle()
-                            .fill(AppTheme.toneColor(.coral))
-                            .frame(width: 5, height: 5)
+                            .fill(AppTheme.Palette.accent)
+                            .frame(width: 3, height: 3)
+                            .accessibilityHidden(true)
+                    } else {
+                        // Reserve the 3pt slot so cells with/without the dot line up
+                        Color.clear.frame(height: 3)
                     }
                 }
-                .frame(height: 5)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(
-                isSelected
-                    ? AppTheme.toneBackground(.blue)
-                    : Color.clear,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .overlay {
-                if isToday {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(AppTheme.Palette.accent.opacity(0.3), lineWidth: 1)
-                } else if isSelected {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(AppTheme.Palette.accent, lineWidth: 1.5)
+                .frame(maxWidth: .infinity, minHeight: 44)
+
+                // Count pill for multi-booking days
+                if bookingCount >= 2, !isSelected {
+                    Text("\(bookingCount)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(countPillForeground)
+                        .frame(minWidth: 16, minHeight: 16)
+                        .padding(.horizontal, 4)
+                        .background(countPillBackground, in: Capsule())
+                        .padding(4)
                 }
             }
         }
@@ -287,15 +353,70 @@ private struct VendorCalendarDayCell: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
+    @ViewBuilder
+    private var backgroundFill: some View {
+        if isSelected {
+            Rectangle().fill(AppTheme.Palette.accent)
+        } else if isBlocked {
+            Rectangle().fill(AppTheme.toneBackground(.coral))
+        } else if hasConfirmed && hasPending {
+            LinearGradient(
+                colors: [AppTheme.toneBackground(.sage), AppTheme.toneBackground(.gold)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else if hasConfirmed {
+            Rectangle().fill(AppTheme.toneBackground(.sage))
+        } else if hasPending {
+            Rectangle().fill(AppTheme.toneBackground(.gold))
+        } else {
+            Rectangle().fill(Color.clear)
+        }
+    }
+
+    private var dayNumberStyle: Color {
+        if isSelected { return AppTheme.Palette.accentForeground }
+        if isToday { return AppTheme.Palette.accent }
+        return AppTheme.Palette.textPrimary
+    }
+
+    private var countPillForeground: Color {
+        if hasConfirmed && hasPending { return AppTheme.toneColor(.sage) }
+        if hasConfirmed { return AppTheme.toneColor(.sage) }
+        if hasPending { return AppTheme.toneColor(.gold) }
+        if isBlocked { return AppTheme.toneColor(.coral) }
+        return AppTheme.Palette.textSecondary
+    }
+
+    private var countPillBackground: Color {
+        AppTheme.Palette.elevatedSurface
+    }
+
     private var accessibilityLabel: String {
         let dateLabel = day.formatted(date: .abbreviated, time: .omitted)
         var parts = [dateLabel]
-        if hasConfirmed { parts.append("confirmed bookings") }
-        if hasPending { parts.append("pending bookings") }
+        if bookingCount >= 2 {
+            parts.append("\(bookingCount) bookings")
+        } else if hasConfirmed {
+            parts.append("confirmed booking")
+        } else if hasPending {
+            parts.append("pending booking")
+        }
         if isBlocked { parts.append("blocked") }
         if isToday { parts.append("today") }
+        if isSelected { parts.append("selected") }
         return parts.joined(separator: ", ")
     }
+}
+
+// MARK: - Month summary helper
+
+private struct MonthSummaryCounts {
+    let confirmed: Int
+    let pending: Int
+    let blocked: Int
+
+    var isEmpty: Bool { confirmed == 0 && pending == 0 && blocked == 0 }
 }
 
 // MARK: - VendorCalendarDateDetailView
@@ -306,26 +427,41 @@ private struct VendorCalendarDateDetailView: View {
     let isBlocked: Bool
     let onToggleBlock: () -> Void
 
+    private var bookingCount: Int { entry?.bookings.count ?? 0 }
+    private var confirmedCount: Int { entry?.bookings.filter { $0.kind == .confirmed }.count ?? 0 }
+    private var pendingCount: Int { entry?.bookings.filter { $0.kind == .pending }.count ?? 0 }
+
+    private var isPastDate: Bool {
+        date < Calendar.current.startOfDay(for: .now)
+    }
+
     var body: some View {
         AppSurface {
             VStack(alignment: .leading, spacing: 14) {
-                Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                if isBlocked && (entry?.bookings.isEmpty ?? true) {
-                    HStack {
-                        Label("Blocked", systemImage: "xmark.circle.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.toneColor(.coral))
+                    Spacer(minLength: 8)
 
-                        Spacer()
-
-                        Button("Unblock", action: onToggleBlock)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.accent)
+                    if !isPastDate {
+                        toggleBlockButton
                     }
+                }
+
+                if isBlocked && bookingCount == 0 {
+                    Label("Date is blocked for new bookings", systemImage: "xmark.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(AppTheme.toneColor(.coral))
+                        .symbolRenderingMode(.hierarchical)
                 } else if let entry, !entry.bookings.isEmpty {
+                    if bookingCount >= 2 {
+                        Text(bookingSummaryText)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.Palette.textSecondary)
+                    }
+
                     VStack(spacing: 0) {
                         ForEach(entry.bookings) { booking in
                             VendorCalendarBookingRow(booking: booking)
@@ -335,28 +471,78 @@ private struct VendorCalendarDateDetailView: View {
                             }
                         }
                     }
-
-                    if isBlocked {
-                        Button("Unblock Date", action: onToggleBlock)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.Palette.accent)
-                    }
                 } else {
-                    HStack {
-                        Text("No bookings on this date.")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-
-                        Spacer()
-
-                        if date >= Calendar.current.startOfDay(for: .now) {
-                            Button("Block", action: onToggleBlock)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.toneColor(.coral))
-                        }
-                    }
+                    Text("No bookings on this date.")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var toggleBlockButton: some View {
+        if isBlocked {
+            Button(action: onToggleBlock) {
+                Label("Unblock", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(CalendarCapsuleButtonStyle(tone: .accent))
+            .accessibilityLabel("Unblock this date")
+        } else {
+            Button(action: onToggleBlock) {
+                Label("Block", systemImage: "xmark.circle")
+            }
+            .buttonStyle(CalendarCapsuleButtonStyle(tone: .coral))
+            .accessibilityLabel("Block this date")
+        }
+    }
+
+    private var bookingSummaryText: String {
+        var parts: [String] = []
+        if confirmedCount > 0 { parts.append("\(confirmedCount) confirmed") }
+        if pendingCount > 0 { parts.append("\(pendingCount) pending") }
+        let pieces = parts.joined(separator: ", ")
+        return "\(bookingCount) bookings — \(pieces)"
+    }
+}
+
+private struct CalendarCapsuleButtonStyle: ButtonStyle {
+    enum Tone { case accent, coral }
+    let tone: Tone
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.footnote.weight(.semibold))
+            .labelStyle(.titleAndIcon)
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(background, in: Capsule())
+            .overlay {
+                Capsule().stroke(borderColor, lineWidth: 1)
+            }
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.snappy, value: configuration.isPressed)
+    }
+
+    private var foreground: Color {
+        switch tone {
+        case .accent: AppTheme.Palette.accent
+        case .coral: AppTheme.toneColor(.coral)
+        }
+    }
+
+    private var background: Color {
+        switch tone {
+        case .accent: AppTheme.Palette.chipFill
+        case .coral: AppTheme.toneBackground(.coral)
+        }
+    }
+
+    private var borderColor: Color {
+        switch tone {
+        case .accent: AppTheme.Palette.border
+        case .coral: AppTheme.toneColor(.coral).opacity(0.25)
         }
     }
 }
@@ -423,24 +609,34 @@ private struct VendorCalendarLegend: View {
     let hasBlocked: Bool
 
     var body: some View {
-        HStack(spacing: 14) {
-            legendItem(title: "Confirmed", color: AppTheme.toneColor(.sage))
-            legendItem(title: "Pending", color: AppTheme.toneColor(.gold))
+        HStack(spacing: 8) {
+            legendChip(title: "Confirmed", symbolName: "checkmark.circle.fill", tone: .sage)
+            legendChip(title: "Pending", symbolName: "clock.fill", tone: .gold)
             if hasBlocked {
-                legendItem(title: "Blocked", color: AppTheme.toneColor(.coral))
+                legendChip(title: "Blocked", symbolName: "xmark.circle.fill", tone: .coral)
             }
+            Spacer(minLength: 0)
         }
     }
 
-    private func legendItem(title: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
+    private func legendChip(title: String, symbolName: String, tone: AccentTone) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: symbolName)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(AppTheme.toneColor(tone))
+                .symbolRenderingMode(.hierarchical)
 
             Text(title)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(AppTheme.Palette.textSecondary)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.toneColor(tone))
         }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(AppTheme.toneBackground(tone), in: Capsule())
+        .overlay {
+            Capsule().stroke(AppTheme.toneColor(tone).opacity(0.2), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 }

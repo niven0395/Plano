@@ -14,8 +14,15 @@ extension InboxStore {
             throw ConversationError.selfMessaging
         }
 
-        // Fast path: already in memory
-        if let existingID = existingConversationID(vendorID: vendor.id) {
+        // Fast path: already in memory and still in a non-terminal stage.
+        // For terminal threads (cancelled/declined) the host is re-engaging,
+        // so we fall through to the server which resurrects the conversation.
+        if let existingID = existingConversationID(vendorID: vendor.id),
+           let existing = conversations.first(where: { $0.id == existingID }),
+           !existing.stage.isTerminal {
+            if isArchived(existingID, for: .host) {
+                unarchiveConversation(existingID, for: .host)
+            }
             return existingID
         }
 
@@ -35,8 +42,22 @@ extension InboxStore {
                 hostID: hostUserID
             )
 
-            // Server may have returned an existing conversation — check before adding
+            // Server may have returned an existing conversation — sync local
+            // state in case the server resurrected a terminal stage back to draft.
             if conversations.contains(where: { $0.id == record.id }) {
+                if isArchived(record.id, for: .host) {
+                    unarchiveConversation(record.id, for: .host)
+                }
+                let resurrectedStage = BookingStage.fromDatabaseValue(record.stage)
+                updateConversation(record.id) { thread in
+                    if thread.stage.isTerminal, !resurrectedStage.isTerminal {
+                        thread.stage = resurrectedStage
+                        thread.cancellationRequestDeadline = nil
+                        thread.cancellationRequestedByRole = nil
+                        thread.cancellationDeclinedAt = nil
+                    }
+                    thread.lastActivityAt = max(thread.lastActivityAt, record.lastActivityAt)
+                }
                 return record.id
             }
 

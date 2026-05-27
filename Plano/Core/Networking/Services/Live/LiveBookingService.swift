@@ -258,6 +258,35 @@ actor LiveBookingService: BookingServiceProtocol {
             .execute()
     }
 
+    func fetchPendingExternalBookingRequests() async throws -> [ExternalBookingRequestRecord] {
+        try await ensureFreshToken()
+        return try await client.rpc("list_pending_external_requests_for_vendor")
+            .execute()
+            .value
+    }
+
+    func acceptExternalBookingRequest(requestID: UUID) async throws -> ExternalBookingAcceptResult {
+        try await ensureFreshToken()
+        return try await client.rpc(
+            "accept_external_booking_request",
+            params: ["p_request_id": AnyJSON.string(requestID.uuidString)]
+        )
+        .execute()
+        .value
+    }
+
+    func declineExternalBookingRequest(requestID: UUID, reason: String?) async throws {
+        try await ensureFreshToken()
+        try await client.rpc(
+            "decline_external_booking_request",
+            params: [
+                "p_request_id": AnyJSON.string(requestID.uuidString),
+                "p_reason": AnyJSON.string(reason ?? ""),
+            ]
+        )
+        .execute()
+    }
+
     private func fetchOptionalRecord<Record: Decodable>(
         from table: String,
         matching column: String,
@@ -494,6 +523,26 @@ actor LiveBookingService: BookingServiceProtocol {
     }
 
     func fetchConversationSummaries(role: String) async throws -> [ConversationSummaryRecord] {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func fetchVendorNote(conversationID: UUID) async throws -> String? {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func saveVendorNote(conversationID: UUID, content: String) async throws {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func fetchPendingExternalBookingRequests() async throws -> [ExternalBookingRequestRecord] {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func acceptExternalBookingRequest(requestID: UUID) async throws -> ExternalBookingAcceptResult {
+        throw APIError.notSupported("The Supabase SDK is not available in this build.")
+    }
+
+    func declineExternalBookingRequest(requestID: UUID, reason: String?) async throws {
         throw APIError.notSupported("The Supabase SDK is not available in this build.")
     }
 

@@ -1,0 +1,13 @@
+name = "plano-booking"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# Deploys to https://plano-booking.<your-account>.workers.dev.
+# This is the stable public host vendors share — pinned by `applinks:` in the
+# main app's entitlements so taps on iOS with Plano installed open in-app.
+# Everything upstream lives behind the service binding below so swapping out
+# the backing app never requires an entitlement change.
+
+[[services]]
+binding = "NEXTJS_APP"
+service = "plano-web"

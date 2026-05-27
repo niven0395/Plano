@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ServicesEditView: View {
     let store: VendorProfileEditStore
-    @Environment(\.dismiss) private var dismiss
 
     @State private var newServiceText = ""
 
@@ -17,26 +16,18 @@ struct ServicesEditView: View {
                     services: $store.draft.services,
                     newServiceText: $newServiceText
                 )
-
-                Button(store.loadingState.isLoading ? "Saving..." : "Save services") {
-                    Task {
-                        await store.save()
-                        if store.lastSaveOutcome == .saved {
-                            dismiss()
-                        }
-                    }
-                }
-                .buttonStyle(PrimaryActionButtonStyle())
-                .disabled(store.loadingState.isLoading)
             }
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .background(AppBackdrop())
         .navigationTitle("Services")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            VendorProfileEditSaveBar(store: store, buttonLabel: "Save services")
+        }
         .saveFeedback(outcome: store.lastSaveOutcome, successMessage: "Services saved") {
             store.lastSaveOutcome = .idle
         }
@@ -142,21 +133,23 @@ struct KeyServicesSection: View {
     }
 
     private var addServiceRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "plus.circle")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.Palette.accent)
-
+        HStack(spacing: 10) {
             TextField("e.g. Floral installations", text: $newServiceText)
                 .textInputAutocapitalization(.words)
                 .onSubmit { addService() }
+                .planoFormField(systemImage: "plus.circle")
 
             if !newServiceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Button("Add") { addService() }
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.Palette.accent)
+                    .foregroundStyle(AppTheme.Palette.accentForeground)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.Palette.accent, in: Capsule())
+                    .transition(.scale.combined(with: .opacity))
             }
         }
+        .animation(.snappy, value: !newServiceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     private func removeService(at index: Int) {

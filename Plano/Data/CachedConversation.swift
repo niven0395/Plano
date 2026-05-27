@@ -6,7 +6,7 @@ final class CachedConversation {
     #Index<CachedConversation>([\.lastActivityAt])
     @Attribute(.unique) var conversationID: UUID
     var vendorID: UUID
-    var hostUserID: UUID
+    var hostUserID: UUID?
     var hostName: String
     var vendorName: String
     var vendorCategory: String
@@ -23,7 +23,7 @@ final class CachedConversation {
     init(
         conversationID: UUID,
         vendorID: UUID,
-        hostUserID: UUID,
+        hostUserID: UUID?,
         hostName: String,
         vendorName: String,
         vendorCategory: String,
@@ -60,7 +60,7 @@ final class CachedConversation {
 struct CachedConversationRecord: Sendable, Identifiable {
     let id: UUID
     let vendorID: UUID
-    let hostUserID: UUID
+    let hostUserID: UUID?
     let hostName: String
     let vendorName: String
     let vendorCategory: String

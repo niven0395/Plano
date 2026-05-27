@@ -12,7 +12,7 @@ struct VendorProfileLoadedView: View {
     @Environment(AppEnvironment.self) private var environment
 
     @State private var bookingStore: VendorBookingRequestStore?
-    @State private var pendingBookingDate: Date?
+    @State private var isPresentingShareSheet = false
 
     private var isSaved: Bool {
         store.isSaved(planner: planner)
@@ -54,15 +54,34 @@ struct VendorProfileLoadedView: View {
         isSaved ? "heart.fill" : "heart"
     }
 
+    private var floatingActionSymbol: String {
+        if hasBlockingBooking { return "calendar.badge.clock" }
+        return "bubble.left.fill"
+    }
+
+    /// Show the pinned bottom CTA whenever the user has a booking-related action available.
+    /// Inquiry-only vendors keep their in-flow card; anonymous users get the auth prompt instead.
+    private var shouldShowFloatingActionBar: Bool {
+        guard !store.sessionStore.isAnonymous else { return false }
+        guard !store.isOwnVendorProfile else { return false }
+        guard !vendor.isInquiryOnly else { return false }
+        return store.canInitiateConversation
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                // MARK: Act 1 — Identity (hero with absorbed stats + signal row)
                 VendorProfileHeroCard(vendor: vendor)
                     .staggeredAppear(index: 0)
 
-                if store.shouldShowStats {
-                    VendorProfileStatsCard(vendor: vendor)
-                        .staggeredAppear(index: 1)
+                // MARK: Act 2 — Work (gallery first, then copy)
+                if store.shouldShowGallery {
+                    VendorProfileGalleryCard(
+                        galleryImages: vendor.galleryImages,
+                        businessName: vendor.businessName
+                    )
+                    .staggeredAppear(index: 1)
                 }
 
                 if store.shouldShowAbout {
@@ -83,15 +102,27 @@ struct VendorProfileLoadedView: View {
                         .staggeredAppear(index: 4)
                 }
 
-                if store.shouldShowGallery {
-                    SectionHeader(title: "Gallery")
-                    VendorProfileGalleryCard(
-                        galleryImages: vendor.galleryImages,
-                        businessName: vendor.businessName
-                    )
-                    .staggeredAppear(index: 5)
+                // MARK: Act 3 — Offering (packages, add-ons, pricing)
+                if !vendor.packages.isEmpty {
+                    SectionHeader(title: "Packages")
+                    LazyVStack(spacing: 16) {
+                        ForEach(vendor.packages) { package in
+                            VendorProfilePackageCard(package: package)
+                        }
+                    }
                 }
 
+                if !vendor.addOns.isEmpty {
+                    SectionHeader(title: "Add-ons")
+                    VendorProfileAddOnsCard(addOns: vendor.addOns)
+                }
+
+                if !vendor.pricingImagePaths.isEmpty {
+                    SectionHeader(title: "Price sheet")
+                    VendorProfilePricingImagesCard(imagePaths: vendor.pricingImagePaths)
+                }
+
+                // MARK: Act 4 — Logistics (booking, policies, reviews, social)
                 if store.canInitiateConversation, !store.sessionStore.isAnonymous {
                     if hasBlockingBooking, let stage = existingConversationStage, let conversationID = existingConversationID {
                         NavigationLink(value: DiscoveryRoute.bookingDetail(conversationID)) {
@@ -139,11 +170,6 @@ struct VendorProfileLoadedView: View {
                                 vendor: vendor,
                                 store: bookingStore
                             )
-                        } else {
-                            EventTimeRangeBookingSection(
-                                vendor: vendor,
-                                store: initAndReturnBookingStore()
-                            )
                         }
                     } else if let bookingStore {
                         VendorProfileBookingSection(
@@ -151,51 +177,12 @@ struct VendorProfileLoadedView: View {
                             store: bookingStore,
                             availabilityRecords: store.availabilityRecords
                         )
-                    } else {
-                        SectionHeader(title: "Pick a date")
-
-                        AppSurface {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HostBookingCalendar(
-                                    vendorProfile: vendor,
-                                    availabilityRecords: store.availabilityRecords,
-                                    selectedDate: Binding(
-                                        get: { pendingBookingDate },
-                                        set: { date in
-                                            pendingBookingDate = date
-                                            if date != nil {
-                                                initBookingStore()
-                                                bookingStore?.selectedBookingDate = date
-                                            }
-                                        }
-                                    )
-                                )
-
-                                Button("Request Booking") { }
-                                    .buttonStyle(PrimaryActionButtonStyle())
-                                    .disabled(true)
-                            }
-                        }
                     }
                 }
 
-                if !vendor.packages.isEmpty {
-                    SectionHeader(title: "Packages")
-                    LazyVStack(spacing: 16) {
-                        ForEach(vendor.packages) { package in
-                            VendorProfilePackageCard(package: package)
-                        }
-                    }
-                }
-
-                if !vendor.addOns.isEmpty {
-                    SectionHeader(title: "Add-ons")
-                    VendorProfileAddOnsCard(addOns: vendor.addOns)
-                }
-
-                if !vendor.pricingImagePaths.isEmpty {
-                    SectionHeader(title: "Price sheet")
-                    VendorProfilePricingImagesCard(imagePaths: vendor.pricingImagePaths)
+                if store.shouldShowPolicies {
+                    SectionHeader(title: "The details")
+                    VendorProfilePoliciesCard(policies: vendor.policies)
                 }
 
                 if store.shouldShowReviews {
@@ -205,29 +192,6 @@ struct VendorProfileLoadedView: View {
                             VendorProfileReviewCard(review: review)
                         }
                     }
-                }
-
-                if store.shouldShowPolicies {
-                    SectionHeader(title: "Policies")
-                    VendorProfilePoliciesCard(policies: vendor.policies)
-                }
-
-                if !store.isOwnVendorProfile, !vendor.isInquiryOnly, !store.sessionStore.isAnonymous, store.canInitiateConversation || vendor.businessEmail != nil {
-                    SectionHeader(title: "Contact")
-                    VendorProfileContactCard(
-                        vendor: vendor,
-                        primaryActionTitle: primaryActionTitle,
-                        canInitiateConversation: store.canInitiateConversation,
-                        bookingDetailRoute: hasBlockingBooking ? existingConversationID.map { DiscoveryRoute.bookingDetail($0) } : nil,
-                        onMessageAction: {
-                            store.openConversation(
-                                planner: planner,
-                                inboxStore: inboxStore,
-                                router: router,
-                                hostIdentityPromptStore: hostIdentityPromptStore
-                            )
-                        }
-                    )
                 }
 
                 if store.shouldShowSocial {
@@ -240,102 +204,157 @@ struct VendorProfileLoadedView: View {
                 }
             }
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, shouldShowFloatingActionBar ? 96 : 32)
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
+        .safeAreaInset(edge: .bottom) {
+            if shouldShowFloatingActionBar {
+                if hasBlockingBooking {
+                    VendorProfileFloatingActionBar(
+                        priceLabel: nil,
+                        actionTitle: primaryActionTitle,
+                        systemImage: floatingActionSymbol,
+                        bookingDetailRoute: existingConversationID.map { DiscoveryRoute.bookingDetail($0) },
+                        onAction: {}
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    VendorProfileComposerDock(
+                        vendor: vendor,
+                        isSending: bookingStore?.isSubmittingBooking ?? false,
+                        onSendMessage: { message in
+                            store.submitInitialMessage(
+                                message: message,
+                                inboxStore: inboxStore,
+                                router: router,
+                                hostIdentityPromptStore: hostIdentityPromptStore
+                            )
+                        }
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+        }
         .navigationTitle(vendor.businessName)
         .navigationBarTitleDisplayMode(.inline)
         .transition(.opacity.combined(with: .blurReplace))
         .hapticFeedback(.impact(weight: .medium), trigger: isSaved)
-        .sheet(isPresented: Binding(
-            get: { bookingStore?.isPresentingBookingSheet ?? false },
-            set: { bookingStore?.isPresentingBookingSheet = $0 }
-        )) {
-            if let bookingStore, let date = bookingStore.selectedBookingDate {
-                BookingRequestSheet(
-                    vendorName: vendor.businessName,
-                    selectedDate: date,
-                    selectedTimeslot: bookingStore.selectedTimeslot,
-                    requestedStartTime: bookingStore.requestedStartTime,
-                    requestedEndTime: bookingStore.requestedEndTime,
-                    note: Bindable(bookingStore).bookingNote,
-                    showsGuestCount: vendor.collectsGuestCount,
-                    guestCountLabel: Bindable(bookingStore).guestCountLabel,
-                    intakeQuestions: vendor.enabledLeadIntakeQuestions,
-                    intakeAnswers: Bindable(bookingStore).intakeAnswers,
-                    isSubmitting: bookingStore.isSubmittingBooking,
-                    bookingSubmittedSuccessfully: bookingStore.bookingSubmittedSuccessfully,
-                    hasValidTimeRange: bookingStore.schedulingMode != .eventTimeRange || bookingStore.hasValidRequestedTimeRange,
-                    onSubmit: {
-                        Task {
-                            if let refreshed = await bookingStore.submitBookingRequest(
-                                date: date,
-                                note: bookingStore.bookingNote,
-                                vendor: vendor
-                            ) {
-                                store.availabilityRecords = refreshed
-                            }
-                        }
-                    },
-                    onCancel: { bookingStore.isPresentingBookingSheet = false }
-                )
-            }
-        }
-        .alert(
-            "Booking Failed",
-            isPresented: Binding(
-                get: { bookingStore?.bookingError != nil },
-                set: { if !$0 { bookingStore?.bookingError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(bookingStore?.bookingError ?? "Something went wrong. Please try again.")
-        }
+        .bookingPresentation(
+            bookingStore: bookingStore,
+            vendor: vendor,
+            onAvailabilityRefresh: { store.availabilityRecords = $0 }
+        )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(
-                    shortlistActionTitle,
-                    systemImage: shortlistSymbolName,
-                    action: { store.toggleSaved(planner: planner) }
-                )
-                .labelStyle(.iconOnly)
-                .symbolEffect(.bounce, value: isSaved)
-                .foregroundStyle(isSaved ? AppTheme.toneColor(.coral) : AppTheme.Palette.textPrimary)
-                .accessibilityLabel(isSaved ? "Remove from shortlist" : "Save to shortlist")
+                if store.isOwnVendorProfile {
+                    Button("Share booking link", systemImage: "square.and.arrow.up") {
+                        isPresentingShareSheet = true
+                    }
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(AppTheme.Palette.textPrimary)
+                    .accessibilityLabel("Share booking link")
+                    .sheet(isPresented: $isPresentingShareSheet) {
+                        VendorShareLinkSheet(vendorID: vendor.id, vendorName: vendor.businessName)
+                    }
+                } else {
+                    Button(
+                        shortlistActionTitle,
+                        systemImage: shortlistSymbolName,
+                        action: { store.toggleSaved(planner: planner) }
+                    )
+                    .labelStyle(.iconOnly)
+                    .symbolEffect(.bounce, value: isSaved)
+                    .foregroundStyle(isSaved ? AppTheme.toneColor(.coral) : AppTheme.Palette.textPrimary)
+                    .accessibilityLabel(isSaved ? "Remove from shortlist" : "Save to shortlist")
+                }
             }
         }
-    }
-
-    private func initBookingStore() {
-        guard bookingStore == nil else { return }
-        bookingStore = VendorBookingRequestStore(
-            vendorID: vendor.id,
-            bookingService: environment.services.bookingService,
-            availabilityService: environment.services.availabilityService,
-            inboxStore: inboxStore,
-            router: router
-        )
-        Task {
-            await bookingStore?.loadTimeslotBookings(vendor: vendor)
+        .task(id: vendor.id) {
+            guard bookingStore == nil else { return }
+            let newStore = VendorBookingRequestStore(
+                vendorID: vendor.id,
+                bookingService: environment.services.bookingService,
+                availabilityService: environment.services.availabilityService,
+                inboxStore: inboxStore,
+                router: router
+            )
+            newStore.schedulingMode = vendor.schedulingMode
+            newStore.initializeEventTimeRangeDefaults()
+            bookingStore = newStore
+            await newStore.loadTimeslotBookings(vendor: vendor)
         }
     }
+}
 
-    @discardableResult
-    private func initAndReturnBookingStore() -> VendorBookingRequestStore {
-        if let bookingStore { return bookingStore }
-        let newStore = VendorBookingRequestStore(
-            vendorID: vendor.id,
-            bookingService: environment.services.bookingService,
-            availabilityService: environment.services.availabilityService,
-            inboxStore: inboxStore,
-            router: router
-        )
-        newStore.schedulingMode = vendor.schedulingMode
-        newStore.initializeEventTimeRangeDefaults()
-        bookingStore = newStore
-        return newStore
+private struct VendorProfileBookingPresenter: ViewModifier {
+    @Bindable var bookingStore: VendorBookingRequestStore
+    let vendor: VendorProfile
+    let onAvailabilityRefresh: ([VendorAvailabilityRecord]) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $bookingStore.isPresentingBookingSheet) {
+                if let date = bookingStore.selectedBookingDate {
+                    BookingRequestSheet(
+                        vendorName: vendor.businessName,
+                        selectedDate: date,
+                        selectedTimeslot: bookingStore.selectedTimeslot,
+                        requestedStartTime: bookingStore.requestedStartTime,
+                        requestedEndTime: bookingStore.requestedEndTime,
+                        note: $bookingStore.bookingNote,
+                        showsGuestCount: vendor.collectsGuestCount,
+                        guestCountLabel: $bookingStore.guestCountLabel,
+                        intakeQuestions: vendor.enabledLeadIntakeQuestions,
+                        intakeAnswers: $bookingStore.intakeAnswers,
+                        isSubmitting: bookingStore.isSubmittingBooking,
+                        bookingSubmittedSuccessfully: bookingStore.bookingSubmittedSuccessfully,
+                        hasValidTimeRange: bookingStore.schedulingMode != .eventTimeRange || bookingStore.hasValidRequestedTimeRange,
+                        onSubmit: {
+                            Task {
+                                if let refreshed = await bookingStore.submitBookingRequest(
+                                    date: date,
+                                    note: bookingStore.bookingNote,
+                                    vendor: vendor
+                                ) {
+                                    onAvailabilityRefresh(refreshed)
+                                }
+                            }
+                        },
+                        onCancel: { bookingStore.isPresentingBookingSheet = false }
+                    )
+                }
+            }
+            .alert(
+                "Booking Failed",
+                isPresented: Binding(
+                    get: { bookingStore.bookingError != nil },
+                    set: { if !$0 { bookingStore.bookingError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(bookingStore.bookingError ?? "Something went wrong. Please try again.")
+            }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func bookingPresentation(
+        bookingStore: VendorBookingRequestStore?,
+        vendor: VendorProfile,
+        onAvailabilityRefresh: @escaping ([VendorAvailabilityRecord]) -> Void
+    ) -> some View {
+        if let bookingStore {
+            modifier(VendorProfileBookingPresenter(
+                bookingStore: bookingStore,
+                vendor: vendor,
+                onAvailabilityRefresh: onAvailabilityRefresh
+            ))
+        } else {
+            self
+        }
     }
 }
 
@@ -343,6 +362,12 @@ private struct VendorProfileBookingSection: View {
     let vendor: VendorProfile
     @Bindable var store: VendorBookingRequestStore
     let availabilityRecords: [VendorAvailabilityRecord]
+
+    private static let summaryDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.setLocalizedDateFormatFromTemplate("EEEE, MMM d")
+        return df
+    }()
 
     var body: some View {
         SectionHeader(title: "Pick a date")
@@ -362,16 +387,60 @@ private struct VendorProfileBookingSection: View {
                     )
                 }
 
-                Button("Request Booking") {
-                    store.isPresentingBookingSheet = true
+                if store.canSubmitBooking, let date = store.selectedBookingDate {
+                    requestActionCard(date: date)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .buttonStyle(PrimaryActionButtonStyle())
-                .disabled(!store.canSubmitBooking)
             }
+            .animation(.snappy, value: store.canSubmitBooking)
+        }
+        .hapticFeedback(.impact(weight: .light), trigger: store.canSubmitBooking) { old, new in
+            !old && new
         }
         .onChange(of: store.selectedBookingDate) { _, _ in
             store.selectedTimeslot = nil
             store.updateTimeslotsForSelectedDate(vendor: vendor)
+        }
+    }
+
+    @ViewBuilder
+    private func requestActionCard(date: Date) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.checkmark")
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.Palette.accent)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Self.summaryDateFormatter.string(from: date))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
+
+                    if let slot = store.selectedTimeslot {
+                        Text(slot.timeRangeLabel)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.Palette.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                Button("Clear") {
+                    store.selectedBookingDate = nil
+                    store.selectedTimeslot = nil
+                }
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.textSecondary)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear selected date")
+            }
+
+            Button("Request booking") {
+                store.isPresentingBookingSheet = true
+            }
+            .buttonStyle(PrimaryActionButtonStyle())
         }
     }
 }
@@ -390,62 +459,10 @@ private struct VendorProfileAuthPrompt: View {
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.Palette.textSecondary)
 
-                Button("Create an account") {
-                    authStore.presentCreateAccount()
+                Button("Sign in or create an account") {
+                    authStore.presentSignIn()
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
-
-                Button("Already have an account? Sign in") {
-                    authStore.presentEmailAuth()
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(AppTheme.Palette.accent)
-                .buttonStyle(.plain)
-            }
-        }
-    }
-}
-
-private struct VendorProfileContactCard: View {
-    let vendor: VendorProfile
-    let primaryActionTitle: String
-    let canInitiateConversation: Bool
-    var bookingDetailRoute: DiscoveryRoute? = nil
-    let onMessageAction: () -> Void
-
-    @Environment(\.openURL) private var openURL
-
-    private var hasEmail: Bool {
-        guard let email = vendor.businessEmail else { return false }
-        return !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        AppSurface {
-            VStack(spacing: 12) {
-                if canInitiateConversation {
-                    if let bookingDetailRoute {
-                        NavigationLink(value: bookingDetailRoute) {
-                            Label(primaryActionTitle, systemImage: "calendar.badge.clock")
-                        }
-                        .buttonStyle(PrimaryActionButtonStyle())
-                    } else {
-                        Button(action: onMessageAction) {
-                            Label(primaryActionTitle, systemImage: "bubble.left.fill")
-                        }
-                        .buttonStyle(PrimaryActionButtonStyle())
-                    }
-                }
-
-                if hasEmail, let email = vendor.businessEmail,
-                   let url = URL(string: "mailto:\(email)") {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        Label("Email", systemImage: "envelope")
-                    }
-                    .buttonStyle(SecondaryActionButtonStyle())
-                }
             }
         }
     }
@@ -499,6 +516,38 @@ private struct VendorProfileInquiryCard: View {
                     .buttonStyle(SecondaryActionButtonStyle())
                 }
             }
+        }
+    }
+}
+
+// MARK: - Floating Action Bar
+
+private struct VendorProfileFloatingActionBar: View {
+    let priceLabel: String?
+    let actionTitle: String
+    let systemImage: String
+    let bookingDetailRoute: DiscoveryRoute?
+    let onAction: () -> Void
+
+    var body: some View {
+        AppFloatingActionBar {
+            if let priceLabel, !priceLabel.isEmpty {
+                AppFloatingActionBarPriceBlock(priceLabel: priceLabel)
+            }
+        } trailing: {
+            Group {
+                if let bookingDetailRoute {
+                    NavigationLink(value: bookingDetailRoute) {
+                        Label(actionTitle, systemImage: systemImage)
+                    }
+                } else {
+                    Button(action: onAction) {
+                        Label(actionTitle, systemImage: systemImage)
+                    }
+                }
+            }
+            .buttonStyle(AppFloatingActionBarButtonStyle())
+            .accessibilityLabel(actionTitle)
         }
     }
 }

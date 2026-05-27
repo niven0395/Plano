@@ -7,18 +7,7 @@ struct AuthView: View {
 
     var body: some View {
         NavigationStack {
-            if let verificationEmail = store.pendingVerificationEmail {
-                EmailVerificationView(email: verificationEmail, store: store)
-            } else if store.showEmailSignInAfterVerification {
-                EmailAuthScreen(store: store, initialSignUp: false)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close", action: store.dismissPresentedSheet)
-                        }
-                    }
-            } else {
-                AuthMainContent(mode: mode, store: store)
-            }
+            AuthMainContent(mode: mode, store: store)
         }
     }
 }
@@ -29,58 +18,26 @@ private struct AuthMainContent: View {
     let mode: AuthSheetMode
     let store: AuthStore
 
-    @Environment(AppEnvironment.self) private var environment
-
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                AppSurface(style: .highlighted) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        StatusBadge(
-                            title: environment.services.isConfigured ? "Live backend" : "Backend unavailable",
-                            tone: environment.services.isConfigured ? .sage : .gold
-                        )
+            VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(mode.title)
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                        SectionHeader(
-                            title: mode.title,
-                            subtitle: mode.subtitle
-                        )
-
-                        Text(environment.transportSummary)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                    }
+                    Text(mode.subtitle)
+                        .font(.body)
+                        .foregroundStyle(AppTheme.Palette.textSecondary)
                 }
+
+                AuthPrimaryOptions(store: store)
 
                 if let message = store.loadingState.errorMessage {
-                    AppSurface {
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.Palette.textSecondary)
-                    }
-                }
-
-                switch mode {
-                case .emailAuth:
-                    SignInOptionsView(store: store)
-
-                case .createAccount:
-                    CreateAccountOptionsView(store: store)
-
-                case .vendorSignIn, .hostUpgrade:
-                    if store.supportsAppleSignIn {
-                        SignInWithAppleButton(.signIn) { request in
-                            store.configureAppleRequest(request)
-                        } onCompletion: { result in
-                            Task {
-                                await store.handleAppleCompletion(result)
-                            }
-                        }
-                        .signInWithAppleButtonStyle(.black)
-                        .frame(height: 54)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius, style: .continuous))
-                        .disabled(store.loadingState.isLoading)
-                    }
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if store.loadingState.isLoading {
@@ -88,18 +45,20 @@ private struct AuthMainContent: View {
                         ProgressView()
                             .tint(AppTheme.Palette.accent)
 
-                        Text("Preparing your session")
+                        Text("Signing you in")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(AppTheme.Palette.textSecondary)
                     }
                 }
+
+                Spacer(minLength: 0)
             }
             .padding(AppTheme.screenPadding)
+            .padding(.top, 24)
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
-        .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -109,15 +68,15 @@ private struct AuthMainContent: View {
     }
 }
 
-// MARK: - Sign In Options
+// MARK: - Primary Options (Apple hero + email secondary)
 
-private struct SignInOptionsView: View {
+private struct AuthPrimaryOptions: View {
     let store: AuthStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             if store.supportsAppleSignIn {
-                SignInWithAppleButton(.signIn) { request in
+                SignInWithAppleButton(.continue) { request in
                     store.configureAppleRequest(request)
                 } onCompletion: { result in
                     Task {
@@ -125,69 +84,50 @@ private struct SignInOptionsView: View {
                     }
                 }
                 .signInWithAppleButtonStyle(.black)
-                .frame(height: 54)
+                .frame(height: 56)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius, style: .continuous))
                 .disabled(store.loadingState.isLoading)
             }
 
-            NavigationLink {
-                EmailAuthScreen(store: store, initialSignUp: false)
-            } label: {
-                Text("Sign in with email")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(SecondaryActionButtonStyle())
+            DividerWithLabel(label: "or")
 
             NavigationLink {
-                EmailAuthScreen(store: store, initialSignUp: true)
-            } label: {
-                Text("Don't have an account? Create one")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppTheme.Palette.accent)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-}
-
-// MARK: - Create Account Options
-
-private struct CreateAccountOptionsView: View {
-    let store: AuthStore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if store.supportsAppleSignIn {
-                SignInWithAppleButton(.signUp) { request in
-                    store.configureAppleRequest(request)
-                } onCompletion: { result in
-                    Task {
-                        await store.handleAppleCompletion(result)
-                    }
-                }
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.smallCornerRadius, style: .continuous))
-                .disabled(store.loadingState.isLoading)
-            }
-
-            NavigationLink {
-                EmailAuthScreen(store: store, initialSignUp: true)
+                EmailAuthScreen(store: store)
             } label: {
                 Text("Continue with email")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SecondaryActionButtonStyle())
 
-            NavigationLink {
-                EmailAuthScreen(store: store, initialSignUp: false)
-            } label: {
-                Text("Already have an account? Sign in")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppTheme.Palette.accent)
-            }
-            .buttonStyle(.plain)
+            Text("By continuing, you agree to Plano's Terms and Privacy Policy.")
+                .font(.caption)
+                .foregroundStyle(AppTheme.Palette.subdued)
+                .multilineTextAlignment(.leading)
+                .padding(.top, 4)
         }
+    }
+}
+
+// MARK: - Divider with label
+
+private struct DividerWithLabel: View {
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Rectangle()
+                .fill(AppTheme.Palette.border)
+                .frame(height: 1)
+
+            Text(label)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.Palette.subdued)
+
+            Rectangle()
+                .fill(AppTheme.Palette.border)
+                .frame(height: 1)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -195,26 +135,19 @@ private struct CreateAccountOptionsView: View {
 
 private struct EmailAuthScreen: View {
     let store: AuthStore
-    let initialSignUp: Bool
-
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ScrollView {
-            EmailAuthForm(store: store, initialSignUp: initialSignUp)
+            EmailAuthForm(store: store)
                 .padding(AppTheme.screenPadding)
+                .padding(.top, 16)
                 .padding(.bottom, 32)
         }
         .scrollDismissesKeyboard(.interactively)
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
-        .navigationTitle(initialSignUp ? "Create account" : "Sign in")
+        .navigationTitle("Continue with email")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: store.pendingVerificationEmail) { _, newValue in
-            if newValue != nil {
-                dismiss()
-            }
-        }
     }
 }
 
@@ -222,74 +155,38 @@ private struct EmailAuthScreen: View {
 
 private struct EmailAuthForm: View {
     let store: AuthStore
-    let initialSignUp: Bool
 
-    @State private var isSignUp: Bool
+    @State private var isSignUp = true
+    @State private var name = ""
     @State private var email = ""
     @State private var password = ""
-    @State private var firstName = ""
-    @State private var lastName = ""
     @FocusState private var focusedField: Field?
 
-    init(store: AuthStore, initialSignUp: Bool = false) {
-        self.store = store
-        self.initialSignUp = initialSignUp
-        self._isSignUp = State(initialValue: initialSignUp)
-    }
-
     private enum Field: Hashable {
-        case firstName, lastName, email, password
+        case name, email, password
     }
 
     private var isValid: Bool {
         let emailTrimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasEmail = emailTrimmed.contains("@") && emailTrimmed.contains(".")
-        let hasPassword = password.count >= 6
-        if isSignUp {
-            let hasFirstName = !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            let hasLastName = !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            return hasEmail && hasPassword && hasFirstName && hasLastName
-        }
-        return hasEmail && hasPassword
+        let hasPassword = password.count >= 8
+        let hasName = !isSignUp || !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasEmail && hasPassword && hasName
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             if isSignUp {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("First name")
+                    Text("Name")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                    TextField("First name", text: $firstName)
-                        .textContentType(.givenName)
+                    TextField("Your full name", text: $name)
+                        .textContentType(.name)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
-                        .focused($focusedField, equals: .firstName)
-                        .submitLabel(.next)
-                        .onSubmit { focusedField = .lastName }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                        .background(
-                            AppTheme.Palette.inputFill,
-                            in: .rect(cornerRadius: AppTheme.compactCornerRadius)
-                        )
-                        .overlay {
-                            RoundedRectangle(cornerRadius: AppTheme.compactCornerRadius)
-                                .stroke(AppTheme.Palette.border, lineWidth: 1)
-                        }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Last name")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.Palette.textPrimary)
-
-                    TextField("Last name", text: $lastName)
-                        .textContentType(.familyName)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .focused($focusedField, equals: .lastName)
+                        .focused($focusedField, equals: .name)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .email }
                         .padding(.horizontal, 16)
@@ -335,7 +232,7 @@ private struct EmailAuthForm: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.Palette.textPrimary)
 
-                SecureField("At least 6 characters", text: $password)
+                SecureField(isSignUp ? "At least 8 characters" : "Your password", text: $password)
                     .textContentType(isSignUp ? .newPassword : .password)
                     .focused($focusedField, equals: .password)
                     .submitLabel(.go)
@@ -361,26 +258,20 @@ private struct EmailAuthForm: View {
             Button {
                 focusedField = nil
                 Task {
+                    let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
                     if isSignUp {
-                        let trimmedFirst = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let trimmedLast = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let fullName = [trimmedFirst, trimmedLast]
-                            .filter { !$0.isEmpty }
-                            .joined(separator: " ")
                         await store.signUpWithEmail(
-                            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                            email: trimmedEmail,
                             password: password,
-                            displayName: fullName.isEmpty ? nil : fullName
+                            displayName: name
                         )
                     } else {
-                        await store.signInWithEmail(
-                            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                            password: password
-                        )
+                        await store.signInWithEmail(email: trimmedEmail, password: password)
                     }
                 }
             } label: {
                 Text(isSignUp ? "Create account" : "Sign in")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryActionButtonStyle())
             .disabled(!isValid || store.loadingState.isLoading)
@@ -404,12 +295,14 @@ private struct EmailAuthForm: View {
             } label: {
                 Text(isSignUp
                     ? "Already have an account? Sign in"
-                    : "Don't have an account? Create one")
+                    : "New here? Create an account")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(AppTheme.Palette.accent)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
             .buttonStyle(.plain)
             .hapticFeedback(.selection, trigger: isSignUp)
+            .padding(.top, 4)
         }
     }
 }

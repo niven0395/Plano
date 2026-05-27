@@ -4,7 +4,7 @@ nonisolated struct ConversationSummaryRecord: Codable, Hashable, Sendable {
     let conversationID: UUID
     let eventID: UUID?
     let vendorID: UUID
-    let hostID: UUID
+    let hostID: UUID?
     let hostDisplayName: String
     let vendorDisplayName: String
     let vendorCategory: String
@@ -50,7 +50,7 @@ nonisolated struct ConversationSummaryRecord: Codable, Hashable, Sendable {
         conversationID = try container.decode(UUID.self, forKey: .conversationID)
         eventID = try container.decodeIfPresent(UUID.self, forKey: .eventID)
         vendorID = try container.decode(UUID.self, forKey: .vendorID)
-        hostID = try container.decode(UUID.self, forKey: .hostID)
+        hostID = try container.decodeIfPresent(UUID.self, forKey: .hostID)
         hostDisplayName = try container.decode(String.self, forKey: .hostDisplayName)
         vendorDisplayName = try container.decode(String.self, forKey: .vendorDisplayName)
         vendorCategory = try container.decode(String.self, forKey: .vendorCategory)

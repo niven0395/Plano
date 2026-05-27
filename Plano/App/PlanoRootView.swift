@@ -12,6 +12,8 @@ struct PlanoRootView: View {
     @Environment(VendorDashboardStore.self) private var vendorDashboardStore
     @AppStorage("plano.host.hasSeenTour") private var hasSeenTour = false
     @State private var splashMinimumMet = false
+    @State private var externalClaimCoordinator: ExternalBookingClaimCoordinator?
+    @State private var lastSweepedUserID: UUID?
 
     var body: some View {
         @Bindable var router = router
@@ -71,6 +73,16 @@ struct PlanoRootView: View {
         .hapticFeedback(.selection, trigger: router.selectedTab)
         .toolbarBackground(AppTheme.Palette.chrome, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let email = authStore.pendingVerificationEmail {
+                EmailVerificationBanner(email: email, store: authStore)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(AppAnimation.transition, value: authStore.pendingVerificationEmail)
         .sheet(item: $authStore.presentedSheet) { mode in
             AuthView(mode: mode, store: authStore)
                 .environment(environment)
@@ -104,7 +116,49 @@ struct PlanoRootView: View {
             try? await Task.sleep(for: .milliseconds(800))
             splashMinimumMet = true
         }
+        .task {
+            if externalClaimCoordinator == nil {
+                externalClaimCoordinator = ExternalBookingClaimCoordinator(
+                    claimService: environment.services.externalBookingClaimService,
+                    sessionStore: session,
+                    router: router
+                )
+            }
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+            guard let url = userActivity.webpageURL,
+                  let route = ExternalBookingURL.route(from: url) else { return }
+            handleExternalLinkRoute(route)
+        }
+        .onOpenURL { url in
+            if let route = ExternalBookingURL.route(from: url) {
+                handleExternalLinkRoute(route)
+            }
+        }
+        .onChange(of: session.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated,
+               let userID = session.currentUserID,
+               lastSweepedUserID != userID {
+                lastSweepedUserID = userID
+                Task { await externalClaimCoordinator?.runPostSignInSweep() }
+            } else if !isAuthenticated {
+                lastSweepedUserID = nil
+            }
+        }
         // Role changes are handled by PlanoApp.handleRoleChange which also loads data
+    }
+
+    private func handleExternalLinkRoute(_ route: ExternalBookingLinkRoute) {
+        switch route {
+        case .vendorProfile(let vendorID):
+            router.selectedTab = .home
+            router.openVendorProfile(vendorID)
+        case .claim(let token):
+            Task { await externalClaimCoordinator?.handle(token: token) }
+            if !session.isAuthenticated {
+                authStore.presentSignIn()
+            }
+        }
     }
 }
 

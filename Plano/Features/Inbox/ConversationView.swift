@@ -233,7 +233,7 @@ struct ConversationBookingStatusBanner: View {
         case .accepted:
             if role == .vendor {
                 VStack(spacing: 12) {
-                    Label("Booking accepted", systemImage: "checkmark.circle")
+                    Label("Booking confirmed", systemImage: "checkmark.circle")
                         .font(.subheadline.weight(.medium))
                     Button("Request Payment") { isPresentingPaymentSheet = true }
                         .buttonStyle(.borderedProminent)
@@ -241,7 +241,7 @@ struct ConversationBookingStatusBanner: View {
                 .padding()
                 .background(.ultraThinMaterial, in: .rect(cornerRadius: 12))
             } else {
-                Label("Accepted — vendor may request payment", systemImage: "checkmark.circle")
+                Label("Booking confirmed", systemImage: "checkmark.circle")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding()
@@ -437,26 +437,31 @@ private struct DeliveryStatusIndicator: View {
             switch status {
             case .sending:
                 Image(systemName: "clock")
-                    .font(.caption2)
                     .foregroundStyle(AppTheme.Palette.subdued)
+                    .accessibilityLabel("Sending")
             case .sent:
-                Image(systemName: "checkmark")
-                    .font(.caption2)
+                Image(systemName: "checkmark.circle")
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(AppTheme.Palette.subdued)
+                    .accessibilityLabel("Sent")
             case .delivered:
-                Image(systemName: "checkmark")
-                    .font(.caption2.bold())
-                    .foregroundStyle(AppTheme.Palette.subdued)
+                Image(systemName: "checkmark.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(AppTheme.Palette.textSecondary)
+                    .accessibilityLabel("Delivered")
             case .read:
-                Image(systemName: "checkmark")
-                    .font(.caption2.bold())
+                Image(systemName: "checkmark.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(AppTheme.Palette.accent)
+                    .accessibilityLabel("Read")
             case .failed:
                 Image(systemName: "exclamationmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(Color.red)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(AppTheme.toneColor(.coral))
+                    .accessibilityLabel("Failed to send")
             }
         }
+        .font(.caption.weight(.semibold))
         .contentTransition(.symbolEffect(.replace))
     }
 }

@@ -107,7 +107,7 @@ final class ConversationBookingCoordinator {
             conversations[index].stage = .accepted
             conversations[index].messages.append(ChatMessage(
                 sender: .system,
-                body: "Booking accepted by vendor.",
+                body: "Booking confirmed by vendor.",
                 sentAt: .now,
                 kind: .system
             ))
@@ -129,6 +129,7 @@ final class ConversationBookingCoordinator {
                 }
             }
             bookingActionError = error.localizedDescription
+            await reloadConversations()
         }
     }
 
@@ -190,6 +191,7 @@ final class ConversationBookingCoordinator {
                 }
             }
             bookingActionError = error.localizedDescription
+            await reloadConversations()
         }
     }
 
@@ -267,6 +269,7 @@ final class ConversationBookingCoordinator {
                 }
             }
             bookingActionError = error.localizedDescription
+            await reloadConversations()
         }
     }
 
@@ -430,6 +433,7 @@ final class ConversationBookingCoordinator {
                     }
                 }
                 bookingActionError = error.localizedDescription
+                await reloadConversations()
             }
         } else {
             do {

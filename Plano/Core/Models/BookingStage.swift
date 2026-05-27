@@ -15,7 +15,7 @@ enum BookingStage: String, Codable {
         switch self {
         case .active: "Active"
         case .requested: "Requested"
-        case .accepted: "Accepted"
+        case .accepted: "Confirmed"
         case .declined: "Declined"
         case .paymentRequested: "Payment requested"
         case .paid: "Payment confirmed"

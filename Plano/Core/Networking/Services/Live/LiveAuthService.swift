@@ -243,7 +243,8 @@ actor LiveAuthService: AuthServiceProtocol {
             userID: session.user.id,
             emailAddress: userRecord?.email ?? session.user.email,
             displayName: personalName,
-            vendorDisplayName: vendorDisplayName
+            vendorDisplayName: vendorDisplayName,
+            isEmailVerified: session.user.emailConfirmedAt != nil
         )
     }
 
@@ -283,13 +284,7 @@ actor LiveAuthService: AuthServiceProtocol {
             return components.joined(separator: " ")
         }
 
-        if let email,
-           let localPart = email.split(separator: "@").first,
-           !localPart.isEmpty {
-            return localPart.replacingOccurrences(of: ".", with: " ").capitalized
-        }
-
-        return "Plano User"
+        return AuthenticatedUserProfile.displayName(fromEmail: email) ?? "Plano User"
     }
 }
 #else

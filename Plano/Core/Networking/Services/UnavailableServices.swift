@@ -266,6 +266,18 @@ struct UnavailableBookingService: BookingServiceProtocol {
     func saveVendorNote(conversationID: UUID, content: String) async throws {
         throw APIError.notConfigured(message)
     }
+
+    func fetchPendingExternalBookingRequests() async throws -> [ExternalBookingRequestRecord] {
+        throw APIError.notConfigured(message)
+    }
+
+    func acceptExternalBookingRequest(requestID: UUID) async throws -> ExternalBookingAcceptResult {
+        throw APIError.notConfigured(message)
+    }
+
+    func declineExternalBookingRequest(requestID: UUID, reason: String?) async throws {
+        throw APIError.notConfigured(message)
+    }
 }
 
 struct UnavailableVendorAvailabilityService: VendorAvailabilityServiceProtocol {

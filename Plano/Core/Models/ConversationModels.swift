@@ -114,7 +114,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
     var eventID: UUID?
     let eventDate: Date?
     let vendorID: UUID
-    let hostUserID: UUID
+    let hostUserID: UUID?
     let hostName: String
     let vendorName: String
     let vendorCategory: VendorCategory
@@ -147,7 +147,7 @@ struct ConversationThread: Identifiable, Hashable, Sendable {
         eventID: UUID?,
         eventDate: Date? = nil,
         vendorID: UUID,
-        hostUserID: UUID = UUID(uuidString: "00000000-0000-0000-0000-00000000A001") ?? UUID(),
+        hostUserID: UUID? = nil,
         hostName: String,
         vendorName: String,
         vendorCategory: VendorCategory,

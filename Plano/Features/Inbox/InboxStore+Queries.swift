@@ -13,6 +13,7 @@ extension InboxStore {
 
     func unreadCount(for role: UserRole) -> Int {
         scopedConversations(for: role)
+            .filter { !isArchived($0.id, for: role) }
             .reduce(0) { $0 + $1.unreadCount(for: role) }
     }
 

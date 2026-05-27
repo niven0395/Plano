@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  min-height: 100dvh;
+  color: #24211F;
+  background: linear-gradient(135deg, #F2F0EB 0%, #E8E6E1 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    color: #EEE7D8;
+    background: linear-gradient(135deg, #19170F 0%, #23201B 100%);
+  }
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* iOS zoom prevention on focus. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+*:focus-visible {
+  outline: 2px solid #1F1C19;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  *:focus-visible {
+    outline-color: #FDFCFA;
+  }
+}
+
+/* Large-headline tracking (-1.1 at 32px in native → ≈ -0.035em). */
+.tracking-native-title {
+  letter-spacing: -0.035em;
+}

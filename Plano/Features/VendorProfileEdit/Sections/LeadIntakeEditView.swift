@@ -2,7 +2,6 @@ import SwiftUI
 
 struct LeadIntakeEditView: View {
     let store: VendorProfileEditStore
-    @Environment(\.dismiss) private var dismiss
     @State private var editingQuestionIndex: Int?
     @State private var isAddingNewQuestion = false
 
@@ -122,24 +121,17 @@ struct LeadIntakeEditView: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                Button(store.loadingState.isLoading ? "Saving..." : "Save intake form") {
-                    Task {
-                        await store.save()
-                        if store.lastSaveOutcome == .saved {
-                            dismiss()
-                        }
-                    }
-                }
-                .buttonStyle(PrimaryActionButtonStyle())
-                .disabled(store.loadingState.isLoading)
             }
             .padding(AppTheme.screenPadding)
-            .padding(.bottom, 32)
+            .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
         .background(AppBackdrop())
         .navigationTitle("Lead Intake")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            VendorProfileEditSaveBar(store: store, buttonLabel: "Save intake form")
+        }
         .saveFeedback(outcome: store.lastSaveOutcome, successMessage: "Intake form saved") {
             store.lastSaveOutcome = .idle
         }

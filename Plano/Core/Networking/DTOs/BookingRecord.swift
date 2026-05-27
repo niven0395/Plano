@@ -5,7 +5,7 @@ nonisolated struct BookingRecord: Codable, Hashable, Identifiable {
     let conversationID: UUID
     let eventID: UUID?
     let vendorID: UUID
-    let hostID: UUID
+    let hostID: UUID?
     let depositAmountLabel: String?
     let depositAmountCents: Int?
     let totalAmountCents: Int?
@@ -76,7 +76,7 @@ nonisolated struct BookingRecord: Codable, Hashable, Identifiable {
         conversationID: UUID,
         eventID: UUID?,
         vendorID: UUID,
-        hostID: UUID,
+        hostID: UUID?,
         depositAmountLabel: String? = nil,
         depositAmountCents: Int? = nil,
         totalAmountCents: Int? = nil,
@@ -148,7 +148,7 @@ nonisolated struct BookingRecord: Codable, Hashable, Identifiable {
         conversationID = try container.decode(UUID.self, forKey: .conversationID)
         eventID = try container.decodeIfPresent(UUID.self, forKey: .eventID)
         vendorID = try container.decode(UUID.self, forKey: .vendorID)
-        hostID = try container.decode(UUID.self, forKey: .hostID)
+        hostID = try container.decodeIfPresent(UUID.self, forKey: .hostID)
         depositAmountLabel = try container.decodeIfPresent(String.self, forKey: .depositAmountLabel)
         depositAmountCents = try container.decodeIfPresent(Int.self, forKey: .depositAmountCents)
         totalAmountCents = try container.decodeIfPresent(Int.self, forKey: .totalAmountCents)

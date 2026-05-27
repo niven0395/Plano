@@ -104,6 +104,8 @@ final class VendorDashboardStore {
     var responseRating: ResponseRating = .good
     var loadingState: LoadingState = .idle
     var insightsSummary: InsightsSummary?
+    var externalPendingRequests: [ExternalBookingRequestRecord] = []
+    var externalRequestActionInFlight: Set<UUID> = []
 
     struct InsightsSummary {
         let profileViews: Int
@@ -118,7 +120,14 @@ final class VendorDashboardStore {
         prioritizeLeadQueue(
             from: leadQueue
                 .map { inboxStore.updatedSummary(from: $0, for: .vendor) }
-                .filter { !$0.stage.isConfirmed && $0.stage != .active && $0.stage != .cancelled && $0.stage != .declined }
+                .filter {
+                    !$0.stage.isConfirmed
+                        && $0.stage != .active
+                        && $0.stage != .cancelled
+                        && $0.stage != .declined
+                        && $0.stage != .accepted
+                        && $0.stage != .paymentRequested
+                }
         )
     }
 
@@ -189,6 +198,49 @@ final class VendorDashboardStore {
         } catch {
             loadingState = .failed(error.localizedDescription)
         }
+
+        await loadExternalPendingRequests()
+    }
+
+    func loadExternalPendingRequests() async {
+        guard sessionStore.currentUserID != nil else {
+            externalPendingRequests = []
+            return
+        }
+        do {
+            externalPendingRequests = try await bookingService.fetchPendingExternalBookingRequests()
+        } catch is CancellationError {
+            // Normal task lifecycle
+        } catch {
+            AppLogger.booking.error("Failed to load external pending requests: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func acceptExternalRequest(_ requestID: UUID) async {
+        guard !externalRequestActionInFlight.contains(requestID) else { return }
+        externalRequestActionInFlight.insert(requestID)
+        defer { externalRequestActionInFlight.remove(requestID) }
+
+        do {
+            _ = try await bookingService.acceptExternalBookingRequest(requestID: requestID)
+            externalPendingRequests.removeAll { $0.id == requestID }
+            await inboxStore.reload()
+        } catch {
+            AppLogger.booking.error("Accept external request failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func declineExternalRequest(_ requestID: UUID, reason: String? = nil) async {
+        guard !externalRequestActionInFlight.contains(requestID) else { return }
+        externalRequestActionInFlight.insert(requestID)
+        defer { externalRequestActionInFlight.remove(requestID) }
+
+        do {
+            try await bookingService.declineExternalBookingRequest(requestID: requestID, reason: reason)
+            externalPendingRequests.removeAll { $0.id == requestID }
+        } catch {
+            AppLogger.booking.error("Decline external request failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func reset() {
@@ -199,6 +251,8 @@ final class VendorDashboardStore {
         responseRating = .good
         insightsSummary = nil
         fetchedResponseMinutes = nil
+        externalPendingRequests = []
+        externalRequestActionInFlight = []
         hasLoaded = false
         loadingState = .idle
     }
